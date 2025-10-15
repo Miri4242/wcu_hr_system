@@ -1,0 +1,127 @@
+{% extends "base_page.html" %}
+
+{% block title %}Monthly Attendance Control{% endblock %}
+
+{% block page_title %}Monthly Attendance Control Table - {{ data.month_name | default('Select Month') }}{% endblock %}
+
+{% block content %}
+<style>
+    /* ORİJİNAL STİLİNİZ: Sadece .export-button stili ve form düzenlemesi eklendi. */
+    .filter-form {
+        display: flex; /* Butonları aynı satırda tutmak için ekledik */
+        align-items: center;
+        gap: 15px;
+    }
+    .export-button {
+        background-color: #28a745; /* Yeşil renk */
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        font-size: 14px;
+        text-decoration: none;
+        margin-left: auto; /* Butonu sağa iter */
+    }
+    .export-button:hover {
+        background-color: #1e7e34;
+    }
+    /* Diğer orijinal stiliniz burada devam ediyor... */
+</style>
+
+<div class="logs-container calendar-view">
+
+    <form method="POST" class="filter-form" id="attendance-form">
+        <label for="month">Month:</label>
+        <select id="month" name="month">
+            {% for m_value, m_name in months %}
+            <option value="{{ m_value }}" {% if m_value == current_selection.month %}selected{% endif %}>
+                {{ m_name }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <label for="year">Year:</label>
+        <select id="year" name="year">
+            {% for y_value in years %}
+            <option value="{{ y_value }}" {% if y_value == current_selection.year %}selected{% endif %}>
+                {{ y_value }}
+            </option>
+            {% endfor %}
+        </select>
+
+        <button type="submit" class="filter-button">Fetch Data</button>
+
+        <a id="export-link"
+           href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year) }}"
+           class="export-button">
+           <i class="fas fa-file-export"></i> Export to CSV
+        </a>
+    </form>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-message">{{ messages[0] }}</div>
+        {% endif %}
+    {% endwith %}
+
+    <div class="legend-box">
+        <span class="status-indicator full-day"></span> Full Day (T)
+        <span class="status-indicator half-day"></span> Partial Day (E)
+        <span class="status-indicator absence"></span> Absent (D)
+    </div>
+
+    {% if data.logs %}
+    <div class="table-responsive-calendar">
+        <table class="data-table calendar-table">
+            <thead>
+                <tr>
+                    <th>EMPLOYEE</th>
+
+                    {% for day in data.headers %}
+                    <th>{{ day }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in data.logs %}
+                <tr>
+                    <td class="employee-name-cell">{{ log.name }}</td>
+
+                    {% for status in log.days %}
+                        <td class="status-cell">
+                            {% if status == 'T' %}
+                                <span class="status-indicator full-day" title="Full Day"></span>
+                            {% elif status == 'E' %}
+                                <span class="status-indicator half-day" title="Partial Day"></span>
+                            {% elif status == 'D' %}
+                                <span class="status-indicator absence" title="Absent"></span>
+                            {% else %}
+                                <span class="status-indicator no-log" title="No Log"></span>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="no-data">No attendance data found for the selected month and year.</p>
+    {% endif %}
+</div>
+
+<script>
+    document.getElementById('attendance-form').addEventListener('change', function() {
+        var month = document.getElementById('month').value;
+        var year = document.getElementById('year').value;
+        var exportLink = document.getElementById('export-link');
+
+        // Export linkini yeni seçilen ay ve yıl ile güncelle
+        var newHref = '{{ url_for("export_monthly_attendance") }}' + '?month=' + month + '&year=' + year;
+        exportLink.href = newHref;
+    });
+</script>
+
+{% endblock %}

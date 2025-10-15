@@ -1,0 +1,141 @@
+{% extends "base_page.html" %}
+
+{% block title %}Edit Employee{% endblock %}
+
+{% block page_title %}Editing: {{ employee.name }} {{ employee.last_name }}{% endblock %}
+
+{% block content %}
+<style>
+    .form-container {
+        max-width: 800px;
+        padding: 20px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin: 20px 0;
+    }
+    .form-group {
+        margin-bottom: 15px;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        color: #555;
+    }
+    .form-control {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 14px;
+    }
+    .form-control[type="date"] {
+        height: 38px;
+    }
+    .btn-submit {
+        background-color: #28a745;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.2s;
+    }
+    .btn-submit:hover {
+        background-color: #1e7e34;
+    }
+    .profile-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+    }
+    .profile-photo-lg {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 20px;
+        border: 3px solid #007bff;
+    }
+</style>
+
+<div class="form-container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="profile-header">
+        <img src="{{ employee.photo_path }}" alt="{{ employee.name }} Photo" class="profile-photo-lg">
+        <div>
+            <h4>{{ employee.name }} {{ employee.last_name }}</h4>
+            <p class="text-muted" style="margin: 0;">{{ employee.position_name }} (ID: {{ employee.id }})</p>
+        </div>
+    </div>
+    
+    <form method="POST">
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="name">Name</label>
+                    <input type="text" class="form-control" id="name" name="name" value="{{ employee.name }}" required>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" class="form-control" id="last_name" name="last_name" value="{{ employee.last_name }}" required>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="position_id">Position</label>
+                    <select class="form-control" id="position_id" name="position_id">
+                        {% for position in positions %}
+                            <option value="{{ position.id }}" {% if position.id == employee.position_id %}selected{% endif %}>
+                                {{ position.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="birthday">Birthday</label>
+                    <input type="date" class="form-control" id="birthday" name="birthday" value="{{ employee.birthday_form }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ employee.email }}">
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label for="mobile_phone">Mobile Phone</label>
+                    <input type="tel" class="form-control" id="mobile_phone" name="mobile_phone" value="{{ employee.mobile_phone }}">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn-submit">Save Changes</button>
+        <a href="{{ url_for('employees') }}" class="btn-submit" style="background-color: #6c757d;">Cancel</a>
+
+    </form>
+</div>
+{% endblock %}

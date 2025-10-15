@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HR System - {% block title %}{% endblock %}</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* ... Tüm eski CSS'leriniz burada ... */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100vh;
+        }
+
+        .sidebar-top {
+            flex-grow: 1;
+            padding-bottom: 0;
+            margin-bottom: 0;
+        }
+
+        .sidebar-top a {
+            margin-bottom: 0;
+        }
+
+        .logout-link {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 5px;
+            padding-bottom: 30px;
+        }
+
+        .logout-link a {
+            color: #dc3545 !important;
+            font-weight: 600;
+        }
+
+        .logout-link a:hover {
+            background-color: rgba(220, 53, 69, 0.2) !important;
+            color: white !important;
+        }
+
+        .select2-container--default .select2-selection--single {
+            height: 38px;
+            padding-top: 5px;
+            border-color: #ced4da;
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="sidebar-top">
+            <h3>HR System</h3>
+
+            <a href="{{ url_for('dashboard') }}" {% if request.path == url_for('dashboard') %}class="active"{% endif %}><span class="material-icons">dashboard</span> Dashboard</a>
+
+            <a href="{{ url_for('employees') }}" {% if request.path == url_for('employees') %}class="active"{% endif %}><span class="material-icons">people_alt</span> Employees</a>
+
+            <a href="{{ url_for('attendance') }}" {% if request.path == url_for('attendance') %}class="active"{% endif %}><span class="material-icons">event_note</span> Attendance</a>
+            <a href="{{ url_for('hours_tracked') }}" {% if request.path == url_for('hours_tracked') %}class="active"{% endif %}><span class="material-icons">access_time</span> Hours Tracked</a>
+            <a href="{{ url_for('employee_logs') }}" {% if request.path == url_for('employee_logs') %}class="active"{% endif %}><span class="material-icons">description</span> Employee Logs</a>
+            <a href="{{ url_for('salary') }}" {% if request.path == url_for('salary') %}class="active"{% endif %}><span class="material-icons">attach_money</span> Salary</a>
+        </div>
+
+        <div class="logout-link">
+            <a href="{{ url_for('logout') }}"><span class="material-icons">exit_to_app</span> Logout</a>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="header">
+            <h2>{% block page_title %}{% endblock %}</h2>
+        </div>
+        <div class="page-content">
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+</body>
+</html>

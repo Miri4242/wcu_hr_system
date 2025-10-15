@@ -1,0 +1,91 @@
+{% extends "base_page.html" %}
+
+{% block title %}Tracked Hours{% endblock %}
+
+{% block page_title %}Working Hours Tracking{% endblock %}
+
+{% block content %}
+<div class="hours-tracked-container">
+
+    <div class="filter-controls-hours-tracked">
+        <form method="GET" id="hoursFilterForm" class="filter-form-inline">
+
+            <label for="person_key">Select Employee:</label>
+            <select id="person_key" name="person_key" style="width: 200px;">
+                <option value="" {% if not selected_person_key %}selected{% endif %}>-- Select Employee --</option>
+                {% for employee in employees %}
+                <option value="{{ employee.key }}" {% if employee.key == selected_person_key %}selected{% endif %}>
+                    {{ employee.name }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <label for="period">Period:</label>
+            <select id="period" name="period">
+                {% for p_value, p_name in periods %}
+                <option value="{{ p_value }}" {% if p_value == selected_period %}selected{% endif %}>
+                    {{ p_name }}
+                </option>
+                {% endfor %}
+            </select>
+             <button type="submit" class="filter-button">Show</button>
+
+        </form>
+    </div>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <div class="flash-message">{{ messages[0] }}</div>
+        {% endif %}
+    {% endwith %}
+
+    {% if selected_person_key and tracked_data.logs %}
+
+    <div class="summary-card">
+        <div class="summary-header">
+            <h3>{{ selected_employee_name }}</h3>
+            <span class="total-time">{{ tracked_data.total_time_str }} <small>Total Working Time</small></span>
+        </div>
+    </div>
+
+    <div class="daily-hours-list">
+        {% for log in tracked_data.logs %}
+        <div class="daily-hour-item">
+            <span class="day-label">{{ log.date }}</span>
+            <div class="progress-wrapper">
+
+                {% set max_seconds = 28800 %}
+                {% set percentage = (log.seconds / max_seconds) * 100 if max_seconds > 0 else 0 %}
+                {% set percentage_clamped = [100, percentage]|min %}
+
+                <div class="hour-bar-container">
+                    {% set bar_class = 'bar-full' if log.status == 'T' else ('bar-partial' if log.status == 'E' else 'bar-absent') %}
+
+                    <div class="hour-bar {{ bar_class }}" style="width: {{ percentage_clamped }}%;"></div>
+                </div>
+            </div>
+            <span class="time-value">{{ log.time_str }}</span>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% elif selected_person_key %}
+    <p class="no-data">No working hours data found for the selected employee in this period.</p>
+    {% else %}
+    <p class="no-data">Please select an employee to view tracked hours.</p>
+    {% endif %}
+
+</div>
+
+<script>
+    // SELECT2 ARAMA ÇUBUĞU AKTİVASYONU
+    $(document).ready(function() {
+        $('#person_key').select2({
+            placeholder: "-- Select Employee --",
+            allowClear: true,
+            width: '100%'
+        });
+    });
+</script>
+
+{% endblock %}

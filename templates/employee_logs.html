@@ -1,0 +1,141 @@
+{% extends "base_page.html" %}
+
+{% block title %}Working Hours Analysis{% endblock %}
+
+{% block page_title %}Working Hours Analysis (In/Out Time){% endblock %}
+
+{% block content %}
+    <p>The total time employees spent inside and outside, according to turnstile movements over the last 365 days, is listed. Matching is done based on First Name and Last Name.</p>
+
+    <div class="filter-controls" style="margin-bottom: 20px;">
+        <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}" style="display: flex; gap: 10px; align-items: center; width: 100%;">
+
+            <label for="person_key" style="font-weight: bold;">Select Employee:</label>
+            <select name="person_key" id="person_key" style="padding: 8px; border-radius: 6px; border: 1px solid #ccc; min-width: 200px;">
+                <option value="" {% if selected_person_key == None or selected_person_key == '' %}selected{% endif %}>All Employees ({{ employees|length }})</option>
+
+                {% for emp in employees %}
+                    <option value="{{ emp.key }}" {% if emp.key == selected_person_key %}selected{% endif %}>
+                        {{ emp.name }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="btn" style="background-color: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s;">
+                Filter
+            </button>
+
+            <a id="export-link"
+               href="{{ url_for('export_employee_logs', person_key=selected_person_key or '') }}"
+               class="btn export-btn"
+               style="margin-left: auto; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; transition: background-color 0.2s;">
+                <i class="fas fa-file-export"></i> Export to CSV
+            </a>
+
+        </form>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+
+    <h3 style="margin-top: 20px; color: #333;">
+        Summary Table: {{ selected_employee_name }}
+    </h3>
+
+    <div class="logs-container">
+        {% if logs %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Employee Name</th>
+                    <th>First In</th>
+                    <th>Last Out</th>
+                    <th>Total INSIDE Time</th>
+                    <th>Total OUTSIDE Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.date }}</td>
+                    <td>{{ log.name }} {{ log.last_name }}</td>
+                    <td>{{ log.first_in }}</td>
+                    <td>{{ log.last_out }}</td>
+                    <td style="font-weight: 600; color: #1a7e4b;">{{ log.inside_time }}</td>
+                    <td style="font-weight: 600; color: #cc0000;">{{ log.outside_time }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No movement data found for the selected employee/time period (Matching Error possible).</p>
+        {% endif %}
+    </div>
+
+    <style>
+        .logs-container {
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+            font-weight: 700;
+            color: #333;
+        }
+        .data-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+        /* Export button specific style */
+        .export-btn:hover {
+            background-color: #1e7e34 !important;
+        }
+        /* Filter form düzeltmesi: Butonları aynı hizada tutmak için formun içindeki elemanları genişletiyoruz */
+        .filter-controls form {
+            justify-content: flex-start; /* Elemanları baştan başlat */
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const exportLink = document.getElementById('export-link');
+            const personKeySelect = document.getElementById('person_key');
+
+            // Base export URL
+            const baseUrl = "{{ url_for('export_employee_logs') }}";
+
+            // Function to update the export link's href attribute
+            function updateExportLink() {
+                const selectedKey = personKeySelect.value;
+                let exportUrl = baseUrl;
+
+                if (selectedKey) {
+                    exportUrl += `?person_key=${selectedKey}`;
+                }
+
+                exportLink.href = exportUrl;
+            }
+
+            // Set the link on page load
+            updateExportLink();
+
+            // Update the link when the employee selection changes
+            personKeySelect.addEventListener('change', updateExportLink);
+
+            // Since the form method is GET, the filter button itself will correctly reload the page
+            // and the export link update is handled by the JS above.
+        });
+    </script>
+{% endblock %}

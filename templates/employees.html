@@ -1,0 +1,120 @@
+{% extends "base_page.html" %}
+
+{% block title %}Employees{% endblock %}
+
+{% block page_title %}Employee List{% endblock %}
+
+{% block content %}
+<style>
+    .employee-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        background-color: white;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .employee-table th, .employee-table td {
+        padding: 12px 15px;
+        text-align: left;
+        border-bottom: 1px solid #f0f0f0;
+    }
+    .employee-table th {
+        background-color: #f5f5f5;
+        color: #333;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 14px;
+    }
+    .employee-table tr:hover {
+        background-color: #f9f9f9;
+    }
+    .employee-photo {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        object-fit: cover;
+        margin-right: 10px;
+        border: 2px solid #ddd;
+    }
+    .employee-name-cell {
+        display: flex;
+        align-items: center;
+        font-weight: 500;
+        color: #333;
+    }
+    .action-button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: background-color 0.2s;
+        font-size: 13px;
+        margin-left: 10px;
+    }
+    .action-button.export-button {
+        background-color: #28a745; /* Yeşil renk */
+    }
+    .action-button:hover {
+        background-color: #0056b3;
+    }
+    .action-button.export-button:hover {
+        background-color: #1e7e34;
+    }
+    .header-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+</style>
+
+<div class="card-large">
+
+    <div class="header-controls">
+        <h3>All Employees ({{ employees|length }})</h3>
+        <a href="{{ url_for('export_employees') }}" class="action-button export-button">
+            <i class="fas fa-file-export"></i> Export to CSV
+        </a>
+    </div>
+
+    <table class="employee-table">
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Position</th>
+                <th>Email</th>
+                <th>Mobile</th>
+                <th>Hire Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td class="employee-name-cell">
+                    <img src="{{ employee.photo_path }}" alt="{{ employee.name }} Photo" class="employee-photo">
+                    {{ employee.name }} {{ employee.last_name }}
+                </td>
+                <td>{{ employee.position }}</td>
+                <td>{{ employee.email }}</td>
+                <td>{{ employee.mobile_phone }}</td>
+                <td>{{ employee.hire_date }}</td>
+                <td>
+                    <a href="{{ url_for('edit_employee', employee_id=employee.id) }}" class="action-button">HR</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" style="text-align: center;">No employees found in the database.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

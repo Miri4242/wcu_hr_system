@@ -1,0 +1,596 @@
+    /* General Style Reset and Font */
+    body {
+        font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f8fafc; /* Light Off-White */
+        color: #1f2937; /* Dark Gray Text */
+        line-height: 1.6;
+    }
+
+    /* --- Login Page Styles --- */
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #e0f2fe, #bfdbfe); /* Light Blue Gradient */
+    }
+
+    .login-container form {
+        background: #ffffff;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1), 0 3px 5px rgba(0, 0, 0, 0.06);
+        width: 380px;
+        text-align: center;
+    }
+
+    .login-container h2 {
+        margin-bottom: 25px;
+        color: #1e40af; /* Dark Blue Header */
+        font-weight: 700;
+    }
+
+    .login-container input {
+        width: 100%;
+        padding: 14px;
+        margin: 12px 0;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        box-sizing: border-box;
+        transition: border-color 0.3s;
+    }
+
+    .login-container input:focus {
+        border-color: #3b82f6; /* Blue Focus Border */
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .login-container button {
+        width: 100%;
+        padding: 14px;
+        background-color: #3b82f6; /* Vibrant Blue Button */
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 15px;
+        transition: background-color 0.3s, transform 0.2s;
+    }
+
+    .login-container button:hover {
+        background-color: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .login-container .login-options {
+        display: flex;
+        justify-content: space-between;
+        margin: 15px 0;
+        font-size: 14px;
+        color: #6b7280;
+    }
+
+    .login-container .login-options a {
+        color: #3b82f6;
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+
+    .login-container .login-options a:hover {
+        color: #2563eb;
+        text-decoration: underline;
+    }
+
+    .login-container p {
+        margin-top: 20px;
+        font-size: 14px;
+    }
+
+    .login-container p a {
+        color: #3b82f6;
+    }
+
+    .login-container .error {
+        color: #ef4444; /* Red Error Message */
+        background-color: #fee2e2;
+        padding: 10px;
+        border-radius: 6px;
+        margin-top: 15px;
+        font-size: 14px;
+        border: 1px solid #f87171;
+    }
+
+    /* --- Dashboard and Sidebar Styles --- */
+    .sidebar {
+        width: 250px;
+        background-color: #1e40af; /* Dark Blue Sidebar */
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        padding-top: 30px;
+        color: white;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+    }
+
+    .sidebar h3 {
+        margin-bottom: 40px;
+        font-size: 24px;
+        font-weight: 800;
+        text-align: center;
+        color: #dbeafe; /* Light Blue Header */
+    }
+
+    .sidebar a {
+        display: flex;
+        align-items: center;
+        padding: 15px 25px;
+        text-decoration: none;
+        color: #bfdbfe; /* Pale White Link */
+        font-size: 16px;
+        width: 100%;
+        box-sizing: border-box;
+        transition: background-color 0.3s, color 0.3s;
+    }
+
+    .sidebar a:hover {
+        background-color: #173289; /* Slightly Darker Hover */
+        color: white;
+    }
+
+    .sidebar a.active {
+        background-color: #3b82f6; /* Active Blue Background */
+        color: white;
+        border-left: 5px solid #fff; /* Highlight Line */
+        font-weight: 600;
+    }
+
+    .sidebar a .material-icons {
+        margin-right: 15px;
+        font-size: 20px;
+    }
+
+    .main-content {
+        margin-left: 250px;
+        padding: 30px;
+    }
+
+    .header {
+        margin-bottom: 30px;
+        padding: 15px 0;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .header h2 {
+        color: #1f2937;
+        font-size: 28px;
+        font-weight: 700;
+    }
+
+    /* --- Stats Card Styles --- */
+    .stats-container {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+
+    .stat-card {
+        background: #ffffff;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* Soft Shadow */
+        width: 25%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 120px;
+        border-left: 5px solid transparent; /* Default Line */
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-card h4 {
+        color: #6b7280; /* Pale Gray Header */
+        margin-bottom: 5px;
+        font-size: 15px;
+        font-weight: 500;
+        text-transform: uppercase;
+    }
+
+    .stat-card p {
+        font-size: 32px;
+        margin: 5px 0 15px 0;
+        color: #1f2937; /* Dark Number */
+        font-weight: 700;
+    }
+
+    /* Card Highlight Lines */
+    .stats-container div:nth-child(1) { border-left-color: #3b82f6; } /* Blue */
+    .stats-container div:nth-child(2) { border-left-color: #10b981; } /* Green */
+    .stats-container div:nth-child(3) { border-left-color: #f59e0b; } /* Yellow */
+    .stats-container div:nth-child(4) { border-left-color: #ef4444; } /* Red */
+
+
+    /* Progress Bar */
+    .progress-bar {
+        height: 6px;
+        background-color: #e5e7eb;
+        border-radius: 3px;
+        margin-top: 10px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Progress Bar Inner Fill Colors */
+    .progress-bar::after {
+        content: '';
+        display: block;
+        height: 100%;
+        /* Width is set via HTML style="width:..." */
+        transition: width 0.5s ease-out;
+        border-radius: 3px;
+    }
+
+    .stats-container div:nth-child(1) .progress-bar::after { background-color: #3b82f6; }
+    .stats-container div:nth-child(2) .progress-bar::after { background-color: #10b981; }
+    .stats-container div:nth-child(3) .progress-bar::after { background-color: #f59e0b; }
+    .stats-container div:nth-child(4) .progress-bar::after { background-color: #ef4444; }
+
+    /* --- General Table Styles --- */
+
+    .data-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 14px;
+    }
+
+    .data-table th, .data-table td {
+        padding: 12px 15px;
+        text-align: left;
+    }
+
+    .data-table thead th {
+        background-color: #eef2ff; /* Light Blue Header Background */
+        color: #1e40af; /* Dark Blue Header Text */
+        font-weight: 600;
+        text-transform: uppercase;
+        border-bottom: 2px solid #dbeafe;
+    }
+
+    .data-table tbody tr {
+        border-bottom: 1px solid #f3f4f6;
+        transition: background-color 0.3s;
+    }
+
+    .data-table tbody tr:nth-child(even) {
+        background-color: #f9fafb; /* Zebra Pattern */
+    }
+
+    .data-table tbody tr:hover {
+        background-color: #eff6ff; /* Light Blue Hover */
+    }
+
+    .no-data {
+        color: #6b7280;
+        padding: 15px;
+        text-align: center;
+        border: 1px dashed #d1d5db;
+        border-radius: 8px;
+        margin-top: 15px;
+        background-color: #f0f3f6;
+    }
+
+    /* --- MONTHLY CALENDAR VIEW STYLES --- */
+
+    .calendar-view {
+        padding: 20px 0;
+    }
+
+    /* Filter Form Style */
+    .filter-form {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        margin-bottom: 25px;
+        padding: 15px 20px;
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .filter-form label {
+        font-weight: 600;
+        color: #1e40af;
+        font-size: 14px;
+    }
+
+    .filter-form select {
+        padding: 8px 12px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background-color: #f9fafb;
+        color: #1f2937;
+        font-size: 14px;
+        cursor: pointer;
+        transition: border-color 0.3s;
+    }
+
+    .filter-form select:focus {
+        border-color: #3b82f6;
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    .filter-button {
+        padding: 8px 15px;
+        background-color: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: background-color 0.3s, transform 0.2s;
+    }
+
+    .filter-button:hover {
+        background-color: #2563eb;
+        transform: translateY(-1px);
+    }
+
+    .flash-message {
+        padding: 10px 15px;
+        margin-bottom: 15px;
+        background-color: #fef3c7;
+        color: #92400e;
+        border: 1px solid #f59e0b;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .table-responsive-calendar {
+        overflow-x: auto; /* Horizontal scrollbar */
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+    }
+
+    .calendar-table {
+        min-width: 100%;
+        white-space: nowrap;
+    }
+
+    .calendar-table th, .calendar-table td {
+        padding: 8px 10px;
+        text-align: center;
+    }
+
+    .calendar-table thead th:first-child {
+        text-align: left;
+        min-width: 200px; /* Space for employee names */
+        position: sticky;
+        left: 0;
+        z-index: 10;
+    }
+
+    .calendar-table tbody td:first-child {
+        text-align: left;
+        font-weight: 500;
+        background-color: #ffffff;
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        border-right: 1px solid #f3f4f6;
+    }
+
+    /* Status Icons */
+    .status-indicator {
+        display: inline-block;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background-size: 80%;
+        background-position: center;
+        background-repeat: no-repeat;
+        line-height: 18px;
+        margin: 0 auto;
+        vertical-align: middle;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Color and Icon Definitions */
+
+    /* Full Day - Green (T) */
+    .status-indicator.full-day {
+        background-color: #10b981; /* Green */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z'/%3E%3C/svg%3E");
+    }
+
+    /* Partial Day - Yellow/Orange (E) */
+    .status-indicator.half-day {
+        background-color: #f59e0b; /* Yellow/Orange */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/%3E%3C/svg%3E");
+    }
+
+    /* Absent - Red (D) */
+    .status-indicator.absence {
+        background-color: #ef4444; /* Red */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+    }
+
+    /* No Log - RED X (Y) - Uses the same style as Absent (D) */
+    .status-indicator.no-log {
+        background-color: #ef4444; /* Red */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
+        border: none;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Legend Box */
+    .legend-box {
+        margin-bottom: 25px;
+        padding: 15px 20px;
+        background: #eef2ff;
+        border-radius: 8px;
+        border: 1px solid #dbeafe;
+        font-size: 14px;
+        color: #374151;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .legend-box .status-indicator {
+        width: 14px;
+        height: 14px;
+        margin: 0 5px;
+    }
+
+    /* -------------------------------------------------- */
+/* --- HOURS TRACKED PAGE STYLES --- */
+/* -------------------------------------------------- */
+
+.filter-controls-hours-tracked {
+    margin-bottom: 25px;
+    padding: 15px 20px;
+    background: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.filter-form-inline {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+}
+
+.filter-form-inline label {
+    font-weight: 600;
+    color: #1e40af;
+    font-size: 14px;
+}
+
+.filter-form-inline select {
+    padding: 8px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #1f2937;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.3s;
+    min-width: 150px;
+}
+
+/* Summary Card (Mevcut HR System tarzına uygun koyu mavi/beyaz) */
+.summary-card {
+    background: #1e40af; /* Dark Blue - Sidebar Rengi */
+    color: white;
+    padding: 25px 30px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.summary-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.summary-header h3 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.total-time {
+    font-size: 28px;
+    font-weight: 800;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.total-time small {
+    font-size: 12px;
+    font-weight: 400;
+    opacity: 0.8;
+}
+
+/* Daily Hours List */
+.daily-hours-list {
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.daily-hour-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.daily-hour-item:last-child {
+    border-bottom: none;
+}
+
+.day-label {
+    width: 150px;
+    font-weight: 600;
+    color: #374151;
+    text-align: left;
+    flex-shrink: 0;
+}
+
+.progress-wrapper {
+    flex-grow: 1;
+    padding: 0 20px;
+}
+
+.hour-bar-container {
+    height: 10px;
+    background-color: #e5e7eb; /* Gray Background */
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.hour-bar {
+    height: 100%;
+    transition: width 0.5s ease-out;
+}
+
+.time-value {
+    width: 100px;
+    font-weight: 700;
+    text-align: right;
+    flex-shrink: 0;
+    color: #1f2937;
+}
+
+/* Bar Colors based on Status (T=Full, E=Partial, D/Y=Absent) */
+.hour-bar.bar-full {
+    background-color: #10b981; /* Green */
+}
+
+.hour-bar.bar-partial {
+    background-color: #f59e0b; /* Orange/Yellow */
+}
+
+.hour-bar.bar-absent {
+    background-color: #ef4444; /* Red */
+}
