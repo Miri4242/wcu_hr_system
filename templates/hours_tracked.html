@@ -2,7 +2,7 @@
 
 {% block title %}Tracked Hours{% endblock %}
 
-{% block page_title %}Working Hours Tracking{% endblock %}
+{% block page_title %}Working Hours Tracking (Daily Duration){% endblock %}
 
 {% block content %}
 <div class="hours-tracked-container">
@@ -10,24 +10,38 @@
     <div class="filter-controls-hours-tracked">
         <form method="GET" id="hoursFilterForm" class="filter-form-inline">
 
-            <label for="person_key">Select Employee:</label>
-            <select id="person_key" name="person_key" style="width: 200px;">
-                <option value="" {% if not selected_person_key %}selected{% endif %}>-- Select Employee --</option>
-                {% for employee in employees %}
-                <option value="{{ employee.key }}" {% if employee.key == selected_person_key %}selected{% endif %}>
-                    {{ employee.name }}
-                </option>
-                {% endfor %}
-            </select>
+            <div class="form-group-flex">
+                <label for="person_key">Select Employee:</label>
+                {# Select2 library will use this ID #}
+                <select id="person_key" name="person_key" style="width: 250px;">
+                    <option value="" {% if not selected_person_key %}selected{% endif %}>-- Select Employee --</option>
+                    {% for employee in employees %}
+                    <option value="{{ employee.key }}" {% if employee.key == selected_person_key %}selected{% endif %}>
+                        {{ employee.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
 
-            <label for="period">Period:</label>
-            <select id="period" name="period">
-                {% for p_value, p_name in periods %}
-                <option value="{{ p_value }}" {% if p_value == selected_period %}selected{% endif %}>
-                    {{ p_name }}
-                </option>
-                {% endfor %}
-            </select>
+            <div class="form-group-flex">
+                <label for="period">Period:</label>
+                <select id="period" name="period">
+                    {# General Period Options (English) #}
+                    <option value="last_7_days" {% if selected_period == 'last_7_days' %}selected{% endif %}>Last 7 Days</option>
+                    <option value="last_30_days" {% if selected_period == 'last_30_days' %}selected{% endif %}>Last 30 Days</option>
+                    <option value="this_month" {% if selected_period == 'this_month' %}selected{% endif %}>This Month</option>
+                    <option value="last_month" {% if selected_period == 'last_month' %}selected{% endif %}>Last Month</option>
+
+                    {# Month Selection Options (English) #}
+                    {% if available_months %}
+                    <optgroup label="By Month">
+                        {% for month_value, month_label in available_months %}
+                            <option value="{{ month_value }}" {% if selected_period == month_value %}selected{% endif %}>{{ month_label }}</option>
+                        {% endfor %}
+                    </optgroup>
+                    {% endif %}
+                </select>
+            </div>
              <button type="submit" class="filter-button">Show</button>
 
         </form>
@@ -44,27 +58,54 @@
     <div class="summary-card">
         <div class="summary-header">
             <h3>{{ selected_employee_name }}</h3>
-            <span class="total-time">{{ tracked_data.total_time_str }} <small>Total Working Time</small></span>
+            <span class="total-time">{{ tracked_data.total_time_str }} <small>Total Working Time in Period</small></span>
         </div>
     </div>
 
     <div class="daily-hours-list">
+
+        {# Legend: Show Status Colors (English) #}
+        <div class="legend-box" style="margin-bottom: 25px; background-color: #f7f9fc; color: #374151; border: 1px solid #e5e7eb; padding: 15px;">
+            <span style="font-weight: 600; color: #1e40af;">Daily Time Status:</span>
+            <span style="display: inline-flex; align-items: center; margin-left: 15px;"><div class="hour-bar bar-full" style="width: 15px; height: 10px; border-radius: 4px; margin-right: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div> ≥ 8 Hours (Full)</span>
+            <span style="display: inline-flex; align-items: center; margin-left: 15px;"><div class="hour-bar bar-partial" style="width: 15px; height: 10px; border-radius: 4px; margin-right: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);"></div> &lt; 8 Hours (Partial)</span>
+            <span style="display: inline-flex; align-items: center; margin-left: 15px;"><div class="hour-bar bar-absent" style="width: 15px; height: 10px; border-radius: 4px; margin-right: 5px; box-shadow: 1px 1px 3px rgba(0,0,0,0.1);"></div> 0 Hours (Absent)</span>
+        </div>
+
         {% for log in tracked_data.logs %}
         <div class="daily-hour-item">
+
+            {# 1. DAY LABEL #}
             <span class="day-label">{{ log.date }}</span>
+
             <div class="progress-wrapper">
 
-                {% set max_seconds = 28800 %}
+                {# Graphic Display: Max reference is 10 hours (36000 seconds) #}
+                {% set max_seconds = 36000 %}
                 {% set percentage = (log.seconds / max_seconds) * 100 if max_seconds > 0 else 0 %}
                 {% set percentage_clamped = [100, percentage]|min %}
 
-                <div class="hour-bar-container">
-                    {% set bar_class = 'bar-full' if log.status == 'T' else ('bar-partial' if log.status == 'E' else 'bar-absent') %}
+                {# Determine Color (Based on T, E, D codes from app.py) #}
+                {% if log.status == 'T' %}
+                    {% set bar_class = 'bar-full' %}
+                {% elif log.status == 'E' %}
+                    {% set bar_class = 'bar-partial' %}
+                {% else %}
+                    {% set bar_class = 'bar-absent' %}
+                {% endif %}
 
+                <div class="hour-bar-container">
+
+                    {# Fill bar #}
                     <div class="hour-bar {{ bar_class }}" style="width: {{ percentage_clamped }}%;"></div>
+
+                    {# Text inside the bar removed #}
                 </div>
             </div>
+
+            {# 2. TIME VALUE #}
             <span class="time-value">{{ log.time_str }}</span>
+
         </div>
         {% endfor %}
     </div>
@@ -77,13 +118,25 @@
 
 </div>
 
+{# Select2 ve Otomatik Gönderme Scripti #}
 <script>
-    // SELECT2 ARAMA ÇUBUĞU AKTİVASYONU
+    // JQuery yüklendikten sonra çalıştır.
     $(document).ready(function() {
+        // Select Employee dropdown'ını aranabilir Select2'ye çevir.
         $('#person_key').select2({
             placeholder: "-- Select Employee --",
             allowClear: true,
-            width: '100%'
+            width: '250px'
+        });
+
+        // Seçim değiştiğinde formu otomatik gönder.
+        $('#person_key').on('change', function() {
+            $('#hoursFilterForm').submit();
+        });
+
+        // Periyot değiştiğinde formu otomatik gönder.
+        $('#period').on('change', function() {
+            $('#hoursFilterForm').submit();
         });
     });
 </script>

@@ -71,6 +71,16 @@
         align-items: center;
         margin-bottom: 15px;
     }
+    /* Yeni Stil: Mail linki rengi ve alt çizgisi */
+    .employee-table a.mail-link {
+        color: #007bff; /* Mavi Link Rengi */
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .employee-table a.mail-link:hover {
+        text-decoration: underline;
+        color: #0056b3;
+    }
 </style>
 
 <div class="card-large">
@@ -101,7 +111,21 @@
                     {{ employee.name }} {{ employee.last_name }}
                 </td>
                 <td>{{ employee.position }}</td>
-                <td>{{ employee.email }}</td>
+
+                {# 🚨 E-POSTA ALANI GÜNCELLENDİ: Outlook Web'e yönlendiren JavaScript çağırılıyor #}
+                <td>
+                    {% if employee.email and employee.email != 'N/A' %}
+                        <a href="#"
+                           onclick="openOutlookWeb('{{ employee.email }}'); return false;"
+                           class="mail-link"
+                           title="Send email to {{ employee.name }} {{ employee.last_name }}">
+                            {{ employee.email }}
+                        </a>
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+
                 <td>{{ employee.mobile_phone }}</td>
                 <td>{{ employee.hire_date }}</td>
                 <td>
@@ -116,5 +140,18 @@
         </tbody>
     </table>
 </div>
+
+{# 🚨 GEREKLİ JAVASCRIPT FONKSİYONU EKLEDİK #}
+<script>
+    function openOutlookWeb(recipientEmail) {
+        // Bu URL, Office 365'te yeni bir e-posta taslağı açmayı dener.
+        // Eğer bu URL çalışmazsa, Office 365 kiracınızın özel bir URL formatı olabilir.
+        // Genel Outlook Web URL formatı:
+        const outlookComposeUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(recipientEmail)}`;
+
+        // Yeni sekmede açar
+        window.open(outlookComposeUrl, '_blank');
+    }
+</script>
 
 {% endblock %}

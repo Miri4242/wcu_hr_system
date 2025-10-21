@@ -1,4 +1,4 @@
-    /* General Style Reset and Font */
+/* General Style Reset and Font */
     body {
         font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         margin: 0;
@@ -218,8 +218,7 @@
     .stats-container div:nth-child(1) { border-left-color: #3b82f6; } /* Blue */
     .stats-container div:nth-child(2) { border-left-color: #10b981; } /* Green */
     .stats-container div:nth-child(3) { border-left-color: #f59e0b; } /* Yellow */
-    .stats-container div:nth-child(4) { border-left-color: #ef4444; } /* Red */
-
+    .stats-container div:nth-child(4) .progress-bar::after { background-color: #ef4444; }
 
     /* Progress Bar */
     .progress-bar {
@@ -429,7 +428,7 @@
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
     }
 
-    /* No Log - RED X (Y) - Uses the same style as Absent (D) */
+    /* No Log - RED X (N) - Uses the same style as Absent (D) */
     .status-indicator.no-log {
         background-color: #ef4444; /* Red */
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z'/%3E%3C/svg%3E");
@@ -437,13 +436,13 @@
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
-    /* Legend Box */
+    /* Legend Box styles... */
     .legend-box {
         margin-bottom: 25px;
         padding: 15px 20px;
-        background: #eef2ff;
+        background: #f7f9fc;
         border-radius: 8px;
-        border: 1px solid #dbeafe;
+        border: 1px solid #e5e7eb;
         font-size: 14px;
         color: #374151;
         display: flex;
@@ -458,139 +457,298 @@
         margin: 0 5px;
     }
 
+
     /* -------------------------------------------------- */
-/* --- HOURS TRACKED PAGE STYLES --- */
+    /* --- HOURS TRACKED PAGE STYLES (TEMİZ TASARIM) --- */
+    /* -------------------------------------------------- */
+
+    .filter-controls-hours-tracked {
+        margin-bottom: 25px;
+        padding: 20px;
+        background: #ffffff; /* Beyaz arkaplan, daha temiz */
+        border-radius: 8px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05); /* Yumuşak gölge */
+        border: 1px solid #e5e7eb;
+    }
+
+    .filter-form-inline {
+        display: flex;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .filter-form-inline label {
+        white-space: nowrap;
+        font-weight: 500;
+        color: #1f2937;
+    }
+
+    .form-group-flex {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Select2 (Arama Çubuğu) Stilleri için Gerekli Ayarlar */
+    /* Select2'nin default stillerini biraz daha düzgün hale getiriyoruz */
+    .select2-container--default .select2-selection--single {
+        height: 38px !important;
+        padding: 6px 10px !important;
+        border: 1px solid #d1d5db !important;
+        border-radius: 6px !important;
+        background-color: #f9fafb !important;
+        transition: border-color 0.3s;
+    }
+
+    .select2-container--default.select2-container--open .select2-selection--single {
+        border-color: #3b82f6 !important;
+    }
+
+    .select2-container .select2-selection--single .select2-selection__rendered {
+        line-height: 24px !important;
+        color: #1f2937 !important;
+    }
+
+    .select2-container .select2-selection--single .select2-selection__arrow {
+        height: 36px !important;
+    }
+
+
+    /* Summary Card */
+    .summary-card {
+        background-color: #1e40af; /* Koyu Mavi */
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .summary-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+    }
+
+    .summary-card h3 {
+        margin: 0;
+        font-size: 24px;
+        font-weight: 700;
+    }
+
+    .summary-card .total-time {
+        font-size: 24px;
+        font-weight: 700;
+        text-align: right;
+    }
+
+    .summary-card .total-time small {
+        display: block;
+        font-size: 12px;
+        font-weight: 400;
+        opacity: 0.8;
+    }
+
+
+    .daily-hours-list {
+        background: #ffffff;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    }
+
+    .daily-hour-item {
+        /* Tek satır görünümü */
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 15px 0;
+        border-bottom: 1px solid #e5e7eb;
+        transition: background-color 0.2s;
+    }
+
+    .daily-hour-item:hover {
+        background-color: #f9fafb;
+    }
+
+    .daily-hour-item:last-child {
+        border-bottom: none;
+    }
+
+    .day-label {
+        /* Gün bilgisini sola sabitle */
+        font-weight: 600;
+        color: #1f2937;
+        font-size: 14px;
+        width: 150px;
+        flex-shrink: 0;
+        text-align: left;
+        margin-right: 20px;
+    }
+
+    .time-value {
+        /* Süre bilgisini sağa sabitle */
+        display: block;
+        font-weight: 700;
+        color: #374151;
+        font-size: 16px;
+        width: 100px;
+        text-align: right;
+        flex-shrink: 0;
+    }
+
+    /* PROGRESS BAR STİLİ */
+    .progress-wrapper {
+        flex-grow: 1;
+        position: relative;
+        margin: 0;
+        padding: 0;
+    }
+
+    .hour-bar-container {
+        height: 12px; /* Çubuğu biraz küçült */
+        background-color: #e5e7eb;
+        border-radius: 10px; /* Daha yumuşak köşeler */
+        overflow: hidden;
+        position: relative;
+    }
+
+    .hour-bar {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.5s ease-out;
+        position: absolute;
+        top: 0;
+        left: 0;
+        opacity: 1;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .hour-bar-text {
+        display: none;
+    }
+
+    /* BAR COLORS (Status) */
+    .hour-bar.bar-full {
+        background-color: #10b981; /* Green */
+    }
+    .hour-bar.bar-partial {
+        background-color: #f59e0b; /* Orange/Yellow */
+    }
+    .hour-bar.bar-absent {
+        background-color: #ef4444; /* Red */
+    }
+    /* -------------------------------------------------- */
+/* --- SAĞ ALT MAİL GÖNDERME WIDGET STİLLERİ --- */
 /* -------------------------------------------------- */
 
-.filter-controls-hours-tracked {
-    margin-bottom: 25px;
-    padding: 15px 20px;
-    background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
+.feedback-button {
+    /* Konumlandırma: Sağ altta sabit durur */
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1001; /* Diğer her şeyin üstünde olmalı */
 
-.filter-form-inline {
+    /* Görünüm */
     display: flex;
-    gap: 20px;
     align-items: center;
-}
-
-.filter-form-inline label {
-    font-weight: 600;
-    color: #1e40af;
-    font-size: 14px;
-}
-
-.filter-form-inline select {
-    padding: 8px 12px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    background-color: #ffffff;
-    color: #1f2937;
-    font-size: 14px;
-    cursor: pointer;
-    transition: border-color 0.3s;
-    min-width: 150px;
-}
-
-/* Summary Card (Mevcut HR System tarzına uygun koyu mavi/beyaz) */
-.summary-card {
-    background: #1e40af; /* Dark Blue - Sidebar Rengi */
+    justify-content: center;
+    width: 56px; /* Buton genişliği */
+    height: 56px; /* Buton yüksekliği */
+    background-color: #3b82f6; /* Canlı Mavi Arkaplan */
     color: white;
-    padding: 25px 30px;
-    border-radius: 12px;
-    margin-bottom: 30px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 50%; /* Yuvarlak buton */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25); /* Derin Gölge */
+    text-decoration: none; /* Alt çizgiyi kaldır */
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
 }
 
-.summary-header {
+.feedback-button:hover {
+    background-color: #1e40af; /* Hover'da daha koyu mavi */
+    transform: scale(1.05) translateY(-2px); /* Hafif büyütme ve yukarı kayma */
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.feedback-button .material-icons {
+    font-size: 28px; /* İkon boyutu */
+}
+
+/* Sidebar açıldığında butonu sola itmek için, eğer sidebar genişliğiniz 250px ise */
+/* Not: Bu ayar sadece büyük ekranlar için gereklidir, mobil cihazlarda sağdan 30px yeterlidir. */
+@media (min-width: 1024px) {
+    .feedback-button {
+        /* Sidebar (250px) + Buton genişliği (56px) + Sağ boşluk (30px) = 336px */
+        /* Eğer isterseniz, butonu daha da sağa itmek için 'right' değerini artırabilirsiniz */
+    }
+}
+/* -------------------------------------------------- */
+/* --- SAĞ ALT MAİL GÖNDERME WIDGET STİLLERİ --- */
+/* -------------------------------------------------- */
+
+.feedback-button {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    z-index: 1001;
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    text-decoration: none;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.3s;
 }
 
-.summary-header h3 {
-    margin: 0;
-    font-size: 24px;
-    font-weight: 700;
+.feedback-button:hover {
+    background-color: #0056b3;
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
 }
 
-.total-time {
+.feedback-button .material-icons {
     font-size: 28px;
-    font-weight: 800;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
 }
 
-.total-time small {
-    font-size: 12px;
-    font-weight: 400;
-    opacity: 0.8;
-}
 
-/* Daily Hours List */
-.daily-hours-list {
-    background: #ffffff;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-}
+/* -------------------------------------------------- */
+/* --- MOBİL UYUM (RESPONSIVE) CSS'i --- */
+/* -------------------------------------------------- */
+@media (max-width: 768px) {
+    /* 1. Sidebar'ı gizle */
+    .sidebar {
+        display: none;
+    }
 
-.daily-hour-item {
-    display: flex;
-    align-items: center;
-    padding: 15px 0;
-    border-bottom: 1px solid #f3f4f6;
-}
+    /* 2. Ana içeriği tam genişlik yap */
+    .main-content {
+        margin-left: 0; /* Masaüstü boşluğunu kaldır */
+        width: 100%;
+        padding: 10px; /* Kenarlara biraz boşluk bırak */
+    }
 
-.daily-hour-item:last-child {
-    border-bottom: none;
-}
+    /* 3. Başlıkları ve içeriği küçült */
+    .main-content .header h2 {
+        font-size: 20px;
+    }
 
-.day-label {
-    width: 150px;
-    font-weight: 600;
-    color: #374151;
-    text-align: left;
-    flex-shrink: 0;
-}
+    /* 4. Tabloların yatay kaymasını sağla (employees.html'deki gibi geniş tablolar için) */
+    .page-content {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch; /* iOS'ta akıcı kaydırma */
+    }
 
-.progress-wrapper {
-    flex-grow: 1;
-    padding: 0 20px;
-}
-
-.hour-bar-container {
-    height: 10px;
-    background-color: #e5e7eb; /* Gray Background */
-    border-radius: 5px;
-    overflow: hidden;
-}
-
-.hour-bar {
-    height: 100%;
-    transition: width 0.5s ease-out;
-}
-
-.time-value {
-    width: 100px;
-    font-weight: 700;
-    text-align: right;
-    flex-shrink: 0;
-    color: #1f2937;
-}
-
-/* Bar Colors based on Status (T=Full, E=Partial, D/Y=Absent) */
-.hour-bar.bar-full {
-    background-color: #10b981; /* Green */
-}
-
-.hour-bar.bar-partial {
-    background-color: #f59e0b; /* Orange/Yellow */
-}
-
-.hour-bar.bar-absent {
-    background-color: #ef4444; /* Red */
+    /* 5. Geri bildirim butonunu biraz küçült ve kenara çek */
+    .feedback-button {
+        bottom: 15px;
+        right: 15px;
+        width: 50px;
+        height: 50px;
+    }
+    .feedback-button .material-icons {
+        font-size: 24px;
+    }
 }

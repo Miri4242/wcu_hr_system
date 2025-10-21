@@ -4,20 +4,30 @@ from datetime import datetime, date, timedelta
 from collections import defaultdict
 from io import StringIO
 import csv
+import calendar
 
 app = Flask(__name__)
 # Change your secret key
 app.config['SECRET_KEY'] = 'super-secret-key'
-app.secret_key = app.config['SECRET_KEY']  # Session için secret_key'i de atayın
+app.secret_key = app.config['SECRET_KEY']
 
 # PostgreSQL Connection Settings
 DB_CONFIG = {
-    # 🚨 Lütfen Kontrol Edin: Doğru veritabanı bilgilerinizi girin
-    'dbname': 'tuniket.db',
-    'user': 'postgres',
-    'password': '7963686',  # Şifrenizi kontrol edin!
-    'host': '127.0.0.1',
+    # 🚨 Please Verify: Enter your correct database information
+    'dbname': 'neondb',
+    'user': 'neondb_owner',
+    'password': 'npg_yAS9QGB2fgFE',
+    'host': 'ep-patient-hat-agqfint2-pooler.c-2.eu-central-1.aws.neon.tech',
     'port': '5432'
+}
+
+# 8 HOURS REFERENCE
+EIGHT_HOURS_SECONDS = 28800  # 8 hours (8 * 60 * 60)
+
+# Helper dictionary for month names (used for month selection dropdown)
+EN_MONTHS = {
+    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
 }
 
 
@@ -31,7 +41,9 @@ def get_db_connection():
         return None
 
 
-# --- HELPER FUNCTIONS ---
+# --------------------------------------------------------------------------------------
+# --- CORE HELPER FUNCTIONS ---
+# --------------------------------------------------------------------------------------
 
 def format_seconds(seconds):
     """Converts seconds to HH:MM:SS format."""
@@ -61,15 +73,33 @@ def require_login():
     return None
 
 
+def get_available_months(num_months=12):
+    """Prepares a list of the last X available months (value: YYYY-MM, label: Month YYYY)."""
+    months = []
+    today = datetime.now().date()
+    current_month_start = today.replace(day=1)
+
+    for i in range(num_months):
+        if i > 0:
+            target_date = (current_month_start - timedelta(days=1)).replace(day=1)
+            current_month_start = target_date
+        else:
+            target_date = current_month_start
+
+        value = target_date.strftime('%Y-%m')
+        label = f"{EN_MONTHS[target_date.month]} {target_date.year}"
+
+        months.append((value, label))
+
+    return months[::-1]
+
+
 # --------------------------------------------------------------------------------------
-# --- ÇALIŞAN YÖNETİMİ FONKSİYONLARI (EMPLOYEES) ---
+# --- EMPLOYEE MANAGEMENT FUNCTIONS (CRUD/LIST) ---
 # --------------------------------------------------------------------------------------
 
 def get_employee_list():
-    """
-    pers_person ve pers_position tablolarını birleştirerek tüm çalışanların
-    temel bilgilerini ve pozisyonlarını çeker.
-    """
+    """Fetches essential details and positions for all employees."""
     conn = get_db_connection()
     if conn is None: return []
 
@@ -86,8 +116,7 @@ def get_employee_list():
                            pp.name       AS position_name,
                            p.create_time AS hire_date
                     FROM public.pers_person p
-                             LEFT JOIN
-                         public.pers_position pp ON p.position_id = pp.id
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     ORDER BY p.last_name, p.name;
                     """)
 
@@ -95,12 +124,9 @@ def get_employee_list():
         employees = []
 
         for row in employees_raw:
-            # photo_path için varsayılan değeri ayarlamak için url_for kullanın
-            # (Bu kısım, statik dosyalara erişim için Flask bağlamını gerektirir)
             try:
                 photo_path = row[6] if row[6] else url_for('static', filename='images/default_avatar.png')
             except RuntimeError:
-                # Eğer kod uygulama bağlamı dışında çalışıyorsa (örn: test)
                 photo_path = row[6] if row[6] else '/static/images/default_avatar.png'
 
             employees.append({
@@ -111,12 +137,12 @@ def get_employee_list():
                 'email': row[4] or 'N/A',
                 'birthday': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
                 'photo_path': photo_path,
-                'position': row[7] or 'Undefined',  # Çeviri: Belirtilmemiş -> Undefined
+                'position': row[7] or 'Undefined',
                 'hire_date': row[8].strftime('%d.%m.%Y') if row[8] else 'N/A'
             })
         return employees
     except psycopg2.Error as e:
-        print(f"🚨 Çalışan Listesi Çekme Hatası: {e}")
+        print(f"🚨 Employee List Fetch Error: {e}")
         return []
     finally:
         if cur: cur.close()
@@ -124,7 +150,7 @@ def get_employee_list():
 
 
 def get_employee_details(employee_id):
-    """Belirtilen ID'ye sahip çalışanın tüm detaylarını çeker."""
+    """Fetches all details for a specific employee ID."""
     conn = get_db_connection()
     if conn is None: return None
 
@@ -142,8 +168,7 @@ def get_employee_details(employee_id):
                            p.position_id,
                            p.create_time AS hire_date
                     FROM public.pers_person p
-                             LEFT JOIN
-                         public.pers_position pp ON p.position_id = pp.id
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE p.id = %s;
                     """, (employee_id,))
 
@@ -164,13 +189,13 @@ def get_employee_details(employee_id):
                 'birthday_form': row[5].strftime('%Y-%m-%d') if row[5] else '',
                 'birthday_display': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
                 'photo_path': photo_path,
-                'position_name': row[7] or 'Undefined',  # Çeviri: Belirtilmemiş -> Undefined
+                'position_name': row[7] or 'Undefined',
                 'position_id': row[8],
                 'hire_date': row[9].strftime('%d.%m.%Y') if row[9] else 'N/A'
             }
         return None
     except psycopg2.Error as e:
-        print(f"🚨 Çalışan Detayları Çekme Hatası: {e}")
+        print(f"🚨 Employee Details Fetch Error: {e}")
         return None
     finally:
         if cur: cur.close()
@@ -178,7 +203,7 @@ def get_employee_details(employee_id):
 
 
 def get_all_positions():
-    """Tüm pozisyonları ID ve İsim olarak çeker (Dropdown için)."""
+    """Fetches all positions by ID and Name (for Dropdown)."""
     conn = get_db_connection()
     if conn is None: return []
     cur = conn.cursor()
@@ -186,7 +211,7 @@ def get_all_positions():
         cur.execute("SELECT id, name FROM public.pers_position ORDER BY name;")
         return [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
     except psycopg2.Error as e:
-        print(f"🚨 Pozisyon Listesi Çekme Hatası: {e}")
+        print(f"🚨 Position List Fetch Error: {e}")
         return []
     finally:
         if cur: cur.close()
@@ -194,10 +219,10 @@ def get_all_positions():
 
 
 def update_employee_details(employee_id, data):
-    """Çalışan bilgilerini günceller."""
+    """Updates employee information."""
     conn = get_db_connection()
     if conn is None:
-        return False, "Database connection error."  # Çeviri: Veritabanı bağlantı hatası.
+        return False, "Database connection error."
 
     cur = conn.cursor()
 
@@ -224,30 +249,30 @@ def update_employee_details(employee_id, data):
                         employee_id
                     ))
         conn.commit()
-        return True, "Employee details successfully updated."  # Çeviri: Çalışan bilgileri başarıyla güncellendi.
+        return True, "Employee details successfully updated."
     except psycopg2.Error as e:
         conn.rollback()
-        print(f"🚨 Çalışan Güncelleme Hatası: {e}")
-        return False, f"Update error: {e}"  # Çeviri: Güncelleme hatası
+        print(f"🚨 Employee Update Error: {e}")
+        return False, f"Update error: {e}"
     finally:
         if cur: cur.close()
         if conn: conn.close()
 
 
 # --------------------------------------------------------------------------------------
-# --- SÜRE VE LOG HESAPLAMA ÇEKİRDEK MANTIĞI ---
+# --- TIME CALCULATION CORE LOGIC ---
 # --------------------------------------------------------------------------------------
 
 def calculate_times_from_transactions(transactions):
     """
-    Verilen log listesini işler ve içeride/dışarıda geçirilen süreyi hesaplar.
+    Processes the given log list and calculates the time spent inside/outside.
     """
     transactions.sort(key=lambda x: x['time'])
 
     first_in_time = None
     last_out_time = None
 
-    # İlk giriş ve son çıkışı bul
+    # Find the first 'in' and last 'out'
     in_logs = [t['time'] for t in transactions if t['direction'] == 'in']
     out_logs = [t['time'] for t in transactions if t['direction'] == 'out']
 
@@ -257,21 +282,19 @@ def calculate_times_from_transactions(transactions):
         last_out_time = max(out_logs)
 
     total_inside_seconds = 0
-
-    # İlk giriş ve son çıkış arasındaki toplam zaman dilimi
     total_span_seconds = 0
+
     if first_in_time and last_out_time and last_out_time > first_in_time:
         total_span_seconds = (last_out_time - first_in_time).total_seconds()
 
     is_inside = False
     last_event_time = None
 
-    # Detaylı iç süreyi hesapla
+    # Detailed calculation of inside time
     for t in transactions:
         current_time = t['time']
         current_direction = t['direction']
 
-        # Eğer ilk girişten önce bir hareket varsa dikkate alma
         if first_in_time and current_time < first_in_time:
             continue
 
@@ -297,7 +320,7 @@ def calculate_times_from_transactions(transactions):
 
         last_event_time = current_time
 
-    # Dışarıda geçirilen süre: (İlk giriş-Son çıkış arasındaki toplam süre) - İçeride geçirilen süre
+    # Time spent outside
     total_outside_seconds = 0
     if total_span_seconds > 0:
         total_outside_seconds = total_span_seconds - total_inside_seconds
@@ -312,11 +335,11 @@ def calculate_times_from_transactions(transactions):
 
 
 # --------------------------------------------------------------------------------------
-# --- EMPLOYEE LOGS VE HOURS TRACKED HELPER'LARI ---
+# --- HOURS TRACKED AND ATTENDANCE FUNCTIONS ---
 # --------------------------------------------------------------------------------------
 
 def get_employee_list_for_dropdown():
-    """Dropdown için çalışanın adını ve soyadını birleştirip key olarak döndürür."""
+    """Returns employee full name and a normalized key for dropdowns."""
     conn = get_db_connection()
     if conn is None: return []
 
@@ -331,7 +354,7 @@ def get_employee_list_for_dropdown():
 
         return employees
     except psycopg2.Error as e:
-        print(f"🚨 Çalışan Listesi Sorgu Hatası: {e}")
+        print(f"🚨 Employee List Query Error: {e}")
         return []
     finally:
         if cur: cur.close()
@@ -340,8 +363,8 @@ def get_employee_list_for_dropdown():
 
 def get_employee_logs(person_key=None, days=365):
     """
-    Verilen person_key'e göre (person_key=None ise tüm çalışanlar) son X günün
-    günlük içeride/dışarıda geçirilen süre özetini hesaplar.
+    Calculates the daily summary of time spent inside/outside for the last X days
+    (all employees if person_key is None).
     """
     conn = get_db_connection()
     if conn is None: return []
@@ -353,7 +376,7 @@ def get_employee_logs(person_key=None, days=365):
     final_logs = []
 
     try:
-        # 1. Fetch transaction logs (Tarih filtreli)
+        # 1. Fetch transaction logs (Filtered by date)
         cur.execute("""
                     SELECT name, last_name, create_time, reader_name
                     FROM public.acc_transaction
@@ -366,7 +389,7 @@ def get_employee_logs(person_key=None, days=365):
         for t_name, t_last_name, create_time, reader_name in raw_transactions:
             if create_time is None or not t_name or not t_last_name: continue
 
-            # Key oluştur ve filtrele
+            # Create and filter key
             t_key = normalize_name(t_name) + normalize_name(t_last_name)
             if person_key and t_key != person_key:
                 continue
@@ -384,7 +407,7 @@ def get_employee_logs(person_key=None, days=365):
             if not direction_type:
                 continue
 
-            # Key: (Log Tarihi, Normalize İsim Soyisim)
+            # Key: (Log Date, Normalized Name Surname)
             key = (log_date, t_key)
             daily_transactions[key].append({
                 'name': t_name, 'last_name': t_last_name,
@@ -393,7 +416,7 @@ def get_employee_logs(person_key=None, days=365):
 
         # 3. Calculate Time for each day/person
         for (log_date, person_key), transactions in daily_transactions.items():
-            # Hesaplama çekirdek fonksiyonunu kullan
+            # Use the core calculation function
             times = calculate_times_from_transactions(transactions)
 
             final_logs.append({
@@ -404,10 +427,10 @@ def get_employee_logs(person_key=None, days=365):
                 'last_out': times['last_out'].strftime('%H:%M:%S') if times['last_out'] else 'N/A',
                 'inside_time': format_seconds(times['total_inside_seconds']),
                 'outside_time': format_seconds(times['total_outside_seconds']),
-                'total_inside_seconds': times['total_inside_seconds']  # Sıralama için tutulur
+                'total_inside_seconds': times['total_inside_seconds']
             })
 
-        # En yeniden en eskiye sırala (Tarih, sonra içeride geçirilen süre)
+        # Sort from newest to oldest
         final_logs.sort(key=lambda x: (datetime.strptime(x['date'], '%d.%m.%Y'), x['total_inside_seconds']),
                         reverse=True)
         return final_logs
@@ -420,13 +443,122 @@ def get_employee_logs(person_key=None, days=365):
         if conn: conn.close()
 
 
-def get_employee_logs_monthly(selected_month, selected_year):
-    # (Aylık yoklama verisini çeken fonksiyon)
+def get_tracked_hours_by_dates(person_key, start_date, end_date):
+    """
+    Calculates total worked time (time spent inside) and daily statuses
+    for a specific employee within a specific date range, ignoring weekends.
+    """
     conn = get_db_connection()
-    if conn is None: return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year}
+    if conn is None: return {'logs': [], 'total_time_str': '00:00:00'}
 
     cur = conn.cursor()
-    EIGHT_HOURS_SECONDS = 28800
+
+    global EIGHT_HOURS_SECONDS
+
+    # Store daily data initially
+    daily_data = defaultdict(lambda: {'total_inside_seconds': 0, 'status_code': 'D'})
+    total_tracked_seconds = 0
+
+    # Convert date objects to datetime objects for query, ensuring the full day is included.
+    start_dt = datetime.combine(start_date, datetime.min.time())
+    end_dt = datetime.combine(end_date, datetime.max.time())
+
+    try:
+        # Use the date range in the database query.
+        cur.execute("""
+                    SELECT name, last_name, create_time, reader_name
+                    FROM public.acc_transaction
+                    WHERE create_time BETWEEN %s AND %s
+                    ORDER BY create_time;
+                    """, (start_dt, end_dt))
+
+        raw_transactions = cur.fetchall()
+
+        daily_transactions = defaultdict(list)
+        for t_name, t_last_name, create_time, reader_name in raw_transactions:
+            if create_time is None or not t_name or not t_last_name: continue
+
+            # Filter by the exact person_key here (Python filtering is safer)
+            t_key = normalize_name(t_name) + normalize_name(t_last_name)
+            if t_key != person_key:
+                continue
+
+            log_date = create_time.date()
+            direction_lower = (reader_name or '').lower()
+            direction_type = None
+            if '-in' in direction_lower and '-out' not in direction_lower:
+                direction_type = 'in'
+            elif '-out' in direction_lower and '-in' not in direction_lower:
+                direction_type = 'out'
+
+            if direction_type:
+                daily_transactions[log_date].append({'time': create_time, 'direction': direction_type})
+
+        # Calculate working times and status for each day with logs
+        for log_date, transactions in daily_transactions.items():
+            # Skip weekend calculation if log date is a Saturday (5) or Sunday (6)
+            if log_date.weekday() >= 5:
+                continue
+
+            times = calculate_times_from_transactions(transactions)
+            total_inside_seconds = times['total_inside_seconds']
+
+            if total_inside_seconds >= EIGHT_HOURS_SECONDS:
+                status_code = 'T'  # Full Day (Green)
+            elif total_inside_seconds > 0:
+                status_code = 'E'  # Short Hours (Yellow/Orange)
+            else:
+                status_code = 'D'  # Absent (Red)
+
+            daily_data[log_date]['total_inside_seconds'] = total_inside_seconds
+            daily_data[log_date]['status_code'] = status_code
+
+        # Prepare Results (Iterating over the entire date range)
+        tracked_logs = []
+        current_day = start_date
+
+        # Process all days from start_date up to end_date
+        while current_day <= end_date:
+            day_data = daily_data.get(current_day, {'total_inside_seconds': 0,
+                                                    'status_code': 'D'})
+
+            # Only include weekdays (Monday=0 to Friday=4)
+            if current_day.weekday() < 5:
+                tracked_logs.append({
+                    'date': current_day.strftime('%a, %b %d'),
+                    'seconds': day_data['total_inside_seconds'],
+                    'time_str': format_seconds(day_data['total_inside_seconds']),
+                    'status': day_data['status_code']
+                })
+                total_tracked_seconds += day_data['total_inside_seconds']
+
+            current_day += timedelta(days=1)
+
+        # Sort from newest to oldest
+        tracked_logs.reverse()
+
+        return {
+            'logs': tracked_logs,
+            'total_time_str': format_seconds(total_tracked_seconds)
+        }
+
+    except Exception as e:
+        print(f"🚨 Time Calculation Error: {e}")
+        return {'logs': [], 'total_time_str': '00:00:00'}
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def get_employee_logs_monthly(selected_month, selected_year):
+    # (Monthly attendance data fetching function)
+    conn = get_db_connection()
+    if conn is None: return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year,
+                             'month_name': 'Error'}
+
+    cur = conn.cursor()
+
+    global EIGHT_HOURS_SECONDS
 
     try:
         start_date = date(selected_year, selected_month, 1)
@@ -453,7 +585,7 @@ def get_employee_logs_monthly(selected_month, selected_year):
     employee_daily_status = defaultdict(lambda: defaultdict(str))
 
     try:
-        # 1. Fetch all employees (Sadece dropdown/görüntüleme için)
+        # 1. Fetch all employees (for dropdown/display only)
         cur.execute("SELECT id, name, last_name FROM public.pers_person ORDER BY last_name, name")
         person_data = cur.fetchall()
 
@@ -499,14 +631,14 @@ def get_employee_logs_monthly(selected_month, selected_year):
             times = calculate_times_from_transactions(transactions)
             total_inside_seconds = times['total_inside_seconds']
 
-            # Assign Status Code
+            # Assign Status Code (T: Full Day, E: Short Hours, D: Absent, N: No Log)
             day_number = log_date.day
             if total_inside_seconds >= EIGHT_HOURS_SECONDS:
-                status_code = 'F'  # Full Day
+                status_code = 'T'  # Full Day (GREEN)
             elif total_inside_seconds > 0:
-                status_code = 'S'  # Short Hours
+                status_code = 'E'  # Short Hours/Partial Day (YELLOW)
             else:
-                status_code = 'A'  # Absent
+                status_code = 'D'  # Absent (RED)
 
             employee_daily_status[person_key][day_number] = status_code
 
@@ -521,7 +653,7 @@ def get_employee_logs_monthly(selected_month, selected_year):
                 'days': []
             }
             for day in day_headers:
-                status = employee_daily_status[emp['key']].get(day, 'N')  # N: Not Logged
+                status = employee_daily_status[emp['key']].get(day, 'N')  # N: Not Logged (RED/NO LOG)
                 row['days'].append(status)
 
             final_logs.append(row)
@@ -542,123 +674,6 @@ def get_employee_logs_monthly(selected_month, selected_year):
         if cur: cur.close()
         if conn: conn.close()
 
-
-def get_tracked_hours(person_key, period):
-    """
-    Calculates total worked time (time spent inside) and daily statuses
-    for a specific employee on a weekly/monthly basis.
-    """
-    conn = get_db_connection()
-    if conn is None: return {'logs': [], 'total_time_str': '00:00:00'}
-
-    cur = conn.cursor()
-
-    FULL_DAY_SECONDS = 28800  # 8 hours
-    today = date.today()
-
-    # Determine Date Range
-    if period == 'week':
-        # Start of the current week (Monday)
-        start_date = today - timedelta(days=today.weekday())
-    elif period == 'month':
-        # Start of the current month
-        start_date = date(today.year, today.month, 1)
-    else:
-        # Default: Last 7 days
-        start_date = today - timedelta(days=7)
-
-    daily_data = defaultdict(lambda: {'total_inside_seconds': 0, 'status_code': 'N'})
-
-    try:
-        # Fetch all logs (Filtered by date)
-        cur.execute("""
-                    SELECT name, last_name, create_time, reader_name
-                    FROM public.acc_transaction
-                    WHERE DATE (create_time) >= %s
-                    ORDER BY create_time;
-                    """, (start_date,))
-
-        raw_transactions = cur.fetchall()
-
-        # Filter and group movements only for the selected person
-        daily_transactions = defaultdict(list)
-        for t_name, t_last_name, create_time, reader_name in raw_transactions:
-            if create_time is None or not t_name or not t_last_name: continue
-
-            t_key = normalize_name(t_name) + normalize_name(t_last_name)
-
-            if t_key != person_key:
-                continue
-
-            log_date = create_time.date()
-            direction_lower = (reader_name or '').lower()
-            direction_type = None
-            if '-in' in direction_lower and '-out' not in direction_lower:
-                direction_type = 'in'
-            elif '-out' in direction_lower and '-in' not in direction_lower:
-                direction_type = 'out'
-
-            if direction_type:
-                daily_transactions[log_date].append({'time': create_time, 'direction': direction_type})
-
-        # Calculate working times
-        total_tracked_seconds = 0
-        for log_date, transactions in daily_transactions.items():
-
-            # Use the core calculation function
-            times = calculate_times_from_transactions(transactions)
-            total_inside_seconds = times['total_inside_seconds']
-
-            # Assign Status Code (F: Full, S: Short, A: Absent)
-            if total_inside_seconds >= FULL_DAY_SECONDS:
-                status_code = 'F'
-            elif total_inside_seconds > 0:
-                status_code = 'S'
-            else:
-                status_code = 'A'
-
-            daily_data[log_date]['total_inside_seconds'] = total_inside_seconds
-            daily_data[log_date]['status_code'] = status_code
-
-        # Prepare Results
-        tracked_logs = []
-        current_day = start_date
-
-        # Process all days from start_date up to today
-        while current_day <= today:
-            day_data = daily_data.get(current_day, {'total_inside_seconds': 0, 'status_code': 'N'})
-
-            # Only include weekdays (Monday=0 to Friday=4)
-            if current_day.weekday() < 5:
-                tracked_logs.append({
-                    'date': current_day.strftime('%a, %b %d'),
-                    'seconds': day_data['total_inside_seconds'],
-                    'time_str': format_seconds(day_data['total_inside_seconds']),
-                    'status': day_data['status_code']
-                })
-                total_tracked_seconds += day_data['total_inside_seconds']
-
-            current_day += timedelta(days=1)
-
-        # Sort from newest to oldest
-        tracked_logs.reverse()
-
-        return {
-            'logs': tracked_logs,
-            'total_time_str': format_seconds(total_tracked_seconds)
-        }
-
-    except Exception as e:
-        print(f"🚨 Time Calculation Error: {e}")
-        return {'logs': [], 'total_time_str': '00:00:00'}
-    finally:
-        if cur: cur.close()
-        if conn: conn.close()
-
-
-# --------------------------------------------------------------------------------------
-# --- DASHBOARD VERİ ÇEKME ---
-# --------------------------------------------------------------------------------------
 
 def get_dashboard_data():
     conn = get_db_connection()
@@ -735,15 +750,14 @@ def get_dashboard_data():
 
 
 # ***************************************************************
-# --- FLASK ROUTES (ROTALAR) ---
+# --- FLASK ROUTES (ROUTES) ---
 # ***************************************************************
 
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Yönlendirme döngüsü hatasını önlemek için güvenli kontrol:
-    # Kullanıcı ZATEN giriş yaptıysa, onu doğrudan dashboard'a yönlendir.
+    # If the user is already logged in, redirect to the dashboard.
     if 'user' in session:
         return redirect(url_for('dashboard'))
 
@@ -767,7 +781,6 @@ def dashboard():
     return render_template('dashboard.html', data=dashboard_data)
 
 
-# ROTA: Çalışanlar Listeleme Sayfası
 @app.route('/employees')
 def employees():
     if (redirect_response := require_login()): return redirect_response
@@ -780,7 +793,6 @@ def employees():
     )
 
 
-# ROTA: Çalışan Düzenleme Sayfası
 @app.route('/employees/edit/<employee_id>', methods=['GET', 'POST'])
 def edit_employee(employee_id):
     if (redirect_response := require_login()): return redirect_response
@@ -805,11 +817,10 @@ def edit_employee(employee_id):
         else:
             flash(message, 'danger')
 
-    # GET veya güncelleme sonrası formu yeniden yüklemek için
     employee = get_employee_details(employee_id)
 
     if not employee:
-        flash("Employee not found.", 'danger')  # Çeviri: Çalışan bulunamadı.
+        flash("Employee not found.", 'danger')
         return redirect(url_for('employees'))
 
     return render_template(
@@ -819,18 +830,15 @@ def edit_employee(employee_id):
     )
 
 
-# ROTA 1: EXPORT ÖZELLİĞİ (Çalışan Listesi)
 @app.route('/employees/export')
 def export_employees():
     if (redirect_response := require_login()): return redirect_response
 
     employees_list = get_employee_list()
 
-    # 1. StringIO kullanarak hafızada bir CSV dosyası oluştur
     si = StringIO()
     cw = csv.writer(si)
 
-    # 2. Başlık satırını yaz
     header = [
         'ID',
         'Name',
@@ -843,7 +851,6 @@ def export_employees():
     ]
     cw.writerow(header)
 
-    # 3. Verileri yaz
     for emp in employees_list:
         cw.writerow([
             emp['id'],
@@ -858,7 +865,6 @@ def export_employees():
 
     output = si.getvalue()
 
-    # 4. Flask yanıtını (Response) hazırla
     response = make_response(output)
     response.headers["Content-Disposition"] = "attachment; filename=employees_export.csv"
     response.headers["Content-type"] = "text/csv"
@@ -866,23 +872,20 @@ def export_employees():
     return response
 
 
-# ROTA 2: ÇALIŞMA SÜRESİ ANALİZİ EXPORT ETME
 @app.route('/employee_logs/export', methods=['GET'])
 def export_employee_logs():
     if (redirect_response := require_login()): return redirect_response
 
     person_key = request.args.get('person_key', None)
 
-    # Veriyi çekmek için mevcut fonksiyonu kullan (son 365 gün için)
     logs_data = get_employee_logs(person_key=person_key, days=365)
 
     if not logs_data:
-        return make_response("No data found for export.", 404)  # Çeviri: Export edilecek veri bulunamadı.
+        return make_response("No data found for export.", 404)
 
     si = StringIO()
     cw = csv.writer(si)
 
-    # Başlık satırını oluştur ve yaz
     header = [
         'Date',
         'Employee First Name',
@@ -895,7 +898,6 @@ def export_employee_logs():
     ]
     cw.writerow(header)
 
-    # Verileri yaz
     for log in logs_data:
         cw.writerow([
             log['date'],
@@ -932,7 +934,6 @@ def employee_logs():
     if request.method == 'POST':
         selected_person_key = request.form.get('person_key')
     else:
-        # GET metodu için de kontrol
         selected_person_key = request.args.get('person_key') or ''
 
     logs_data = get_employee_logs(person_key=selected_person_key, days=365)
@@ -969,7 +970,7 @@ def attendance():
 
     years = list(range(today.year - 2, today.year + 1))
 
-    # İngilizce Ay İsimleri
+    # Month names
     months = [
         (1, 'January'), (2, 'February'), (3, 'March'), (4, 'April'),
         (5, 'May'), (6, 'June'), (7, 'July'), (8, 'August'),
@@ -985,7 +986,6 @@ def attendance():
     )
 
 
-# ROTA 3: EXPORT ÖZELLİĞİ (Aylık Yoklama)
 @app.route('/attendance/export', methods=['GET'])
 def export_monthly_attendance():
     if (redirect_response := require_login()): return redirect_response
@@ -1009,11 +1009,9 @@ def export_monthly_attendance():
     month_name = data.get('month_name', 'Month')
     year = data.get('current_year', 'Year')
 
-    # Başlık satırını oluştur ve yaz
     header = ['EMPLOYEE'] + [str(d) for d in data.get('headers', [])]
     cw.writerow(header)
 
-    # Verileri yaz
     for log in data['logs']:
         row_data = [log['name']] + log['days']
         cw.writerow(row_data)
@@ -1035,29 +1033,60 @@ def hours_tracked():
     employee_list = get_employee_list_for_dropdown()
 
     selected_person_key = request.args.get('person_key') or (employee_list[0]['key'] if employee_list else None)
-    selected_period = request.args.get('period') or 'week'
+    selected_period = request.args.get('period', 'last_7_days')
 
     tracked_data = {'logs': [], 'total_time_str': '00:00:00'}
+    today = date.today()
+    start_date, end_date = today, today
 
-    if selected_person_key:
+    # Determine Date Range based on selected_period
+    if selected_period == 'last_7_days':
+        start_date = today - timedelta(days=6)
+        end_date = today
+    elif selected_period == 'last_30_days':
+        start_date = today - timedelta(days=29)
+        end_date = today
+    elif selected_period == 'this_month':
+        start_date = today.replace(day=1)
+        end_date = today
+    elif selected_period == 'last_month':
+        last_day_last_month = today.replace(day=1) - timedelta(days=1)
+        start_date = last_day_last_month.replace(day=1)
+        end_date = last_day_last_month
+
+    elif '-' in selected_period:
+        # 'YYYY-MM' format (Month selection)
         try:
-            tracked_data = get_tracked_hours(selected_person_key, selected_period)
+            year, month = map(int, selected_period.split('-'))
+
+            start_date = date(year, month, 1)
+
+            last_day = calendar.monthrange(year, month)[1]
+            end_date = date(year, month, last_day)
+
+            if end_date > today:
+                end_date = today
+
+        except ValueError:
+            start_date = today - timedelta(days=6)
+            end_date = today
+            selected_period = 'last_7_days'
+
+    # Fetch Data using the determined date range
+    if selected_person_key and start_date <= end_date:
+        try:
+            tracked_data = get_tracked_hours_by_dates(selected_person_key, start_date, end_date)
         except Exception as e:
-            flash(f"Data fetching error: {e}")
+            flash(f"Data fetching error: {e}", 'danger')
 
-    # PERİYOT İSİMLERİ İNGİLİZCE YAPILDI
-    periods = [
-        ('week', 'Last 7 Work Days'),
-        ('month', 'This Month (Work Days)')
-    ]
-
+    # Prepare template variables
     selected_employee_name = next((emp['name'] for emp in employee_list if emp['key'] == selected_person_key),
                                   "Select Employee")
 
     return render_template(
         'hours_tracked.html',
         employees=employee_list,
-        periods=periods,
+        available_months=get_available_months(),
         selected_person_key=selected_person_key,
         selected_period=selected_period,
         selected_employee_name=selected_employee_name,
@@ -1079,5 +1108,4 @@ def logout():
 
 
 if __name__ == '__main__':
-    # Flask uygulaması genellikle debug moduyla başlatılır
     app.run(debug=True)

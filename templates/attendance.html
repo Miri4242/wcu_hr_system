@@ -69,7 +69,7 @@
     <div class="legend-box">
         <span class="status-indicator full-day"></span> Full Day (T)
         <span class="status-indicator half-day"></span> Partial Day (E)
-        <span class="status-indicator absence"></span> Absent (D)
+        <span class="status-indicator absence"></span> Absent/No Log (D / N)
     </div>
 
     {% if data.logs %}
@@ -95,10 +95,10 @@
                                 <span class="status-indicator full-day" title="Full Day"></span>
                             {% elif status == 'E' %}
                                 <span class="status-indicator half-day" title="Partial Day"></span>
-                            {% elif status == 'D' %}
-                                <span class="status-indicator absence" title="Absent"></span>
+                            {% elif status == 'D' or status == 'N' %}
+                                <span class="status-indicator absence" title="Absent/No Log"></span>
                             {% else %}
-                                <span class="status-indicator no-log" title="No Log"></span>
+                                <span class="status-indicator no-log" title="Undefined Status"></span>
                             {% endif %}
                         </td>
                     {% endfor %}
