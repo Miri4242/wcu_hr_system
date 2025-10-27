@@ -1,28 +1,46 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
+from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, jsonify
 import psycopg2
 from datetime import datetime, date, timedelta
 from collections import defaultdict
 from io import StringIO
 import csv
 import calendar
+import hashlib
+import secrets
+import os  # << Yeni eklenen
+from dotenv import load_dotenv  # << Yeni eklenen
+
+# >>>>>> 1. ADIM: .env DOSYASINI YÜKLE <<<<<<
+load_dotenv()  # << .env dosyasındaki değişkenleri yükle
+
+# >>>>>> TANI KODU BAŞLANGICI <<<<<<
+# Bu kod, .env dosyasının okunduğunu kontrol etmenizi sağlar.
+print("-" * 50)
+print("DB_HOST (Kontrol):", os.environ.get('DB_HOST'))
+print("DB_USER (Kontrol):", os.environ.get('DB_USER'))
+print("SECRET_KEY (Kontrol):", os.environ.get('SECRET_KEY'))
+print("-" * 50)
+# >>>>>> TANI KODU SONU <<<<<<
 
 app = Flask(__name__)
-# Change your secret key
-app.config['SECRET_KEY'] = 'super-secret-key'
+
+# Flask Secret Key
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-fallback-key')
 app.secret_key = app.config['SECRET_KEY']
 
 # PostgreSQL Connection Settings
+# 🚨 BİLGİLER ARTIK TAMAMEN ORTAM DEĞİŞKENLERİNDEN OKUNUYOR
 DB_CONFIG = {
-    # 🚨 Please Verify: Enter your correct database information
-    'dbname': 'neondb',
-    'user': 'neondb_owner',
-    'password': 'npg_yAS9QGB2fgFE',
-    'host': 'ep-patient-hat-agqfint2-pooler.c-2.eu-central-1.aws.neon.tech',
-    'port': '5432'
+    'dbname': os.environ.get('DB_NAME'),
+    'user': os.environ.get('DB_USER'),
+    'password': os.environ.get('DB_PASSWORD'),
+    'host': os.environ.get('DB_HOST'),
+    'port': os.environ.get('DB_PORT', '5432')
 }
 
 # 8 HOURS REFERENCE
 EIGHT_HOURS_SECONDS = 28800  # 8 hours (8 * 60 * 60)
+PER_PAGE_ATTENDANCE = 50  # Her sayfada gösterilecek çalışan sayısı
 
 # Helper dictionary for month names (used for month selection dropdown)
 EN_MONTHS = {
@@ -39,6 +57,81 @@ def get_db_connection():
     except psycopg2.Error as e:
         print(f"🚨 Database connection error: {e}")
         return None
+
+
+# --------------------------------------------------------------------------------------
+# --- AUTHENTICATION FUNCTIONS ---
+# --------------------------------------------------------------------------------------
+
+def hash_password(password):
+    """Hash a password for storing."""
+    salt = secrets.token_hex(16)
+    password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
+    return f"sha256${salt}${password_hash}"
+
+
+def verify_password(stored_password, provided_password):
+    """Verify a stored password against one provided by user"""
+    try:
+        _, salt, stored_hash = stored_password.split('$')
+        provided_hash = hashlib.sha256((provided_password + salt).encode()).hexdigest()
+        return provided_hash == stored_hash
+    except:
+        return False
+
+
+def get_user_by_email(email):
+    """Get user by email from database."""
+    conn = get_db_connection()
+    if conn is None: return None
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, email, password, full_name, user_role, is_active
+            FROM public.system_users 
+            WHERE email = %s AND is_active = true
+        """, (email,))
+
+        user = cur.fetchone()
+        if user:
+            return {
+                'id': user[0],
+                'email': user[1],
+                'password': user[2],
+                'full_name': user[3],
+                'role': user[4],
+                'is_active': user[5]
+            }
+        return None
+    except psycopg2.Error as e:
+        print(f"🚨 User Query Error: {e}")
+        return None
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def update_last_login(user_id):
+    """Update user's last login timestamp."""
+    conn = get_db_connection()
+    if conn is None: return False
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            UPDATE public.system_users 
+            SET last_login = CURRENT_TIMESTAMP 
+            WHERE id = %s
+        """, (user_id,))
+        conn.commit()
+        return True
+    except psycopg2.Error as e:
+        print(f"🚨 Update Last Login Error: {e}")
+        return False
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 # --------------------------------------------------------------------------------------
@@ -99,7 +192,7 @@ def get_available_months(num_months=12):
 # --------------------------------------------------------------------------------------
 
 def get_employee_list():
-    """Fetches essential details and positions for all employees."""
+    """Fetches essential details and positions for all employees (excluding Students)."""
     conn = get_db_connection()
     if conn is None: return []
 
@@ -117,6 +210,8 @@ def get_employee_list():
                            p.create_time AS hire_date
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE pp.name IS NULL
+                       OR pp.name NOT ILIKE 'STUDENT' -- Nihai Öğrenci Filtresi
                     ORDER BY p.last_name, p.name;
                     """)
 
@@ -150,7 +245,7 @@ def get_employee_list():
 
 
 def get_employee_details(employee_id):
-    """Fetches all details for a specific employee ID."""
+    """Fetches all details for a specific employee ID (excluding Students)."""
     conn = get_db_connection()
     if conn is None: return None
 
@@ -169,7 +264,8 @@ def get_employee_details(employee_id):
                            p.create_time AS hire_date
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE p.id = %s;
+                    WHERE (pp.name IS NULL OR pp.name NOT ILIKE 'student') -- Nihai Öğrenci Filtresi
+                      AND p.id = %s;
                     """, (employee_id,))
 
         row = cur.fetchone()
@@ -208,6 +304,7 @@ def get_all_positions():
     if conn is None: return []
     cur = conn.cursor()
     try:
+        # Pozisyon listesi olduğu için burada filtreleme yapılmaz
         cur.execute("SELECT id, name FROM public.pers_position ORDER BY name;")
         return [{'id': row[0], 'name': row[1]} for row in cur.fetchall()]
     except psycopg2.Error as e:
@@ -240,14 +337,14 @@ def update_employee_details(employee_id, data):
                         position_id  = %s
                     WHERE id = %s;
                     """, (
-                        data.get('name'),
-                        data.get('last_name'),
-                        data.get('mobile_phone'),
-                        data.get('email'),
-                        birthday_value,
-                        data.get('position_id'),
-                        employee_id
-                    ))
+            data.get('name'),
+            data.get('last_name'),
+            data.get('mobile_phone'),
+            data.get('email'),
+            birthday_value,
+            data.get('position_id'),
+            employee_id
+        ))
         conn.commit()
         return True, "Employee details successfully updated."
     except psycopg2.Error as e:
@@ -320,17 +417,19 @@ def calculate_times_from_transactions(transactions):
 
         last_event_time = current_time
 
-    # Time spent outside
+    # Time spent outside = Total span time - Inside time
     total_outside_seconds = 0
     if total_span_seconds > 0:
         total_outside_seconds = total_span_seconds - total_inside_seconds
-        if total_outside_seconds < 0: total_outside_seconds = 0
+        if total_outside_seconds < 0:
+            total_outside_seconds = 0
 
     return {
         'first_in': first_in_time,
         'last_out': last_out_time,
         'total_inside_seconds': total_inside_seconds,
-        'total_outside_seconds': total_outside_seconds
+        'total_outside_seconds': total_outside_seconds,
+        'total_span_seconds': total_span_seconds
     }
 
 
@@ -339,13 +438,20 @@ def calculate_times_from_transactions(transactions):
 # --------------------------------------------------------------------------------------
 
 def get_employee_list_for_dropdown():
-    """Returns employee full name and a normalized key for dropdowns."""
+    """Returns employee full name and a normalized key for dropdowns (excluding Students)."""
     conn = get_db_connection()
     if conn is None: return []
 
     cur = conn.cursor()
     try:
-        cur.execute("SELECT name, last_name FROM public.pers_person ORDER BY last_name, name")
+        cur.execute("""
+                    SELECT p.name, p.last_name
+                    FROM public.pers_person p
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE pp.name IS NULL
+                       OR pp.name NOT ILIKE 'STUDENT' -- Nihai Öğrenci Filtresi
+                    ORDER BY p.last_name, p.name
+                    """)
         employees = []
         for name, last_name in cur.fetchall():
             full_name = f"{name} {last_name}"
@@ -378,16 +484,20 @@ def get_employee_logs(person_key=None, days=365):
     try:
         # 1. Fetch transaction logs (Filtered by date)
         cur.execute("""
-                    SELECT name, last_name, create_time, reader_name
-                    FROM public.acc_transaction
-                    WHERE create_time >= %s
-                    ORDER BY create_time;
+                    SELECT t.name, t.last_name, t.create_time, t.reader_name
+                    FROM public.acc_transaction t
+                             INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE t.create_time >= %s
+                      AND (pp.name IS NULL OR pp.name NOT ILIKE 'student')
+                    ORDER BY t.create_time;
                     """, (start_date,))
         raw_transactions = cur.fetchall()
 
         # 2. Process transactions and Grouping (Person Name + Date)
         for t_name, t_last_name, create_time, reader_name in raw_transactions:
-            if create_time is None or not t_name or not t_last_name: continue
+            if create_time is None or not t_name or not t_last_name:
+                continue
 
             # Create and filter key
             t_key = normalize_name(t_name) + normalize_name(t_last_name)
@@ -396,22 +506,29 @@ def get_employee_logs(person_key=None, days=365):
 
             log_date = create_time.date()
 
-            # Direction detection
-            direction_lower = (reader_name or '').lower()
+            # Direction detection - CASE SENSITIVE OLMAYAN ve KELİME İÇİNDE ARAMA
             direction_type = None
-            if '-in' in direction_lower and '-out' not in direction_lower:
-                direction_type = 'in'
-            elif '-out' in direction_lower and '-in' not in direction_lower:
-                direction_type = 'out'
+            if reader_name:
+                # Hem orijinal hem de lowercase versiyonda kontrol et
+                reader_lower = reader_name.lower()
+
+                # OUT tespiti - "out" kelimesi reader_name'in herhangi bir yerinde geçiyor mu?
+                if 'out' in reader_lower:
+                    direction_type = 'out'
+                # IN tespiti - "in" kelimesi reader_name'in herhangi bir yerinde geçiyor mu?
+                elif 'in' in reader_lower:
+                    direction_type = 'in'
 
             if not direction_type:
-                continue
+                continue  # Direction tespit edilemezse atla
 
             # Key: (Log Date, Normalized Name Surname)
             key = (log_date, t_key)
             daily_transactions[key].append({
-                'name': t_name, 'last_name': t_last_name,
-                'time': create_time, 'direction': direction_type
+                'name': t_name,
+                'last_name': t_last_name,
+                'time': create_time,
+                'direction': direction_type
             })
 
         # 3. Calculate Time for each day/person
@@ -427,7 +544,8 @@ def get_employee_logs(person_key=None, days=365):
                 'last_out': times['last_out'].strftime('%H:%M:%S') if times['last_out'] else 'N/A',
                 'inside_time': format_seconds(times['total_inside_seconds']),
                 'outside_time': format_seconds(times['total_outside_seconds']),
-                'total_inside_seconds': times['total_inside_seconds']
+                'total_inside_seconds': times['total_inside_seconds'],
+                'total_span_seconds': times['total_span_seconds']
             })
 
         # Sort from newest to oldest
@@ -441,6 +559,11 @@ def get_employee_logs(person_key=None, days=365):
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
+
+@app.context_processor
+def utility_processor():
+    return dict(format_seconds=format_seconds)
 
 
 def get_tracked_hours_by_dates(person_key, start_date, end_date):
@@ -465,11 +588,15 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
     try:
         # Use the date range in the database query.
+        # Filter for non-student transactions.
         cur.execute("""
-                    SELECT name, last_name, create_time, reader_name
-                    FROM public.acc_transaction
-                    WHERE create_time BETWEEN %s AND %s
-                    ORDER BY create_time;
+                    SELECT t.name, t.last_name, t.create_time, t.reader_name
+                    FROM public.acc_transaction t
+                             INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE t.create_time BETWEEN %s AND %s
+                      AND (pp.name IS NULL OR pp.name NOT ILIKE 'student') -- Nihai Öğrenci Filtresi
+                    ORDER BY t.create_time;
                     """, (start_dt, end_dt))
 
         raw_transactions = cur.fetchall()
@@ -550,11 +677,67 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
         if conn: conn.close()
 
 
-def get_employee_logs_monthly(selected_month, selected_year):
-    # (Monthly attendance data fetching function)
+# --------------------------------------------------------------------------------------
+# --- EMPLOYEE DAILY NOTES FUNCTIONS ---
+# --------------------------------------------------------------------------------------
+
+def get_employee_daily_note(employee_id, note_date):
+    """Fetches daily note for a specific employee and date."""
     conn = get_db_connection()
-    if conn is None: return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year,
-                             'month_name': 'Error'}
+    if conn is None: return None
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+                    SELECT note_text
+                    FROM public.employee_daily_notes
+                    WHERE employee_id = %s
+                      AND note_date = %s
+                    """, (str(employee_id), note_date))
+
+        result = cur.fetchone()
+        return result[0] if result else ""
+    except psycopg2.Error as e:
+        print(f"🚨 Get Daily Note Error: {e}")
+        return ""
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def save_employee_daily_note(employee_id, note_date, note_text, created_by='admin'):
+    """Saves or updates daily note for an employee."""
+    conn = get_db_connection()
+    if conn is None: return False, "Database connection error."
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+                    INSERT INTO public.employee_daily_notes
+                        (employee_id, note_date, note_text, created_by, created_at, updated_at)
+                    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) ON CONFLICT (employee_id, note_date) 
+            DO
+                    UPDATE SET
+                        note_text = EXCLUDED.note_text,
+                        updated_at = CURRENT_TIMESTAMP
+                    """, (str(employee_id), note_date, note_text, created_by))
+
+        conn.commit()
+        return True, "Note saved successfully."
+    except psycopg2.Error as e:
+        conn.rollback()
+        print(f"🚨 Save Daily Note Error: {e}")
+        return False, f"Save error: {e}"
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def get_employee_logs_monthly(selected_month, selected_year, search_term="", page=1, per_page=PER_PAGE_ATTENDANCE):
+    conn = get_db_connection()
+    if conn is None:
+        return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year,
+                'month_name': 'Error', 'total_items': 0, 'total_pages': 1, 'current_page': page, 'per_page': per_page}
 
     cur = conn.cursor()
 
@@ -583,24 +766,50 @@ def get_employee_logs_monthly(selected_month, selected_year):
 
     daily_transactions = defaultdict(list)
     employee_daily_status = defaultdict(lambda: defaultdict(str))
+    employee_list = []
 
     try:
-        # 1. Fetch all employees (for dropdown/display only)
-        cur.execute("SELECT id, name, last_name FROM public.pers_person ORDER BY last_name, name")
+        # 1. Fetch all employees (FILTERED: No Students + Apply Search)
+        if search_term:
+            # Arama terimi varsa, isim veya soyisimde arama yap
+            cur.execute("""
+                        SELECT p.id, p.name, p.last_name, pp.name AS position_name
+                        FROM public.pers_person p
+                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                        WHERE (pp.name IS NULL OR pp.name NOT ILIKE 'STUDENT')
+                          AND (LOWER(p.name) LIKE %s OR LOWER(p.last_name) LIKE %s OR
+                               LOWER(p.name || ' ' || p.last_name) LIKE %s)
+                        ORDER BY p.last_name, p.name
+                        """, (f'%{search_term.lower()}%', f'%{search_term.lower()}%', f'%{search_term.lower()}%'))
+        else:
+            # Arama terimi yoksa tüm çalışanları getir
+            cur.execute("""
+                        SELECT p.id, p.name, p.last_name, pp.name AS position_name
+                        FROM public.pers_person p
+                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                        WHERE pp.name IS NULL
+                           OR pp.name NOT ILIKE 'STUDENT'
+                        ORDER BY p.last_name, p.name
+                        """)
+
         person_data = cur.fetchall()
 
-        employee_list = []
-        for id_val, name, last_name in person_data:
+        for id_val, name, last_name, position_name in person_data:
             key = normalize_name(name) + normalize_name(last_name)
-            employee_list.append({'key': key, 'id': id_val, 'name': name, 'last_name': last_name})
+            full_name = f"{name} {last_name}"
+            employee_list.append(
+                {'key': key, 'id': id_val, 'name': name, 'last_name': last_name, 'full_name': full_name})
 
-        # 2. Fetch all movements within the date range
+        # 2. Fetch all movements within the date range (Only for Non-Students)
         cur.execute("""
-                    SELECT name, last_name, create_time, reader_name
-                    FROM public.acc_transaction
-                    WHERE create_time >= %s
-                      AND create_time <= %s
-                    ORDER BY create_time;
+                    SELECT t.name, t.last_name, t.create_time, t.reader_name
+                    FROM public.acc_transaction t
+                             INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE t.create_time >= %s
+                      AND t.create_time <= %s
+                      AND (pp.name IS NULL OR pp.name NOT ILIKE 'student')
+                    ORDER BY t.create_time;
                     """, (datetime.combine(start_date, datetime.min.time()),
                           datetime.combine(end_date, datetime.max.time())))
 
@@ -624,8 +833,11 @@ def get_employee_logs_monthly(selected_month, selected_year):
                 key = (log_date, t_key)
                 daily_transactions[key].append({'time': create_time, 'direction': direction_type})
 
-        # 4. Determine Daily Status
+        # 4. Determine Daily Status (for employees in employee_list)
         for (log_date, person_key), transactions in daily_transactions.items():
+            # Check if this log belongs to an employee in the list
+            if not any(emp['key'] == person_key for emp in employee_list):
+                continue
 
             # Use the core calculation function
             times = calculate_times_from_transactions(transactions)
@@ -646,10 +858,10 @@ def get_employee_logs_monthly(selected_month, selected_year):
         day_headers = list(range(1, days_in_month + 1))
 
         final_logs = []
-        for emp in employee_list:
+        for emp in employee_list:  # employee_list is already filtered by search
             row = {
                 'id': emp['id'],
-                'name': f"{emp['name']} {emp['last_name']}",
+                'name': emp['full_name'],
                 'days': []
             }
             for day in day_headers:
@@ -658,18 +870,34 @@ def get_employee_logs_monthly(selected_month, selected_year):
 
             final_logs.append(row)
 
+        # 6. Apply Pagination
+        total_items = len(final_logs)
+        total_pages = (total_items + per_page - 1) // per_page
+
+        # Ensure page number is valid
+        if page < 1: page = 1
+        if page > total_pages and total_pages > 0: page = total_pages
+
+        start_index = (page - 1) * per_page
+        end_index = start_index + per_page
+        paginated_logs = final_logs[start_index:end_index]
+
         return {
             'headers': day_headers,
-            'logs': final_logs,
+            'logs': paginated_logs,
             'current_month': selected_month,
             'current_year': selected_year,
-            'month_name': start_date.strftime('%B')
+            'month_name': start_date.strftime('%B'),
+            'total_items': total_items,
+            'total_pages': total_pages,
+            'current_page': page,
+            'per_page': per_page
         }
 
     except Exception as e:
         print(f"🚨 Monthly Attendance Processing Error: {e}")
         return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year,
-                'month_name': 'Error'}
+                'month_name': 'Error', 'total_items': 0, 'total_pages': 1, 'current_page': page, 'per_page': per_page}
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -686,33 +914,47 @@ def get_dashboard_data():
 
     cur = conn.cursor()
     try:
-        # 1. Total Employees
-        cur.execute("SELECT COUNT(*) FROM public.pers_person")
+        # 1. Total Employees (Non-Student)
+        cur.execute("""SELECT COUNT(*)
+                       FROM public.pers_person p
+                                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                       WHERE pp.name IS NULL
+                          OR pp.name NOT ILIKE 'STUDENT'""")  # Nihai Öğrenci Filtresi
         data['total_employees'] = cur.fetchone()[0]
 
         # 2. Total Departments
         cur.execute("SELECT COUNT(*) FROM public.pers_position")
         data['total_departments'] = cur.fetchone()[0]
 
-        # 3. Today's Total Transactions
+        # 3. Today's Total Transactions (Non-Student)
         today_date = date.today()
-        cur.execute("""SELECT COUNT(*)
-                       FROM public.acc_transaction
-                       WHERE DATE (create_time) = %s""", (today_date,))
+        cur.execute("""SELECT COUNT(t.*)
+                       FROM public.acc_transaction t
+                                INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+                                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                       WHERE DATE (t.create_time) = %s AND (pp.name IS NULL OR pp.name NOT ILIKE 'student')""",
+                    (today_date,))  # Nihai Öğrenci Filtresi
         data['total_transactions'] = cur.fetchone()[0]
 
-        # 4. New Employees This Month
-        cur.execute("""SELECT COUNT(*)
-                       FROM public.pers_person
-                       WHERE date_trunc('month', create_time) = date_trunc('month', NOW())""")
+        # 4. New Employees This Month (Non-Student)
+        cur.execute("""SELECT COUNT(p.*)
+                       FROM public.pers_person p
+                                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                       WHERE date_trunc('month', p.create_time) = date_trunc('month', NOW())
+                         AND (pp.name IS NULL OR pp.name NOT ILIKE 'student')""")  # Nihai Öğrenci Filtresi
         data['new_employees_this_month'] = cur.fetchone()[0]
 
-        # 5. Employees Present Today
+        # 5. Employees Present Today (Non-Student)
         cur.execute("""
-                    SELECT COUNT(DISTINCT (name, last_name))
-                    FROM public.acc_transaction
-                    WHERE DATE (create_time) = %s AND reader_name ILIKE '%%-in%%'
-                    """, (today_date,))
+                    SELECT COUNT(DISTINCT (t.name, t.last_name))
+                    FROM public.acc_transaction t
+                             INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE DATE (t.create_time) = %s
+                      AND t.reader_name ILIKE '%%-in%%'
+                      AND (pp.name IS NULL
+                       OR pp.name NOT ILIKE 'student')
+                    """, (today_date,))  # Nihai Öğrenci Filtresi
         data['present_employees_count'] = cur.fetchone()[0]
 
         # Attendance Percentage Calculation
@@ -723,13 +965,15 @@ def get_dashboard_data():
             percentage = (present / total) * 100
             data['attendance_percentage'] = round(percentage, 2)
 
-        # 6. Birthdays Today
+        # 6. Birthdays Today (Non-Student)
         today_m_d = datetime.now().strftime('%m-%d')
         cur.execute("""
-                    SELECT id, name, last_name, birthday
-                    FROM public.pers_person
-                    WHERE TO_CHAR(birthday, 'MM-DD') = %s
-                    ORDER BY last_name, name;
+                    SELECT p.id, p.name, p.last_name, p.birthday
+                    FROM public.pers_person p
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE TO_CHAR(p.birthday, 'MM-DD') = %s
+                      AND (pp.name IS NULL OR pp.name NOT ILIKE 'student') -- Nihai Öğrenci Filtresi
+                    ORDER BY p.last_name, p.name;
                     """, (today_m_d,))
 
         today_birthdays_raw = cur.fetchall()
@@ -762,15 +1006,34 @@ def login():
         return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
-        username = request.form.get('username')
+        email = request.form.get('email')
         password = request.form.get('password')
 
-        if username == 'admin' and password == '1234':
-            session['user'] = username
-            flash('Login successful!', 'success')
-            return redirect(url_for('dashboard'))
+        # Validate input
+        if not email or not password:
+            flash('Please enter both email and password.', 'danger')
+            return render_template('login.html')
 
-        flash('Invalid Username or Password!', 'danger')
+        # Get user from database
+        user = get_user_by_email(email)
+
+        if user and user['password'] == password:
+            # Login successful
+            session['user'] = {
+                'id': user['id'],
+                'email': user['email'],
+                'full_name': user['full_name'],
+                'role': user['role']
+            }
+
+            # Update last login
+            update_last_login(user['id'])
+
+            flash(f'Welcome back, {user["full_name"]}!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid email or password!', 'danger')
+
     return render_template('login.html')
 
 
@@ -779,7 +1042,6 @@ def dashboard():
     if (redirect_response := require_login()): return redirect_response
     dashboard_data = get_dashboard_data()
     return render_template('dashboard.html', data=dashboard_data)
-
 
 @app.route('/employees')
 def employees():
@@ -872,6 +1134,66 @@ def export_employees():
     return response
 
 
+@app.route('/api/save_daily_note', methods=['POST'])
+def api_save_daily_note():
+    if (redirect_response := require_login()):
+        return jsonify({'success': False, 'message': 'Login required'})
+
+    try:
+        data = request.get_json()
+        employee_id = data.get('employee_id')
+        note_date = data.get('note_date')
+        note_text = data.get('note_text', '').strip()
+
+        if not employee_id or not note_date:
+            return jsonify({'success': False, 'message': 'Missing required fields'})
+
+        # Tarih formatını kontrol et
+        try:
+            note_date = datetime.strptime(note_date, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'message': 'Invalid date format'})
+
+        success, message = save_employee_daily_note(
+            employee_id,
+            note_date,
+            note_text,
+            created_by=session.get('user', 'admin')
+        )
+
+        return jsonify({'success': success, 'message': message})
+
+    except Exception as e:
+        print(f"🚨 API Save Note Error: {e}")
+        return jsonify({'success': False, 'message': 'Server error'})
+
+
+@app.route('/api/get_daily_note', methods=['GET'])
+def api_get_daily_note():
+    if (redirect_response := require_login()):
+        return jsonify({'note': ''})
+
+    try:
+        employee_id = request.args.get('employee_id')
+        note_date = request.args.get('note_date')
+
+        if not employee_id or not note_date:
+            return jsonify({'note': ''})
+
+        # Tarih formatını kontrol et
+        try:
+            note_date = datetime.strptime(note_date, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'note': ''})
+
+        note_text = get_employee_daily_note(employee_id, note_date)
+        return jsonify({'note': note_text})
+
+    except Exception as e:
+        print(f"🚨 API Get Note Error: {e}")
+        return jsonify({'note': ''})
+
+
 @app.route('/employee_logs/export', methods=['GET'])
 def export_employee_logs():
     if (redirect_response := require_login()): return redirect_response
@@ -894,7 +1216,8 @@ def export_employee_logs():
         'Last Out',
         'Total INSIDE Time (HH:MM:SS)',
         'Total OUTSIDE Time (HH:MM:SS)',
-        'Total INSIDE Time (Seconds)'
+        'Total INSIDE Time (Seconds)',
+        'Total SPAN Time (Seconds)'
     ]
     cw.writerow(header)
 
@@ -907,7 +1230,8 @@ def export_employee_logs():
             log['last_out'],
             log['inside_time'],
             log['outside_time'],
-            log['total_inside_seconds']
+            log['total_inside_seconds'],
+            log.get('total_span_seconds', 0)
         ])
 
     output = si.getvalue()
@@ -957,16 +1281,21 @@ def attendance():
     today = date.today()
     selected_month = today.month
     selected_year = today.year
+    page = int(request.args.get('page', 1))
+    search_term = request.args.get('search', '').strip()
 
-    if request.method == 'POST':
-        try:
-            selected_month = int(request.form.get('month', today.month))
-            selected_year = int(request.form.get('year', today.year))
-        except ValueError:
-            flash("Invalid month or year selection.")
-            pass
+    # GET parametrelerinden month ve year'ı oku
+    try:
+        selected_month = int(request.args.get('month', selected_month))
+        selected_year = int(request.args.get('year', selected_year))
+    except ValueError:
+        pass
 
-    attendance_data = get_employee_logs_monthly(selected_month, selected_year)
+    # Arama terimi varsa, her zaman 1. sayfaya git
+    if search_term and page > 1:
+        page = 1
+
+    attendance_data = get_employee_logs_monthly(selected_month, selected_year, search_term, page, PER_PAGE_ATTENDANCE)
 
     years = list(range(today.year - 2, today.year + 1))
 
@@ -982,8 +1311,46 @@ def attendance():
         data=attendance_data,
         years=years,
         months=months,
-        current_selection={'month': selected_month, 'year': selected_year}
+        current_selection={'month': selected_month, 'year': selected_year, 'search': search_term, 'page': page}
     )
+
+
+@app.route('/api/employees_search')
+def api_employees_search():
+    if (redirect_response := require_login()): return jsonify([])
+
+    search_term = request.args.get('q', '').lower()
+
+    conn = get_db_connection()
+    if conn is None:
+        return jsonify([])
+
+    cur = conn.cursor()
+    try:
+        # Filter: Exclude Students AND search by name/last_name
+        cur.execute("""
+                    SELECT p.name, p.last_name
+                    FROM public.pers_person p
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE (pp.name IS NULL OR pp.name NOT ILIKE 'student') -- Nihai Öğrenci Filtresi
+                      AND (LOWER(p.name) LIKE %s OR LOWER(p.last_name) LIKE %s)
+                    ORDER BY p.last_name, p.name LIMIT 10;
+                    """, (f'%{search_term}%', f'%{search_term}%'))
+
+        results = []
+        for name, last_name in cur.fetchall():
+            full_name = f"{name} {last_name}"
+            # Normalleştirilmiş anahtar, arama sonuçlarından seçim yapıldıktan sonra main attendance filtresi için kullanılabilir.
+            key = normalize_name(name) + normalize_name(last_name)
+            results.append({'id': key, 'text': full_name})
+
+        return jsonify(results)
+    except psycopg2.Error as e:
+        print(f"🚨 AJAX Search Error: {e}")
+        return jsonify([])
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 @app.route('/attendance/export', methods=['GET'])
@@ -998,7 +1365,9 @@ def export_monthly_attendance():
         selected_month = today.month
         selected_year = today.year
 
-    data = get_employee_logs_monthly(selected_month, selected_year)
+    # Export için tüm veriyi çekiyoruz (sayfalama uygulamadan)
+    data = get_employee_logs_monthly(selected_month, selected_year, search_term=request.args.get('search', '').strip(),
+                                     page=1, per_page=999999)
 
     if not data or not data.get('logs'):
         return make_response("No monthly attendance data found for export.", 404)
@@ -1009,9 +1378,11 @@ def export_monthly_attendance():
     month_name = data.get('month_name', 'Month')
     year = data.get('current_year', 'Year')
 
+    # Başlık satırı
     header = ['EMPLOYEE'] + [str(d) for d in data.get('headers', [])]
     cw.writerow(header)
 
+    # Veri satırları
     for log in data['logs']:
         row_data = [log['name']] + log['days']
         cw.writerow(row_data)
@@ -1032,45 +1403,30 @@ def hours_tracked():
 
     employee_list = get_employee_list_for_dropdown()
 
-    selected_person_key = request.args.get('person_key') or (employee_list[0]['key'] if employee_list else None)
-    selected_period = request.args.get('period', 'last_7_days')
+    selected_person_key = request.args.get('person_key')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
 
     tracked_data = {'logs': [], 'total_time_str': '00:00:00'}
-    today = date.today()
-    start_date, end_date = today, today
 
-    # Determine Date Range based on selected_period
-    if selected_period == 'last_7_days':
-        start_date = today - timedelta(days=6)
-        end_date = today
-    elif selected_period == 'last_30_days':
-        start_date = today - timedelta(days=29)
-        end_date = today
-    elif selected_period == 'this_month':
-        start_date = today.replace(day=1)
-        end_date = today
-    elif selected_period == 'last_month':
-        last_day_last_month = today.replace(day=1) - timedelta(days=1)
-        start_date = last_day_last_month.replace(day=1)
-        end_date = last_day_last_month
+    # Tarih parametrelerini işle
+    start_date, end_date = None, None
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        pass
 
-    elif '-' in selected_period:
-        # 'YYYY-MM' format (Month selection)
-        try:
-            year, month = map(int, selected_period.split('-'))
+    # Varsayılan tarih aralığı (son 7 gün)
+    if not start_date or not end_date:
+        end_date = date.today()
+        start_date = end_date - timedelta(days=6)
 
-            start_date = date(year, month, 1)
-
-            last_day = calendar.monthrange(year, month)[1]
-            end_date = date(year, month, last_day)
-
-            if end_date > today:
-                end_date = today
-
-        except ValueError:
-            start_date = today - timedelta(days=6)
-            end_date = today
-            selected_period = 'last_7_days'
+    # Tarih aralığını doğrula
+    if start_date > end_date:
+        start_date, end_date = end_date, start_date
 
     # Fetch Data using the determined date range
     if selected_person_key and start_date <= end_date:
@@ -1086,9 +1442,9 @@ def hours_tracked():
     return render_template(
         'hours_tracked.html',
         employees=employee_list,
-        available_months=get_available_months(),
         selected_person_key=selected_person_key,
-        selected_period=selected_period,
+        start_date=start_date_str,
+        end_date=end_date_str,
         selected_employee_name=selected_employee_name,
         tracked_data=tracked_data
     )
@@ -1105,7 +1461,6 @@ def logout():
     session.pop('user', None)
     flash("Successfully logged out.", 'success')
     return redirect(url_for('login'))
-
 
 if __name__ == '__main__':
     app.run(debug=True)

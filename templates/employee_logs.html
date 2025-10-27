@@ -52,6 +52,7 @@
                     <th>Last Out</th>
                     <th>Total INSIDE Time</th>
                     <th>Total OUTSIDE Time</th>
+                    <th>Total Time (Span)</th>
                 </tr>
             </thead>
             <tbody>
@@ -63,6 +64,13 @@
                     <td>{{ log.last_out }}</td>
                     <td style="font-weight: 600; color: #1a7e4b;">{{ log.inside_time }}</td>
                     <td style="font-weight: 600; color: #cc0000;">{{ log.outside_time }}</td>
+                    <td style="font-weight: 600; color: #0066cc;">
+                        {% if log.total_span_seconds > 0 %}
+                            {{ format_seconds(log.total_span_seconds) }}
+                        {% else %}
+                            N/A
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

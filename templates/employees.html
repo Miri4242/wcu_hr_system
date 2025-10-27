@@ -70,6 +70,8 @@
         justify-content: space-between;
         align-items: center;
         margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 15px;
     }
     /* Yeni Stil: Mail linki rengi ve alt çizgisi */
     .employee-table a.mail-link {
@@ -81,18 +83,64 @@
         text-decoration: underline;
         color: #0056b3;
     }
+
+    /* Yeni Arama Barı Stilleri */
+    .search-container {
+        position: relative;
+        flex-grow: 1;
+        max-width: 400px;
+    }
+    .search-input {
+        width: 100%;
+        padding: 10px 40px 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.3s, box-shadow 0.3s;
+    }
+    .search-input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+    .search-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+    .employee-count {
+        color: #6c757d;
+        font-size: 14px;
+        margin-left: 10px;
+    }
+    .no-results {
+        text-align: center;
+        padding: 30px;
+        color: #6c757d;
+        font-style: italic;
+    }
 </style>
 
 <div class="card-large">
-
     <div class="header-controls">
-        <h3>All Employees ({{ employees|length }})</h3>
+        <div style="display: flex; align-items: center;">
+            <h3>All Employees</h3>
+            <span class="employee-count">(<span id="employee-count">{{ employees|length }}</span> found)</span>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="employee-search" class="search-input" placeholder="Search employees by name, position, email...">
+            <span class="material-icons search-icon">search</span>
+        </div>
+
         <a href="{{ url_for('export_employees') }}" class="action-button export-button">
             <i class="fas fa-file-export"></i> Export to CSV
         </a>
     </div>
 
-    <table class="employee-table">
+    <table class="employee-table" id="employees-table">
         <thead>
             <tr>
                 <th>Employee</th>
@@ -103,16 +151,14 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="employees-tbody">
             {% for employee in employees %}
-            <tr>
+            <tr class="employee-row" data-search="{{ (employee.name + ' ' + employee.last_name + ' ' + employee.position + ' ' + employee.email + ' ' + employee.mobile_phone)|lower }}">
                 <td class="employee-name-cell">
                     <img src="{{ employee.photo_path }}" alt="{{ employee.name }} Photo" class="employee-photo">
                     {{ employee.name }} {{ employee.last_name }}
                 </td>
-                <td>{{ employee.position }}</td>
-
-                {# 🚨 E-POSTA ALANI GÜNCELLENDİ: Outlook Web'e yönlendiren JavaScript çağırılıyor #}
+                <td class="employee-position">{{ employee.position }}</td>
                 <td>
                     {% if employee.email and employee.email != 'N/A' %}
                         <a href="#"
@@ -125,9 +171,8 @@
                         N/A
                     {% endif %}
                 </td>
-
-                <td>{{ employee.mobile_phone }}</td>
-                <td>{{ employee.hire_date }}</td>
+                <td class="employee-mobile">{{ employee.mobile_phone }}</td>
+                <td class="employee-hire-date">{{ employee.hire_date }}</td>
                 <td>
                     <a href="{{ url_for('edit_employee', employee_id=employee.id) }}" class="action-button">HR</a>
                 </td>
@@ -139,19 +184,67 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <div id="no-results" class="no-results" style="display: none;">
+        No employees found matching your search criteria.
+    </div>
 </div>
 
-{# 🚨 GEREKLİ JAVASCRIPT FONKSİYONU EKLEDİK #}
 <script>
     function openOutlookWeb(recipientEmail) {
-        // Bu URL, Office 365'te yeni bir e-posta taslağı açmayı dener.
-        // Eğer bu URL çalışmazsa, Office 365 kiracınızın özel bir URL formatı olabilir.
-        // Genel Outlook Web URL formatı:
         const outlookComposeUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(recipientEmail)}`;
-
-        // Yeni sekmede açar
         window.open(outlookComposeUrl, '_blank');
     }
+
+    // Arama fonksiyonelliği
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('employee-search');
+        const employeeRows = document.querySelectorAll('.employee-row');
+        const noResults = document.getElementById('no-results');
+        const employeeCount = document.getElementById('employee-count');
+        const tableBody = document.getElementById('employees-tbody');
+
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            let visibleCount = 0;
+
+            employeeRows.forEach(row => {
+                const searchData = row.getAttribute('data-search');
+                const isVisible = searchData.includes(searchTerm);
+
+                if (isVisible) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+
+            // Sonuç sayısını güncelle
+            employeeCount.textContent = visibleCount;
+
+            // Eğer hiç sonuç yoksa "no results" mesajını göster
+            if (visibleCount === 0 && searchTerm !== '') {
+                noResults.style.display = 'block';
+                tableBody.style.display = 'none';
+            } else {
+                noResults.style.display = 'none';
+                tableBody.style.display = '';
+            }
+
+            // Eğer arama kutusu boşsa, tüm satırları göster
+            if (searchTerm === '') {
+                employeeCount.textContent = {{ employees|length }};
+            }
+        });
+
+        // Enter tuşuna basıldığında form submit olmasını engelle
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    });
 </script>
 
 {% endblock %}

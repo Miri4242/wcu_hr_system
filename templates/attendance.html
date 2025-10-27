@@ -6,97 +6,492 @@
 
 {% block content %}
 <style>
-    /* ORİJİNAL STİLİNİZ: Sadece .export-button stili ve form düzenlemesi eklendi. */
+    /* -------------------------------------------------- */
+    /* BAR VE TABLO KENAR BOŞLUKLARI İYİLEŞTİRMELERİ */
+    /* -------------------------------------------------- */
+    .logs-container.calendar-view {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    /* Filtre Formunun Temiz Düzenlenmesi */
     .filter-form {
-        display: flex; /* Butonları aynı satırda tutmak için ekledik */
+        display: flex;
         align-items: center;
         gap: 15px;
+        flex-wrap: wrap;
+        padding: 15px 0;
+        border-bottom: 1px solid #e2e8f0;
+        margin-bottom: 20px;
+        background-color: #ffffff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
+
+    .filter-form label {
+        font-weight: 500;
+        color: #4b5563;
+    }
+
+    /* INPUT ve SELECT kutularının stilini zorla düzeltme */
+    .filter-form select,
+    .filter-form input[type="text"] {
+        width: auto !important;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        color: #1f2937;
+        background-color: #ffffff;
+        box-sizing: border-box;
+    }
+
+    /* Yeni Arama Barı Stilleri */
+    .search-container {
+        position: relative;
+        flex-grow: 1;
+        max-width: 400px;
+    }
+
+    .search-input {
+        width: 100%;
+        padding: 10px 40px 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.3s, box-shadow 0.3s;
+        background-color: #ffffff;
+    }
+
+    .search-input:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        outline: none;
+    }
+
+    .search-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #6c757d;
+    }
+
+    .employee-count {
+        color: #6c757d;
+        font-size: 14px;
+        margin-left: 10px;
+    }
+
+    .no-results {
+        text-align: center;
+        padding: 30px;
+        color: #6c757d;
+        font-style: italic;
+        background-color: #f8f9fa;
+        border-radius: 6px;
+        margin-top: 20px;
+    }
+
+    /* Arama Önerileri */
+    .suggestions-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: #ffffff;
+        border: 1px solid #d1d5db;
+        border-top: none;
+        border-radius: 0 0 6px 6px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        max-height: 200px;
+        overflow-y: auto;
+        display: none;
+        z-index: 1000;
+    }
+
+    .suggestion-item {
+        padding: 10px 12px;
+        cursor: pointer;
+        font-size: 14px;
+        color: #1f2937;
+        transition: background-color 0.15s;
+    }
+
+    .suggestion-item:hover {
+        background-color: #eff6ff;
+    }
+
+    /* Butonlar */
+    .apply-filter-button,
     .export-button {
-        background-color: #28a745; /* Yeşil renk */
         color: white;
         border: none;
         padding: 8px 15px;
-        border-radius: 4px;
+        border-radius: 6px;
         cursor: pointer;
-        transition: background-color 0.2s;
         font-size: 14px;
         text-decoration: none;
-        margin-left: auto; /* Butonu sağa iter */
+        font-weight: 600;
     }
+
+    .apply-filter-button {
+        background-color: #1e40af;
+    }
+
+    .apply-filter-button:hover {
+        background-color: #173285;
+    }
+
+    .export-button {
+        background-color: #10b981;
+        margin-left: auto;
+    }
+
     .export-button:hover {
-        background-color: #1e7e34;
+        background-color: #059669;
     }
-    /* Diğer orijinal stiliniz burada devam ediyor... */
+
+    /* Sayfalama Kontrolleri */
+    .pagination-controls {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 25px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .page-link {
+        text-decoration: none;
+        padding: 8px 15px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        background-color: #ffffff;
+        color: #1f2937;
+        font-size: 14px;
+    }
+
+    .page-link[disabled] {
+        opacity: 0.5;
+        pointer-events: none;
+        background-color: #f9fafb;
+    }
+
+    /* TABLO İYİLEŞTİRMELERİ: SATIR/SÜTUN ÇİZGİLERİ */
+    .table-responsive {
+        background: #ffffff;
+        border-radius: 8px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+        overflow-x: auto;
+    }
+
+    .attendance-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .attendance-table th, .attendance-table td {
+        border: 1px solid #e5e7eb;
+        padding: 10px 5px;
+        font-size: 12px;
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    .attendance-table thead th {
+        background-color: #eff6ff;
+        color: #1e40af;
+        font-weight: 600;
+        text-transform: uppercase;
+        border-bottom: 2px solid #3b82f6;
+    }
+
+    .attendance-table tbody tr:nth-child(even) {
+        background-color: #f9fafb;
+    }
+
+    .attendance-table tbody tr:hover {
+        background-color: #f0f4ff;
+    }
+
+    /* İsim sütununu sola yasla */
+    .attendance-table .name-cell {
+        text-align: left;
+        font-weight: 500;
+        min-width: 180px;
+        position: sticky;
+        left: 0;
+        background-color: #ffffff;
+        z-index: 5;
+    }
+
+    .attendance-table .status-cell {
+        padding: 5px;
+        width: 30px;
+        position: relative;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .attendance-table .status-cell:hover {
+        background-color: #f3f4f6;
+    }
+
+    /* Header Controls */
+    .header-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    /* Not Modal Stilleri */
+    .note-modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .note-modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 20px;
+        border-radius: 8px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+
+    .note-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .note-modal-header h3 {
+        margin: 0;
+        color: #1f2937;
+    }
+
+    .close-button {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #6b7280;
+    }
+
+    .close-button:hover {
+        color: #374151;
+    }
+
+    .note-textarea {
+        width: 100%;
+        height: 120px;
+        padding: 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        resize: vertical;
+        font-family: inherit;
+        font-size: 14px;
+    }
+
+    .note-textarea:focus {
+        border-color: #3b82f6;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .note-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 15px;
+    }
+
+    .save-note-button {
+        background-color: #10b981;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .save-note-button:hover {
+        background-color: #059669;
+    }
+
+    .cancel-note-button {
+        background-color: #6b7280;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    .cancel-note-button:hover {
+        background-color: #4b5563;
+    }
+
+    /* Not ikonu stili */
+    .note-indicator {
+        position: absolute;
+        top: -2px;
+        right: -2px;
+        width: 8px;
+        height: 8px;
+        background-color: #3b82f6;
+        border-radius: 50%;
+        border: 1px solid white;
+    }
+
+    .has-note .status-indicator {
+        border: 2px solid #3b82f6;
+    }
+
+    /* Mobil Uyumluluk İyileştirmesi */
+    @media (max-width: 600px) {
+        .filter-form {
+            flex-direction: column;
+            align-items: stretch;
+            padding: 10px;
+        }
+
+        .filter-form > * {
+            width: 100%;
+            margin-bottom: 5px;
+        }
+
+        .export-button {
+            margin-left: 0 !important;
+        }
+
+        .header-controls {
+            flex-direction: column;
+            align-items: stretch;
+        }
+    }
 </style>
 
 <div class="logs-container calendar-view">
 
-    <form method="POST" class="filter-form" id="attendance-form">
+    <form method="GET" class="filter-form" id="attendance-form">
         <label for="month">Month:</label>
-        <select id="month" name="month">
-            {% for m_value, m_name in months %}
-            <option value="{{ m_value }}" {% if m_value == current_selection.month %}selected{% endif %}>
-                {{ m_name }}
-            </option>
+        <select name="month" id="month">
+            {% for m_id, m_name in months %}
+            <option value="{{ m_id }}" {% if m_id == current_selection.month %} selected{% endif %}>{{ m_name }}</option>
             {% endfor %}
         </select>
 
         <label for="year">Year:</label>
-        <select id="year" name="year">
-            {% for y_value in years %}
-            <option value="{{ y_value }}" {% if y_value == current_selection.year %}selected{% endif %}>
-                {{ y_value }}
-            </option>
+        <select name="year" id="year">
+            {% for y in years %}
+            <option value="{{ y }}" {% if y == current_selection.year %} selected{% endif %}>{{ y }}</option>
             {% endfor %}
         </select>
 
-        <button type="submit" class="filter-button">Fetch Data</button>
+        <div class="search-container">
+            <input type="text" id="search-input" name="search" class="search-input"
+                   placeholder="Search employees by name..."
+                   value="{{ current_selection.search | default('') }}">
+            <span class="material-icons search-icon">search</span>
+            <!-- AJAX önerilerini kaldırıyoruz çünkü artık form submit yapacağız -->
+        </div>
+
+        <button type="submit" class="apply-filter-button">Apply Filter</button>
 
         <a id="export-link"
-           href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year) }}"
+           href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search) }}"
            class="export-button">
-           <i class="fas fa-file-export"></i> Export to CSV
+            <span class="material-icons" style="font-size: 18px; vertical-align: middle;">download</span> Export CSV
         </a>
     </form>
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="flash-message">{{ messages[0] }}</div>
-        {% endif %}
-    {% endwith %}
-
-    <div class="legend-box">
-        <span class="status-indicator full-day"></span> Full Day (T)
-        <span class="status-indicator half-day"></span> Partial Day (E)
-        <span class="status-indicator absence"></span> Absent/No Log (D / N)
+    <div class="header-controls">
+        <div style="display: flex; align-items: center;">
+            <h3>Attendance Records</h3>
+            <span class="employee-count">(<span id="employee-count">{{ data.total_items }}</span> found)</span>
+        </div>
     </div>
 
+    {% if data.total_items > 0 %}
+    <div class="pagination-controls">
+        <span class="page-info" style="margin-right: 15px;">
+            Total Employees Found: {{ data.total_items }}
+        </span>
+
+        {% if data.total_items > data.per_page %}
+            <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
+               class="page-link"
+               {% if data.current_page <= 1 %} disabled {% endif %}>
+                Previous
+            </a>
+
+            <span class="page-info">
+                Page {{ data.current_page }} of {{ data.total_pages }}
+            </span>
+
+            <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
+               class="page-link"
+               {% if data.current_page >= data.total_pages %} disabled {% endif %}>
+                Next
+            </a>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if data.logs %}
-    <div class="table-responsive-calendar">
-        <table class="data-table calendar-table">
+    <div class="table-responsive">
+        <table class="attendance-table">
             <thead>
                 <tr>
-                    <th>EMPLOYEE</th>
-
+                    <th class="name-cell">Employee</th>
                     {% for day in data.headers %}
-                    <th>{{ day }}</th>
+                        <th>{{ day }}</th>
                     {% endfor %}
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="attendance-tbody">
                 {% for log in data.logs %}
-                <tr>
-                    <td class="employee-name-cell">{{ log.name }}</td>
+                <tr class="attendance-row">
+                    <td class="name-cell">{{ log.name }}</td>
+                    {% for day in data.headers %}
+                        {% set status_index = loop.index0 %}
+                        {% set status = log.days[status_index] %}
+                        <td class="status-cell"
+                            data-employee="{{ log.id }}"
+                            data-date="{{ current_selection.year }}-{{ '%02d' % current_selection.month }}-{{ '%02d' % day }}"
+                            data-employee-name="{{ log.name }}"
+                            data-day="{{ day }}"
+                            onclick="openNoteModal('{{ log.id }}', '{{ log.name }}', '{{ current_selection.year }}-{{ '%02d' % current_selection.month }}-{{ '%02d' % day }}')">
 
-                    {% for status in log.days %}
-                        <td class="status-cell">
                             {% if status == 'T' %}
-                                <span class="status-indicator full-day" title="Full Day"></span>
+                                <span class="status-indicator full-day" title="Full Day (8+ hours)"></span>
                             {% elif status == 'E' %}
-                                <span class="status-indicator half-day" title="Partial Day"></span>
-                            {% elif status == 'D' or status == 'N' %}
-                                <span class="status-indicator absence" title="Absent/No Log"></span>
+                                <span class="status-indicator half-day" title="Partial Day (< 8 hours)"></span>
+                            {% elif status == 'D' %}
+                                <span class="status-indicator absence" title="Absent (No entry/exit)"></span>
+                            {% elif status == 'N' %}
+                                <span class="status-indicator no-log" title="No Log Found (May be Weekend)"></span>
                             {% else %}
                                 <span class="status-indicator no-log" title="Undefined Status"></span>
                             {% endif %}
@@ -108,19 +503,256 @@
         </table>
     </div>
     {% else %}
-    <p class="no-data">No attendance data found for the selected month and year.</p>
+    <p class="no-data">
+        {% if current_selection.search %}
+            No employees found matching "{{ current_selection.search }}" for {{ data.month_name }} {{ data.current_year }}.
+        {% else %}
+            No attendance data found for {{ data.month_name }} {{ data.current_year }}.
+        {% endif %}
+    </p>
     {% endif %}
+
+    {% if data.total_items > data.per_page %}
+    <div class="pagination-controls">
+        <span class="page-info" style="margin-right: 15px;">
+            Total Employees Found: {{ data.total_items }}
+        </span>
+
+        <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
+           class="page-link"
+           {% if data.current_page <= 1 %} disabled {% endif %}>
+            Previous
+        </a>
+
+        <span class="page-info">
+            Page {{ data.current_page }} of {{ data.total_pages }}
+        </span>
+
+        <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
+           class="page-link"
+           {% if data.current_page >= data.total_pages %} disabled {% endif %}>
+            Next
+        </a>
+    </div>
+    {% endif %}
+
 </div>
 
-<script>
-    document.getElementById('attendance-form').addEventListener('change', function() {
-        var month = document.getElementById('month').value;
-        var year = document.getElementById('year').value;
-        var exportLink = document.getElementById('export-link');
+<!-- Not Modal -->
+<div id="noteModal" class="note-modal">
+    <div class="note-modal-content">
+        <div class="note-modal-header">
+            <h3 id="noteModalTitle">Add Daily Note</h3>
+            <button class="close-button">&times;</button>
+        </div>
+        <div>
+            <textarea id="noteTextarea" class="note-textarea" placeholder="Enter note for this day..."></textarea>
+        </div>
+        <div class="note-modal-footer">
+            <button class="cancel-note-button">Cancel</button>
+            <button class="save-note-button">Save Note</button>
+        </div>
+    </div>
+</div>
 
-        // Export linkini yeni seçilen ay ve yıl ile güncelle
-        var newHref = '{{ url_for("export_monthly_attendance") }}' + '?month=' + month + '&year=' + year;
-        exportLink.href = newHref;
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    // Not modal fonksiyonları
+    let currentEmployeeId = null;
+    let currentNoteDate = null;
+
+    function openNoteModal(employeeId, employeeName, date) {
+        currentEmployeeId = employeeId;
+        currentNoteDate = date;
+
+        // Önce mevcut notu getir
+        fetch(`/api/get_daily_note?employee_id=${employeeId}&note_date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                // Modal başlığını güncelle
+                const modalTitle = document.getElementById('noteModalTitle');
+                modalTitle.textContent = `Note for ${employeeName} - ${date}`;
+
+                // Textarea'yı güncelle
+                document.getElementById('noteTextarea').value = data.note || '';
+
+                // Modal'ı göster
+                document.getElementById('noteModal').style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Error fetching note:', error);
+                // Hata durumunda da modal'ı göster
+                document.getElementById('noteModal').style.display = 'block';
+            });
+    }
+
+    function closeNoteModal() {
+        document.getElementById('noteModal').style.display = 'none';
+        currentEmployeeId = null;
+        currentNoteDate = null;
+    }
+
+    function saveNote() {
+        const noteText = document.getElementById('noteTextarea').value;
+
+        if (!currentEmployeeId || !currentNoteDate) {
+            alert('Error: Missing employee or date information');
+            return;
+        }
+
+        // API'ye gönder
+        fetch('/api/save_daily_note', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                employee_id: currentEmployeeId,
+                note_date: currentNoteDate,
+                note_text: noteText
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Başarılı kayıt sonrası hücreyi güncelle
+                updateNoteIndicator(currentEmployeeId, currentNoteDate, noteText);
+                closeNoteModal();
+
+                // Kullanıcıya feedback göster
+                showNotification('Note saved successfully!', 'success');
+            } else {
+                alert('Error saving note: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error saving note');
+        });
+    }
+
+    function updateNoteIndicator(employeeId, noteDate, noteText) {
+        // İlgili hücreyi bul ve not göstergesini güncelle
+        const cell = document.querySelector(`[data-employee="${employeeId}"][data-date="${noteDate}"]`);
+        if (cell) {
+            if (noteText.trim()) {
+                cell.classList.add('has-note');
+                if (!cell.querySelector('.note-indicator')) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'note-indicator';
+                    cell.appendChild(indicator);
+                }
+            } else {
+                cell.classList.remove('has-note');
+                const indicator = cell.querySelector('.note-indicator');
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+        }
+    }
+
+    function showNotification(message, type = 'info') {
+        // Basit bir notification göster
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            background-color: ${type === 'success' ? '#10b981' : '#3b82f6'};
+            color: white;
+            border-radius: 6px;
+            z-index: 1001;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+
+    // Event listener'lar - SADECE BU KISMI DEĞİŞTİRİYORUZ
+    document.addEventListener('DOMContentLoaded', function() {
+        // Modal kapatma
+        document.querySelector('.close-button').addEventListener('click', closeNoteModal);
+        document.querySelector('.cancel-note-button').addEventListener('click', closeNoteModal);
+        document.querySelector('.save-note-button').addEventListener('click', saveNote);
+
+        // Modal dışına tıklayınca kapat
+        document.getElementById('noteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeNoteModal();
+            }
+        });
+
+        // Basit form yönetimi
+        var searchInput = $('#search-input');
+        var monthSelect = $('#month');
+        var yearSelect = $('#year');
+        var exportLink = $('#export-link');
+        var attendanceForm = $('#attendance-form');
+
+        // Export link güncelleme
+        function updateExportLink() {
+            var month = monthSelect.val();
+            var year = yearSelect.val();
+            var search = searchInput.val();
+
+            var newHref = '{{ url_for("export_monthly_attendance") }}' +
+                          '?month=' + month +
+                          '&year=' + year +
+                          '&search=' + encodeURIComponent(search);
+            exportLink.attr('href', newHref);
+        }
+
+        // Arama yapıldığında otomatik olarak formu submit et (1 saniye debounce ile)
+        var searchTimeout;
+        searchInput.on('keyup', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(function() {
+                // Arama yapıldığında her zaman 1. sayfaya git
+                var currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('search', searchInput.val());
+                currentUrl.searchParams.set('page', '1');
+                window.location.href = currentUrl.toString();
+            }, 1000);
+        });
+
+        // Enter tuşuna basıldığında formu submit et
+        searchInput.on('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(searchTimeout);
+                // Arama yapıldığında her zaman 1. sayfaya git
+                var currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('search', searchInput.val());
+                currentUrl.searchParams.set('page', '1');
+                window.location.href = currentUrl.toString();
+            }
+        });
+
+        // Diğer event listener'lar
+        monthSelect.on('change', function() {
+            // Ay değiştiğinde arama terimini koru ama sayfayı 1'e sıfırla
+            var currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('month', $(this).val());
+            currentUrl.searchParams.set('page', '1');
+            window.location.href = currentUrl.toString();
+        });
+
+        yearSelect.on('change', function() {
+            // Yıl değiştiğinde arama terimini koru ama sayfayı 1'e sıfırla
+            var currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('year', $(this).val());
+            currentUrl.searchParams.set('page', '1');
+            window.location.href = currentUrl.toString();
+        });
+
+        // Sayfa yüklendiğinde export link'i güncelle
+        updateExportLink();
     });
 </script>
 

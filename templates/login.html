@@ -3,25 +3,139 @@
 <head>
     <title>HR System - Login</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <style>
+        /*
+        --------------------------------------------------
+        Base and Layout Styles
+        --------------------------------------------------
+        */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f3f4f6; /* Light gray background for the whole page */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .login-container {
+            max-width: 400px;
+            width: 100%; /* Make sure it takes up full width on small screens */
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            /* Hafifletilmiş gölge, çünkü başlık ve demo kısmı kalktı */
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        /*
+        --------------------------------------------------
+        Header and Form Styles (Başlık kaldırıldı, sadece form stilleri kaldı)
+        --------------------------------------------------
+        */
+
+        .login-container input {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: 1px solid #d1d5db; /* Lighter, cleaner border */
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .login-container input:focus {
+            border-color: #3b82f6; /* Blue focus color */
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); /* Subtle glow */
+        }
+
+        .login-container button {
+            width: 100%;
+            padding: 14px;
+            /* Using a clean, professional blue gradient */
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 20px 0 10px 0; /* Üstteki boşluğu koru, alttakini biraz azalt */
+            transition: background 0.3s, transform 0.1s;
+        }
+
+        .login-container button:hover {
+            /* Slightly darker gradient on hover */
+            background: linear-gradient(135deg, #1e40af, #2563eb);
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+        }
+
+        .login-container button:active {
+            transform: scale(0.99); /* Press effect */
+        }
+
+        .login-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0 0 0; /* Üst ve alt marjini düzenle */
+            font-size: 14px;
+            color: #4b5563; /* Subtle text color */
+        }
+
+        .login-options a {
+            color: #3b82f6;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .login-options a:hover {
+            color: #2563eb;
+            text-decoration: underline;
+        }
+
+        /*
+        --------------------------------------------------
+        Messages (Demo Accounts kaldırıldı)
+        --------------------------------------------------
+        */
+        .error {
+            color: #dc2626; /* Red text */
+            text-align: center;
+            margin: 15px 0 0 0; /* Hata mesajını en alta kaydır */
+            padding: 10px;
+            background: #fef2f2; /* Light red background */
+            border: 1px solid #fecaca; /* Red border */
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+    </style>
 </head>
 <body>
     <div class="login-container">
-        <h2>Login</h2>
         <form method="POST">
-            <input type="text" name="username" placeholder="Username" required>
+            <input type="email" name="email" placeholder="Email Address" required>
             <input type="password" name="password" placeholder="Password" required>
             <button type="submit">Login</button>
             <div class="login-options">
                 <label><input type="checkbox" name="remember"> Remember me</label>
                 <a href="#">Forgot Password?</a>
             </div>
-            <p><a href="#">Create an Account</a></p>
         </form>
+
         {% with messages = get_flashed_messages() %}
             {% if messages %}
                 <p class="error">{{ messages[0] }}</p>
             {% endif %}
         {% endwith %}
-    </div>
+
+        </div>
 </body>
 </html>
