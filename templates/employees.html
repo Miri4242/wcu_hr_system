@@ -148,8 +148,7 @@
                 <th>Email</th>
                 <th>Mobile</th>
                 <th>Hire Date</th>
-                <th>Actions</th>
-            </tr>
+                </tr>
         </thead>
         <tbody id="employees-tbody">
             {% for employee in employees %}
@@ -173,13 +172,10 @@
                 </td>
                 <td class="employee-mobile">{{ employee.mobile_phone }}</td>
                 <td class="employee-hire-date">{{ employee.hire_date }}</td>
-                <td>
-                    <a href="{{ url_for('edit_employee', employee_id=employee.id) }}" class="action-button">HR</a>
-                </td>
-            </tr>
+                </tr>
             {% else %}
             <tr>
-                <td colspan="6" style="text-align: center;">No employees found in the database.</td>
+                <td colspan="5" style="text-align: center;">No employees found in the database.</td>
             </tr>
             {% endfor %}
         </tbody>
