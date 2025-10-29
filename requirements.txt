@@ -1,6 +1,5 @@
 Flask==2.3.2
-# Render uyumluluğu için binary sürümünü kullanıyoruz:
-psycopg2-binary==2.9.9
+# Render uyumluluğu için daha uyumlu modern adaptör:
+psycopg==3.1.18
 # Render'ın uygulamayı başlatmak için kullandığı WSGI sunucusu:
 gunicorn==21.2.0
-# Diğer standart Python kütüphaneleri (datetime, io, csv) için satır gerekmez.
