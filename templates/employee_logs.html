@@ -5,12 +5,11 @@
 {% block page_title %}Working Hours Analysis (In/Out Time){% endblock %}
 
 {% block content %}
-    <p>The total time employees spent inside and outside, according to turnstile movements over the last 365 days, is listed. Matching is done based on First Name and Last Name.</p>
+    <p>The total time employees spent inside and outside, according to turnstile movements over the selected date range, is listed. Matching is done based on First Name and Last Name.</p>
 
     <div class="filter-controls" style="margin-bottom: 20px;">
         <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}" style="display: flex; gap: 10px; align-items: center; width: 100%; flex-wrap: wrap;">
 
-            <!-- Searchable Dropdown -->
             <div class="searchable-dropdown" style="position: relative; min-width: 300px;">
                 <label for="employee_search" style="font-weight: bold; display: block; margin-bottom: 5px;">Select Employee:</label>
                 <div style="position: relative;">
@@ -19,15 +18,31 @@
                            name="employee_search"
                            placeholder="Type to search employees..."
                            autocomplete="off"
-                           value="{{ selected_employee_name if selected_person_key else '' }}"
+                           value="{{ selected_employee_name if selected_person_key else (request.args.get('employee_search') or '') }}"
                            style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
 
-                    <!-- Hidden field for the actual person_key -->
                     <input type="hidden" id="person_key" name="person_key" value="{{ selected_person_key or '' }}">
 
-                    <!-- Dropdown results -->
                     <div id="search_results" class="search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></div>
                 </div>
+            </div>
+
+            <div style="min-width: 150px;">
+                <label for="start_date" style="font-weight: bold; display: block; margin-bottom: 5px;">Start Date:</label>
+                <input type="date"
+                       id="start_date"
+                       name="start_date"
+                       value="{{ start_date or '' }}"
+                       style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
+            </div>
+
+            <div style="min-width: 150px;">
+                <label for="end_date" style="font-weight: bold; display: block; margin-bottom: 5px;">End Date:</label>
+                <input type="date"
+                       id="end_date"
+                       name="end_date"
+                       value="{{ end_date or '' }}"
+                       style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
             </div>
 
             <button type="submit" class="btn" style="background-color: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; margin-top: 25px;">
@@ -46,8 +61,17 @@
 
     <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
 
+    {% if start_date and end_date %}
+    <div style="background-color: #e9f7ef; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+        <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
+    </div>
+    {% endif %}
+
     <h3 style="margin-top: 20px; color: #333;">
         Summary Table: {{ selected_employee_name }}
+        {% if start_date and end_date %}
+        <small style="font-size: 14px; color: #6c757d;">({{ start_date }} to {{ end_date }})</small>
+        {% endif %}
     </h3>
 
     <div class="logs-container">
@@ -67,9 +91,15 @@
             </thead>
             <tbody>
                 {% for log in logs %}
-                <tr>
+                <tr class="clickable-row">
                     <td>{{ log.date }}</td>
-                    <td>{{ log.name }} {{ log.last_name }}</td>
+                    <td class="employee-name-cell"
+                        data-employee-name="{{ log.name }} {{ log.last_name }}"
+                        style="cursor: pointer; color: #007bff; font-weight: 500; transition: color 0.2s;"
+                        onmouseover="this.style.color='#0056b3'"
+                        onmouseout="this.style.color='#007bff'">
+                        {{ log.name }} {{ log.last_name }}
+                    </td>
                     <td>{{ log.first_in }}</td>
                     <td>
                         {% if log.is_invalid_day %}
@@ -138,8 +168,6 @@
         .export-btn:hover {
             background-color: #1e7e34 !important;
         }
-
-        /* Search dropdown styles */
         .search-results {
             background: white;
         }
@@ -158,77 +186,134 @@
             background-color: #007bff;
             color: white;
         }
-
         .no-data {
             text-align: center;
             color: #6c757d;
             font-style: italic;
             padding: 40px;
         }
+        .clickable-row {
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .clickable-row:hover {
+            background-color: #f0f8ff !important;
+        }
+        .employee-name-cell:hover {
+            text-decoration: underline;
+        }
     </style>
 
     <script>
+        function goToEmployees(employeeName) {
+            window.location.href = "{{ url_for('employees') }}?employee_search=" + encodeURIComponent(employeeName);
+        }
+
+        function performSearch(query) {
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            fetch(`/api/employee_search?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    currentResults = data;
+                    selectedIndex = -1;
+
+                    if (data.length === 0) {
+                        searchResults.innerHTML = '<div class="search-result-item">No employees found</div>';
+                        searchResults.style.display = 'block';
+                        return;
+                    }
+
+                    searchResults.innerHTML = data.map(emp =>
+                        `<div class="search-result-item" data-key="${emp.key}" data-name="${emp.name}">${emp.name}</div>`
+                    ).join('');
+                    searchResults.style.display = 'block';
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    searchResults.style.display = 'none';
+                });
+        }
+
+        function selectEmployee(key, name) {
+            personKeyInput.value = key;
+            searchInput.value = name;
+            searchResults.style.display = 'none';
+            updateExportLink();
+        }
+
+        function updateExportLink() {
+            const selectedKey = personKeyInput.value;
+            const startDate = startDateInput.value;
+            const endDate = endDateInput.value;
+
+            let exportUrl = "{{ url_for('export_employee_logs') }}";
+            let params = [];
+
+            if (selectedKey) {
+                params.push(`person_key=${selectedKey}`);
+            }
+            if (startDate) {
+                params.push(`start_date=${startDate}`);
+            }
+            if (endDate) {
+                params.push(`end_date=${endDate}`);
+            }
+
+            if (params.length > 0) {
+                exportUrl += '?' + params.join('&');
+            }
+
+            exportLink.href = exportUrl;
+        }
+
+        function updateSelectedItem() {
+            const items = searchResults.querySelectorAll('.search-result-item');
+            items.forEach((item, index) => {
+                item.classList.toggle('active', index === selectedIndex);
+            });
+
+            if (selectedIndex >= 0 && currentResults[selectedIndex]) {
+                searchInput.value = currentResults[selectedIndex].name;
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             const searchInput = document.getElementById('employee_search');
             const personKeyInput = document.getElementById('person_key');
             const searchResults = document.getElementById('search_results');
             const exportLink = document.getElementById('export-link');
+            const startDateInput = document.getElementById('start_date');
+            const endDateInput = document.getElementById('end_date');
+
             let currentResults = [];
             let selectedIndex = -1;
 
-            // Function to update export link
-            function updateExportLink() {
-                const selectedKey = personKeyInput.value;
-                let exportUrl = "{{ url_for('export_employee_logs') }}";
+            document.querySelectorAll('.employee-name-cell').forEach(cell => {
+                cell.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const employeeName = this.getAttribute('data-employee-name');
+                    goToEmployees(employeeName);
+                });
+            });
 
-                if (selectedKey) {
-                    exportUrl += `?person_key=${selectedKey}`;
-                }
-
-                exportLink.href = exportUrl;
-            }
-
-            // Function to search employees
-            function searchEmployees(query) {
-                if (query.length < 2) {
-                    searchResults.style.display = 'none';
-                    return;
-                }
-
-                fetch(`/api/employee_search?q=${encodeURIComponent(query)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        currentResults = data;
-                        selectedIndex = -1;
-
-                        if (data.length === 0) {
-                            searchResults.innerHTML = '<div class="search-result-item">No employees found</div>';
-                            searchResults.style.display = 'block';
-                            return;
+            document.querySelectorAll('.clickable-row').forEach(row => {
+                row.addEventListener('click', function(e) {
+                    if (!e.target.classList.contains('employee-name-cell') && !e.target.closest('.employee-name-cell')) {
+                        const employeeNameCell = this.querySelector('.employee-name-cell');
+                        if (employeeNameCell) {
+                            const employeeName = employeeNameCell.getAttribute('data-employee-name');
+                            goToEmployees(employeeName);
                         }
+                    }
+                });
+            });
 
-                        searchResults.innerHTML = data.map(emp =>
-                            `<div class="search-result-item" data-key="${emp.key}" data-name="${emp.name}">${emp.name}</div>`
-                        ).join('');
-                        searchResults.style.display = 'block';
-                    })
-                    .catch(error => {
-                        console.error('Search error:', error);
-                        searchResults.style.display = 'none';
-                    });
-            }
-
-            // Function to select employee
-            function selectEmployee(key, name) {
-                personKeyInput.value = key;
-                searchInput.value = name;
-                searchResults.style.display = 'none';
-                updateExportLink();
-            }
-
-            // Event listeners
             searchInput.addEventListener('input', function(e) {
-                searchEmployees(e.target.value);
+                performSearch(e.target.value);
             });
 
             searchInput.addEventListener('focus', function() {
@@ -254,14 +339,15 @@
                 }
             });
 
-            // Click outside to close dropdown
+            startDateInput.addEventListener('change', updateExportLink);
+            endDateInput.addEventListener('change', updateExportLink);
+
             document.addEventListener('click', function(e) {
                 if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                     searchResults.style.display = 'none';
                 }
             });
 
-            // Click on search result
             searchResults.addEventListener('click', function(e) {
                 if (e.target.classList.contains('search-result-item')) {
                     const key = e.target.getAttribute('data-key');
@@ -270,18 +356,19 @@
                 }
             });
 
-            function updateSelectedItem() {
-                const items = searchResults.querySelectorAll('.search-result-item');
-                items.forEach((item, index) => {
-                    item.classList.toggle('active', index === selectedIndex);
-                });
+            const urlParams = new URLSearchParams(window.location.search);
+            const employeeSearch = urlParams.get('employee_search');
+            if (employeeSearch && employeeSearch.trim() !== '') {
+                searchInput.value = employeeSearch;
+                performSearch(employeeSearch);
 
-                if (selectedIndex >= 0 && currentResults[selectedIndex]) {
-                    searchInput.value = currentResults[selectedIndex].name;
-                }
+                setTimeout(() => {
+                    if (currentResults.length > 0) {
+                        selectEmployee(currentResults[0].key, currentResults[0].name);
+                    }
+                }, 100);
             }
 
-            // Initialize export link
             updateExportLink();
         });
     </script>

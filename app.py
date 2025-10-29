@@ -430,12 +430,13 @@ def calculate_times_from_transactions(transactions):
         if total_outside_seconds < 0:
             total_outside_seconds = 0
 
+    # DÜZELTME: None değerleri 0 yap
     return {
         'first_in': first_in_time,
         'last_out': last_out_time,
-        'total_inside_seconds': total_inside_seconds if not is_invalid_day else None,
-        'total_outside_seconds': total_outside_seconds if not is_invalid_day else None,
-        'total_span_seconds': total_span_seconds if not is_invalid_day else None,
+        'total_inside_seconds': total_inside_seconds if not is_invalid_day else 0,
+        'total_outside_seconds': total_outside_seconds if not is_invalid_day else 0,
+        'total_span_seconds': total_span_seconds if not is_invalid_day else 0,
         'is_currently_inside': is_currently_inside,
         'current_time_used': current_time if is_currently_inside else None,
         'is_invalid_day': is_invalid_day,
@@ -476,31 +477,41 @@ def get_employee_list_for_dropdown():
         if conn: conn.close()
 
 
-def get_employee_logs(person_key=None, days=365):
+def get_employee_logs(person_key=None, start_date=None, end_date=None):
     """
-    Calculates the daily summary of time spent inside/outside for the last X days
+    Calculates the daily summary of time spent inside/outside for the given date range
     (all employees if person_key is None).
     """
     conn = get_db_connection()
     if conn is None: return []
 
     cur = conn.cursor()
-    start_date = datetime.now() - timedelta(days=days)
+
+    # Date range handling
+    if not start_date:
+        start_date = datetime.now() - timedelta(days=365)
+    else:
+        start_date = datetime.combine(start_date, datetime.min.time())
+
+    if not end_date:
+        end_date = datetime.now()
+    else:
+        end_date = datetime.combine(end_date, datetime.max.time())
 
     daily_transactions = defaultdict(list)
     final_logs = []
 
     try:
-        # 1. Fetch transaction logs (Filtered by date)
+        # 1. Fetch transaction logs (Filtered by date range)
         cur.execute("""
                     SELECT t.name, t.last_name, t.create_time, t.reader_name
                     FROM public.acc_transaction t
                              INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE t.create_time >= %s
-                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor')) -- Student ve Visitor Filtresi
+                    WHERE t.create_time BETWEEN %s AND %s
+                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
                     ORDER BY t.create_time;
-                    """, (start_date,))
+                    """, (start_date, end_date))
         raw_transactions = cur.fetchall()
 
         # 2. Process transactions and Grouping (Person Name + Date)
@@ -938,7 +949,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                         SELECT p.id, p.name, p.last_name, pp.name AS position_name
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                        WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR')) -- Student ve Visitor Filtresi
+                        WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR'))
                           AND (LOWER(p.name) LIKE %s OR LOWER(p.last_name) LIKE %s OR
                                LOWER(p.name || ' ' || p.last_name) LIKE %s)
                         ORDER BY p.last_name, p.name
@@ -949,7 +960,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                         WHERE pp.name IS NULL
-                           OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR') -- Student ve Visitor Filtresi
+                           OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR')
                         ORDER BY p.last_name, p.name
                         """)
 
@@ -969,7 +980,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE t.create_time >= %s
                       AND t.create_time <= %s
-                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor')) -- Student ve Visitor Filtresi
+                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
                     ORDER BY t.create_time;
                     """, (datetime.combine(start_date, datetime.min.time()),
                           datetime.combine(end_date, datetime.max.time())))
@@ -985,18 +996,14 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             # YENİ IN/OUT TESPİT ALGORİTMASI - Building A-1 pattern'ine göre
             direction_type = None
             if reader_name:
-                # Reader name'i lowercase'e çevir
                 reader_lower = reader_name.lower()
 
-                # Building pattern'ini kontrol et
                 if 'building' in reader_lower:
-                    # Reader numarasını çıkar (1, 2, 3, 4 gibi)
                     import re
                     numbers = re.findall(r'\d+', reader_name)
                     if numbers:
                         reader_number = int(numbers[0])
 
-                        # 1 ve 2 numaralı reader'lar IN, 3 ve 4 numaralı reader'lar OUT
                         if reader_number in [1, 2]:
                             direction_type = 'in'
                         elif reader_number in [3, 4]:
@@ -1013,13 +1020,17 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             if not any(emp['key'] == person_key for emp in employee_list):
                 continue
 
+            # BU SATIR EKLENDİ: day_number değişkenini tanımla
+            day_number = log_date.day
+
             # Use the core calculation function
             times = calculate_times_from_transactions(transactions)
             total_inside_seconds = times['total_inside_seconds']
 
-            # Assign Status Code (T: Full Day, E: Short Hours, D: Absent, N: No Log)
-            day_number = log_date.day
-            if total_inside_seconds >= EIGHT_HOURS_SECONDS:
+            # DÜZELTME: None değer kontrolü
+            if total_inside_seconds is None:
+                status_code = 'N'  # No Data/Invalid
+            elif total_inside_seconds >= EIGHT_HOURS_SECONDS:
                 status_code = 'T'  # Full Day (GREEN)
             elif total_inside_seconds > 0:
                 status_code = 'E'  # Short Hours/Partial Day (YELLOW)
@@ -1352,13 +1363,28 @@ def api_get_daily_note():
         print(f"🚨 API Get Note Error: {e}")
         return jsonify({'note': ''})
 
+
 @app.route('/employee_logs/export', methods=['GET'])
 def export_employee_logs():
     if (redirect_response := require_login()): return redirect_response
 
     person_key = request.args.get('person_key', None)
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
 
-    logs_data = get_employee_logs(person_key=person_key, days=365)
+    # Date parsing for export
+    start_date = None
+    end_date = None
+
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        pass
+
+    logs_data = get_employee_logs(person_key=person_key, start_date=start_date, end_date=end_date)
 
     if not logs_data:
         return make_response("No data found for export.", 404)
@@ -1394,16 +1420,24 @@ def export_employee_logs():
 
     output = si.getvalue()
 
+    # Update filename to include date range
     if person_key:
-        filename = f"log_export_{person_key}.csv"
+        if start_date and end_date:
+            filename = f"log_export_{person_key}_{start_date_str}_to_{end_date_str}.csv"
+        else:
+            filename = f"log_export_{person_key}.csv"
     else:
-        filename = "log_export_all_employees.csv"
+        if start_date and end_date:
+            filename = f"log_export_all_employees_{start_date_str}_to_{end_date_str}.csv"
+        else:
+            filename = "log_export_all_employees.csv"
 
     response = make_response(output)
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
     response.headers["Content-type"] = "text/csv"
 
     return response
+
 
 @app.route('/employee_logs', methods=['GET', 'POST'])
 def employee_logs():
@@ -1412,11 +1446,29 @@ def employee_logs():
     employee_list = get_employee_list_for_dropdown()
     selected_person_key = None
     selected_employee_name = "All Employees"
+    start_date_str = None
+    end_date_str = None
 
     if request.method == 'POST':
         selected_person_key = request.form.get('person_key')
+        start_date_str = request.form.get('start_date')
+        end_date_str = request.form.get('end_date')
     else:
         selected_person_key = request.args.get('person_key') or ''
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+    # Date parsing
+    start_date = None
+    end_date = None
+
+    try:
+        if start_date_str:
+            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        if end_date_str:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        pass
 
     # Get selected employee name
     if selected_person_key:
@@ -1426,14 +1478,16 @@ def employee_logs():
     else:
         selected_employee_name = "All Employees"
 
-    logs_data = get_employee_logs(person_key=selected_person_key, days=365)
+    logs_data = get_employee_logs(person_key=selected_person_key, start_date=start_date, end_date=end_date)
 
     return render_template(
         'employee_logs.html',
         logs=logs_data,
         employees=employee_list,
         selected_person_key=selected_person_key,
-        selected_employee_name=selected_employee_name
+        selected_employee_name=selected_employee_name,
+        start_date=start_date_str,
+        end_date=end_date_str
     )
 
 @app.route('/attendance', methods=['GET', 'POST'])

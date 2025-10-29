@@ -43,6 +43,11 @@
         align-items: center;
         font-weight: 500;
         color: #333;
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+    .employee-name-cell:hover {
+        color: #007bff;
     }
     .action-button {
         background-color: #007bff;
@@ -57,7 +62,7 @@
         margin-left: 10px;
     }
     .action-button.export-button {
-        background-color: #28a745; /* Yeşil renk */
+        background-color: #28a745;
     }
     .action-button:hover {
         background-color: #0056b3;
@@ -73,9 +78,8 @@
         flex-wrap: wrap;
         gap: 15px;
     }
-    /* Yeni Stil: Mail linki rengi ve alt çizgisi */
     .employee-table a.mail-link {
-        color: #007bff; /* Mavi Link Rengi */
+        color: #007bff;
         text-decoration: none;
         font-weight: 500;
     }
@@ -83,8 +87,6 @@
         text-decoration: underline;
         color: #0056b3;
     }
-
-    /* Yeni Arama Barı Stilleri */
     .search-container {
         position: relative;
         flex-grow: 1;
@@ -121,6 +123,13 @@
         color: #6c757d;
         font-style: italic;
     }
+    .clickable-row {
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    .clickable-row:hover {
+        background-color: #f0f8ff !important;
+    }
 </style>
 
 <div class="card-large">
@@ -148,11 +157,13 @@
                 <th>Email</th>
                 <th>Mobile</th>
                 <th>Hire Date</th>
-                </tr>
+            </tr>
         </thead>
         <tbody id="employees-tbody">
             {% for employee in employees %}
-            <tr class="employee-row" data-search="{{ (employee.name + ' ' + employee.last_name + ' ' + employee.position + ' ' + employee.email + ' ' + employee.mobile_phone)|lower }}">
+            <tr class="employee-row clickable-row"
+                data-search="{{ (employee.name + ' ' + employee.last_name + ' ' + employee.position + ' ' + employee.email + ' ' + employee.mobile_phone)|lower }}"
+                data-employee-name="{{ employee.name }} {{ employee.last_name }}">
                 <td class="employee-name-cell">
                     <img src="{{ employee.photo_path }}" alt="{{ employee.name }} Photo" class="employee-photo">
                     {{ employee.name }} {{ employee.last_name }}
@@ -172,7 +183,7 @@
                 </td>
                 <td class="employee-mobile">{{ employee.mobile_phone }}</td>
                 <td class="employee-hire-date">{{ employee.hire_date }}</td>
-                </tr>
+            </tr>
             {% else %}
             <tr>
                 <td colspan="5" style="text-align: center;">No employees found in the database.</td>
@@ -192,49 +203,81 @@
         window.open(outlookComposeUrl, '_blank');
     }
 
-    // Arama fonksiyonelliği
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('employee-search');
+    function goToEmployeeLogs(employeeName) {
+        window.location.href = "{{ url_for('employee_logs') }}?employee_search=" + encodeURIComponent(employeeName);
+    }
+
+    function performSearch(searchTerm) {
         const employeeRows = document.querySelectorAll('.employee-row');
         const noResults = document.getElementById('no-results');
         const employeeCount = document.getElementById('employee-count');
         const tableBody = document.getElementById('employees-tbody');
 
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase().trim();
-            let visibleCount = 0;
+        let visibleCount = 0;
 
-            employeeRows.forEach(row => {
-                const searchData = row.getAttribute('data-search');
-                const isVisible = searchData.includes(searchTerm);
+        employeeRows.forEach(row => {
+            const searchData = row.getAttribute('data-search');
+            const isVisible = searchData.includes(searchTerm);
 
-                if (isVisible) {
-                    row.style.display = '';
-                    visibleCount++;
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-
-            // Sonuç sayısını güncelle
-            employeeCount.textContent = visibleCount;
-
-            // Eğer hiç sonuç yoksa "no results" mesajını göster
-            if (visibleCount === 0 && searchTerm !== '') {
-                noResults.style.display = 'block';
-                tableBody.style.display = 'none';
+            if (isVisible) {
+                row.style.display = '';
+                visibleCount++;
             } else {
-                noResults.style.display = 'none';
-                tableBody.style.display = '';
-            }
-
-            // Eğer arama kutusu boşsa, tüm satırları göster
-            if (searchTerm === '') {
-                employeeCount.textContent = {{ employees|length }};
+                row.style.display = 'none';
             }
         });
 
-        // Enter tuşuna basıldığında form submit olmasını engelle
+        employeeCount.textContent = visibleCount;
+
+        if (visibleCount === 0 && searchTerm !== '') {
+            noResults.style.display = 'block';
+            tableBody.style.display = 'none';
+        } else {
+            noResults.style.display = 'none';
+            tableBody.style.display = '';
+        }
+
+        if (searchTerm === '') {
+            employeeCount.textContent = {{ employees|length }};
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('employee-search');
+        const employeeRows = document.querySelectorAll('.employee-row');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const employeeSearch = urlParams.get('employee_search');
+        if (employeeSearch) {
+            searchInput.value = employeeSearch;
+            performSearch(employeeSearch.toLowerCase().trim());
+        }
+
+        employeeRows.forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A' || e.target.closest('a')) {
+                    return;
+                }
+
+                const employeeName = this.getAttribute('data-employee-name');
+                goToEmployeeLogs(employeeName);
+            });
+        });
+
+        document.querySelectorAll('.employee-name-cell').forEach(cell => {
+            cell.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const row = this.closest('.employee-row');
+                const employeeName = row.getAttribute('data-employee-name');
+                goToEmployeeLogs(employeeName);
+            });
+        });
+
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase().trim();
+            performSearch(searchTerm);
+        });
+
         searchInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
@@ -242,5 +285,4 @@
         });
     });
 </script>
-
 {% endblock %}
