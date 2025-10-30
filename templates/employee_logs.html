@@ -205,13 +205,20 @@
     </style>
 
     <script>
+        // Global değişkenler
+        let searchInput, personKeyInput, searchResults, exportLink, startDateInput, endDateInput;
+        let currentResults = [];
+        let selectedIndex = -1;
+
         function goToEmployees(employeeName) {
             window.location.href = "{{ url_for('employees') }}?employee_search=" + encodeURIComponent(employeeName);
         }
 
         function performSearch(query) {
             if (query.length < 2) {
-                searchResults.style.display = 'none';
+                if (searchResults) {
+                    searchResults.style.display = 'none';
+                }
                 return;
             }
 
@@ -234,18 +241,26 @@
                 })
                 .catch(error => {
                     console.error('Search error:', error);
-                    searchResults.style.display = 'none';
+                    if (searchResults) {
+                        searchResults.style.display = 'none';
+                    }
                 });
         }
 
         function selectEmployee(key, name) {
-            personKeyInput.value = key;
-            searchInput.value = name;
-            searchResults.style.display = 'none';
-            updateExportLink();
+            if (personKeyInput && searchInput) {
+                personKeyInput.value = key;
+                searchInput.value = name;
+                if (searchResults) {
+                    searchResults.style.display = 'none';
+                }
+                updateExportLink();
+            }
         }
 
         function updateExportLink() {
+            if (!personKeyInput || !exportLink || !startDateInput || !endDateInput) return;
+
             const selectedKey = personKeyInput.value;
             const startDate = startDateInput.value;
             const endDate = endDateInput.value;
@@ -271,27 +286,65 @@
         }
 
         function updateSelectedItem() {
+            if (!searchResults) return;
+
             const items = searchResults.querySelectorAll('.search-result-item');
             items.forEach((item, index) => {
                 item.classList.toggle('active', index === selectedIndex);
             });
 
-            if (selectedIndex >= 0 && currentResults[selectedIndex]) {
+            if (selectedIndex >= 0 && currentResults[selectedIndex] && searchInput) {
                 searchInput.value = currentResults[selectedIndex].name;
             }
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('employee_search');
-            const personKeyInput = document.getElementById('person_key');
-            const searchResults = document.getElementById('search_results');
-            const exportLink = document.getElementById('export-link');
-            const startDateInput = document.getElementById('start_date');
-            const endDateInput = document.getElementById('end_date');
+        function handleSearchKeydown(e) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
+                updateSelectedItem();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, -1);
+                updateSelectedItem();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedIndex >= 0 && currentResults[selectedIndex]) {
+                    selectEmployee(currentResults[selectedIndex].key, currentResults[selectedIndex].name);
+                }
+            }
+        }
 
-            let currentResults = [];
-            let selectedIndex = -1;
+        function handleDocumentClick(e) {
+            if (searchInput && !searchInput.contains(e.target) && searchResults && !searchResults.contains(e.target)) {
+                searchResults.style.display = 'none';
+            }
+        }
 
+        function handleSearchResultsClick(e) {
+            if (e.target.classList.contains('search-result-item')) {
+                const key = e.target.getAttribute('data-key');
+                const name = e.target.getAttribute('data-name');
+                selectEmployee(key, name);
+            }
+        }
+
+        function initializeEmployeeSearch() {
+            // Element referanslarını al
+            searchInput = document.getElementById('employee_search');
+            personKeyInput = document.getElementById('person_key');
+            searchResults = document.getElementById('search_results');
+            exportLink = document.getElementById('export-link');
+            startDateInput = document.getElementById('start_date');
+            endDateInput = document.getElementById('end_date');
+
+            // Eğer elementler bulunamazsa çık
+            if (!searchInput || !personKeyInput || !searchResults || !exportLink || !startDateInput || !endDateInput) {
+                console.error('Required elements not found');
+                return;
+            }
+
+            // Event listener'ları ekle
             document.querySelectorAll('.employee-name-cell').forEach(cell => {
                 cell.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -322,40 +375,13 @@
                 }
             });
 
-            searchInput.addEventListener('keydown', function(e) {
-                if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
-                    updateSelectedItem();
-                } else if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    selectedIndex = Math.max(selectedIndex - 1, -1);
-                    updateSelectedItem();
-                } else if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (selectedIndex >= 0 && currentResults[selectedIndex]) {
-                        selectEmployee(currentResults[selectedIndex].key, currentResults[selectedIndex].name);
-                    }
-                }
-            });
-
+            searchInput.addEventListener('keydown', handleSearchKeydown);
             startDateInput.addEventListener('change', updateExportLink);
             endDateInput.addEventListener('change', updateExportLink);
+            document.addEventListener('click', handleDocumentClick);
+            searchResults.addEventListener('click', handleSearchResultsClick);
 
-            document.addEventListener('click', function(e) {
-                if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
-                    searchResults.style.display = 'none';
-                }
-            });
-
-            searchResults.addEventListener('click', function(e) {
-                if (e.target.classList.contains('search-result-item')) {
-                    const key = e.target.getAttribute('data-key');
-                    const name = e.target.getAttribute('data-name');
-                    selectEmployee(key, name);
-                }
-            });
-
+            // URL'den employee_search parametresini kontrol et
             const urlParams = new URLSearchParams(window.location.search);
             const employeeSearch = urlParams.get('employee_search');
             if (employeeSearch && employeeSearch.trim() !== '') {
@@ -370,6 +396,9 @@
             }
 
             updateExportLink();
-        });
+        }
+
+        // DOM yüklendiğinde çalıştır
+        document.addEventListener('DOMContentLoaded', initializeEmployeeSearch);
     </script>
 {% endblock %}

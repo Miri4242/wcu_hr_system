@@ -1449,14 +1449,32 @@ def employee_logs():
     start_date_str = None
     end_date_str = None
 
+    # Varsayılan tarih aralığını belirle
+    today = datetime.now().date()
+
+    # Bugün haftasonu mu kontrol et
+    if today.weekday() >= 5:  # 5: Cumartesi, 6: Pazar
+        # Son iş gününü bul (Cuma)
+        days_back = (today.weekday() - 4) % 7
+        if days_back == 0:
+            days_back = 7  # Pazar için 2 gün geri git
+        last_workday = today - timedelta(days=days_back)
+        start_date_str = last_workday.strftime('%Y-%m-%d')
+        end_date_str = last_workday.strftime('%Y-%m-%d')
+    else:
+        # Bugün iş günü ise bugünü göster
+        start_date_str = today.strftime('%Y-%m-%d')
+        end_date_str = today.strftime('%Y-%m-%d')
+
     if request.method == 'POST':
         selected_person_key = request.form.get('person_key')
-        start_date_str = request.form.get('start_date')
-        end_date_str = request.form.get('end_date')
+        start_date_str = request.form.get('start_date') or start_date_str
+        end_date_str = request.form.get('end_date') or end_date_str
     else:
         selected_person_key = request.args.get('person_key') or ''
-        start_date_str = request.args.get('start_date')
-        end_date_str = request.args.get('end_date')
+        # Eğer URL'de tarih parametreleri yoksa, varsayılan tarihleri kullan
+        start_date_str = request.args.get('start_date') or start_date_str
+        end_date_str = request.args.get('end_date') or end_date_str
 
     # Date parsing
     start_date = None
