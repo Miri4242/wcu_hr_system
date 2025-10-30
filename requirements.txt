@@ -1,5 +1,7 @@
 Flask==2.3.2
-# Render uyumluluğu için daha uyumlu modern adaptör:
-psycopg==3.1.18
-# Render'ın uygulamayı başlatmak için kullandığı WSGI sunucusu:
+# Kodunuzun istedigi binary paketi
+psycopg2-binary==2.9.9
+# WSGI Sunucusu
 gunicorn==21.2.0
+# .env okumak icin
+python-dotenv
