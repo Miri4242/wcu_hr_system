@@ -5,150 +5,125 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-    <div class="stats-container">
-        <div class="stat-card">
-            <h4>Total Employees</h4>
-            <p>{{ data.total_employees }}</p>
-            <div class="progress-bar" style="width: 80%;"></div>
+<div class="stats-container">
+    <div class="stat-card">
+        <h4>Total Employees</h4>
+        <p>{{ data.total_employees }}</p>
+        <div class="progress-bar" style="width: 80%;"></div>
+    </div>
+    <div class="stat-card">
+        <h4>Total Departments</h4>
+        <p>{{ data.total_departments }}</p>
+        <div class="progress-bar" style="width: 90%;"></div>
+    </div>
+    <div class="stat-card">
+        <h4>Today's Transactions</h4>
+        <p>{{ data.total_transactions }}</p>
+        <div class="progress-bar" style="width: 70%;"></div>
+    </div>
+    <div class="stat-card">
+        <h4>New Hires This Month</h4>
+        <p>{{ data.new_employees_this_month }}</p>
+        <div class="progress-bar" style="width: 10%;"></div>
+    </div>
+</div>
+
+<div class="row-container">
+    <div class="chart-card">
+        <h4>Today's Attendance Status</h4>
+        <div class="chart-container">
+            <canvas id="attendanceChart"></canvas>
         </div>
-        <div class="stat-card">
-            <h4>Total Departments</h4>
-            <p>{{ data.total_departments }}</p>
-            <div class="progress-bar" style="width: 90%;"></div>
-        </div>
-        <div class="stat-card">
-            <h4>Today's Transactions</h4>
-            <p>{{ data.total_transactions }}</p>
-            <div class="progress-bar" style="width: 70%;"></div>
-        </div>
-        <div class="stat-card">
-            <h4>New Hires This Month</h4>
-            <p>{{ data.new_employees_this_month }}</p>
-            <div class="progress-bar" style="width: 10%;"></div>
-        </div>
+        <p class="attendance-summary">
+            Present: <span class="present-count">{{ data.present_employees_count }}</span> / Total: {{ data.total_employees }}
+        </p>
     </div>
 
-    <div class="row-container">
-
-        <div class="chart-card">
-            <h4>Today's Attendance Status</h4>
-            <div style="max-height: 350px;">
-                 <canvas id="attendanceChart"></canvas>
-            </div>
-            <p style="text-align: center; margin-top: 15px; font-weight: bold;">
-                Present: <span style="color: #28a745;">{{ data.present_employees_count }}</span> / Total: {{ data.total_employees }}
-            </p>
-        </div>
-
-        <div class="birthdays-list chart-card">
-            <h4>Today's Birthdays ({{ data.today_birthdays | length }} People 🎉)</h4>
-            {% if data.today_birthdays %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>First Name</th>
-                        <th>Last Name</th>
-                        <th>Date of Birth</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for employee in data.today_birthdays %}
-                    <tr>
-                        <td>{{ employee.person_id }}</td>
-                        <td>{{ employee.name }}</td>
-                        <td>{{ employee.surname }}</td>
-                        <td>{{ employee.birth_date_str }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <p class="no-data" style="margin-top: 20px;">No employees have a birthday today. An announcement can be made to the team!</p>
-            {% endif %}
-        </div>
+    <div class="chart-card birthdays-list">
+        <h4>Today's Birthdays ({{ data.today_birthdays | length }} People 🎉)</h4>
+        {% if data.today_birthdays %}
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>First Name</th>
+                    <th>Last Name</th>
+                    <th>Date of Birth</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for employee in data.today_birthdays %}
+                <tr>
+                    <td>{{ employee.person_id }}</td>
+                    <td>{{ employee.name }}</td>
+                    <td>{{ employee.surname }}</td>
+                    <td>{{ employee.birth_date_str }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="no-data">No employees have a birthday today. An announcement can be made to the team!</p>
+        {% endif %}
     </div>
+</div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Python'dan gelen verileri JavaScript'e aktar
-            const totalEmployees = {{ data.total_employees }};
-            const presentCount = {{ data.present_employees_count }};
-            const absentCount = totalEmployees - presentCount;
-            const percentage = {{ data.attendance_percentage }};
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Python'dan gelen verileri JavaScript'e aktar
+        const totalEmployees = {{ data.total_employees }};
+        const presentCount = {{ data.present_employees_count }};
+        const absentCount = totalEmployees - presentCount;
+        const percentage = {{ data.attendance_percentage }};
 
-            // Grafik verileri
-            const chartData = {
-                labels: [
-                    'Present Employees',
-                    'Absent Employees (Yet)'
+        // Grafik verileri
+        const chartData = {
+            labels: [
+                'Present Employees',
+                'Absent Employees (Yet)'
+            ],
+            datasets: [{
+                data: [presentCount, absentCount],
+                backgroundColor: [
+                    '#28a745', // Green (Present)
+                    '#dc3545'  // Red (Absent)
                 ],
-                datasets: [{
-                    data: [presentCount, absentCount],
-                    backgroundColor: [
-                        '#28a745', // Green (Present)
-                        '#dc3545'  // Red (Absent)
-                    ],
-                    hoverBackgroundColor: [
-                        '#218838',
-                        '#c82333'
-                    ],
-                    borderWidth: 0
-                }]
-            };
+                hoverBackgroundColor: [
+                    '#218838',
+                    '#c82333'
+                ],
+                borderWidth: 0
+            }]
+        };
 
-            // Grafik Ayarları
-            const config = {
-                type: 'doughnut', // Donut chart
-                data: chartData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                        },
-                        title: {
-                            display: true,
-                            text: 'Attendance Percentage: %' + percentage,
-                            font: {
-                                size: 16,
-                                weight: 'bold'
-                            }
+        // Grafik Ayarları
+        const config = {
+            type: 'doughnut', // Donut chart
+            data: chartData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    title: {
+                        display: true,
+                        text: 'Attendance Percentage: %' + percentage,
+                        font: {
+                            size: 16,
+                            weight: 'bold'
                         }
                     }
                 }
-            };
-
-            // Grafiği çiz
-            const ctx = document.getElementById('attendanceChart');
-            if(ctx) {
-                new Chart(ctx, config);
             }
-        });
-    </script>
+        };
 
-    <style>
-        /* New section layout added below the stat cards */
-        .row-container {
-            display: flex;
-            gap: 20px;
-            margin-top: 30px;
+        // Grafiği çiz
+        const ctx = document.getElementById('attendanceChart');
+        if(ctx) {
+            new Chart(ctx, config);
         }
-        .chart-card {
-            flex: 1; /* For equal width */
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            border: 1px solid #eee;
-        }
-        .chart-card h4 {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            font-weight: 600;
-            color: #333;
-        }
-    </style>
+    });
+</script>
 {% endblock %}

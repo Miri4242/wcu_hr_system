@@ -5,393 +5,6 @@
 {% block page_title %}Monthly Attendance Control Table - {{ data.month_name | default('Select Month') }}{% endblock %}
 
 {% block content %}
-<style>
-    /* -------------------------------------------------- */
-    /* BAR VE TABLO KENAR BOŞLUKLARI İYİLEŞTİRMELERİ */
-    /* -------------------------------------------------- */
-    .logs-container.calendar-view {
-        padding-left: 20px;
-        padding-right: 20px;
-    }
-
-    /* Filtre Formunun Temiz Düzenlenmesi */
-    .filter-form {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        flex-wrap: wrap;
-        padding: 15px 0;
-        border-bottom: 1px solid #e2e8f0;
-        margin-bottom: 20px;
-        background-color: #ffffff;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-    }
-
-    .filter-form label {
-        font-weight: 500;
-        color: #4b5563;
-    }
-
-    /* INPUT ve SELECT kutularının stilini zorla düzeltme */
-    .filter-form select,
-    .filter-form input[type="text"] {
-        width: auto !important;
-        padding: 8px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 14px;
-        color: #1f2937;
-        background-color: #ffffff;
-        box-sizing: border-box;
-    }
-
-    /* Yeni Arama Barı Stilleri */
-    .search-container {
-        position: relative;
-        flex-grow: 1;
-        max-width: 400px;
-    }
-
-    .search-input {
-        width: 100%;
-        padding: 10px 40px 10px 15px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 14px;
-        transition: border-color 0.3s, box-shadow 0.3s;
-        background-color: #ffffff;
-    }
-
-    .search-input:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-        outline: none;
-    }
-
-    .search-icon {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #6c757d;
-    }
-
-    .employee-count {
-        color: #6c757d;
-        font-size: 14px;
-        margin-left: 10px;
-    }
-
-    .no-results {
-        text-align: center;
-        padding: 30px;
-        color: #6c757d;
-        font-style: italic;
-        background-color: #f8f9fa;
-        border-radius: 6px;
-        margin-top: 20px;
-    }
-
-    /* Arama Önerileri */
-    .suggestions-dropdown {
-        position: absolute;
-        top: 100%;
-        left: 0;
-        right: 0;
-        background-color: #ffffff;
-        border: 1px solid #d1d5db;
-        border-top: none;
-        border-radius: 0 0 6px 6px;
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
-        max-height: 200px;
-        overflow-y: auto;
-        display: none;
-        z-index: 1000;
-    }
-
-    .suggestion-item {
-        padding: 10px 12px;
-        cursor: pointer;
-        font-size: 14px;
-        color: #1f2937;
-        transition: background-color 0.15s;
-    }
-
-    .suggestion-item:hover {
-        background-color: #eff6ff;
-    }
-
-    /* Butonlar */
-    .apply-filter-button,
-    .export-button {
-        color: white;
-        border: none;
-        padding: 8px 15px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        text-decoration: none;
-        font-weight: 600;
-    }
-
-    .apply-filter-button {
-        background-color: #1e40af;
-    }
-
-    .apply-filter-button:hover {
-        background-color: #173285;
-    }
-
-    .export-button {
-        background-color: #10b981;
-        margin-left: auto;
-    }
-
-    .export-button:hover {
-        background-color: #059669;
-    }
-
-    /* Sayfalama Kontrolleri */
-    .pagination-controls {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-top: 25px;
-        margin-bottom: 15px;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .page-link {
-        text-decoration: none;
-        padding: 8px 15px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        background-color: #ffffff;
-        color: #1f2937;
-        font-size: 14px;
-    }
-
-    .page-link[disabled] {
-        opacity: 0.5;
-        pointer-events: none;
-        background-color: #f9fafb;
-    }
-
-    /* TABLO İYİLEŞTİRMELERİ: SATIR/SÜTUN ÇİZGİLERİ */
-    .table-responsive {
-        background: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-        overflow-x: auto;
-    }
-
-    .attendance-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .attendance-table th, .attendance-table td {
-        border: 1px solid #e5e7eb;
-        padding: 10px 5px;
-        font-size: 12px;
-        text-align: center;
-        white-space: nowrap;
-    }
-
-    .attendance-table thead th {
-        background-color: #eff6ff;
-        color: #1e40af;
-        font-weight: 600;
-        text-transform: uppercase;
-        border-bottom: 2px solid #3b82f6;
-    }
-
-    .attendance-table tbody tr:nth-child(even) {
-        background-color: #f9fafb;
-    }
-
-    .attendance-table tbody tr:hover {
-        background-color: #f0f4ff;
-    }
-
-    /* İsim sütununu sola yasla */
-    .attendance-table .name-cell {
-        text-align: left;
-        font-weight: 500;
-        min-width: 180px;
-        position: sticky;
-        left: 0;
-        background-color: #ffffff;
-        z-index: 5;
-    }
-
-    .attendance-table .status-cell {
-        padding: 5px;
-        width: 30px;
-        position: relative;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
-
-    .attendance-table .status-cell:hover {
-        background-color: #f3f4f6;
-    }
-
-    /* Header Controls */
-    .header-controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-
-    /* Not Modal Stilleri */
-    .note-modal {
-        display: none;
-        position: fixed;
-        z-index: 1000;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-    }
-
-    .note-modal-content {
-        background-color: #fefefe;
-        margin: 5% auto;
-        padding: 20px;
-        border-radius: 8px;
-        width: 90%;
-        max-width: 500px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-    }
-
-    .note-modal-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 15px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .note-modal-header h3 {
-        margin: 0;
-        color: #1f2937;
-    }
-
-    .close-button {
-        background: none;
-        border: none;
-        font-size: 24px;
-        cursor: pointer;
-        color: #6b7280;
-    }
-
-    .close-button:hover {
-        color: #374151;
-    }
-
-    .note-textarea {
-        width: 100%;
-        height: 120px;
-        padding: 10px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        resize: vertical;
-        font-family: inherit;
-        font-size: 14px;
-    }
-
-    .note-textarea:focus {
-        border-color: #3b82f6;
-        outline: none;
-        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    }
-
-    .note-modal-footer {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 15px;
-    }
-
-    .save-note-button {
-        background-color: #10b981;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-    }
-
-    .save-note-button:hover {
-        background-color: #059669;
-    }
-
-    .cancel-note-button {
-        background-color: #6b7280;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: 500;
-    }
-
-    .cancel-note-button:hover {
-        background-color: #4b5563;
-    }
-
-    /* Not ikonu stili */
-    .note-indicator {
-        position: absolute;
-        top: -2px;
-        right: -2px;
-        width: 8px;
-        height: 8px;
-        background-color: #3b82f6;
-        border-radius: 50%;
-        border: 1px solid white;
-    }
-
-    .has-note .status-indicator {
-        border: 2px solid #3b82f6;
-    }
-
-    /* Mobil Uyumluluk İyileştirmesi */
-    @media (max-width: 600px) {
-        .filter-form {
-            flex-direction: column;
-            align-items: stretch;
-            padding: 10px;
-        }
-
-        .filter-form > * {
-            width: 100%;
-            margin-bottom: 5px;
-        }
-
-        .export-button {
-            margin-left: 0 !important;
-        }
-
-        .header-controls {
-            flex-direction: column;
-            align-items: stretch;
-        }
-    }
-</style>
-
 <div class="logs-container calendar-view">
 
     <form method="GET" class="filter-form" id="attendance-form">
@@ -414,7 +27,6 @@
                    placeholder="Search employees by name..."
                    value="{{ current_selection.search | default('') }}">
             <span class="material-icons search-icon">search</span>
-            <!-- AJAX önerilerini kaldırıyoruz çünkü artık form submit yapacağız -->
         </div>
 
         <button type="submit" class="apply-filter-button">Apply Filter</button>
@@ -422,12 +34,12 @@
         <a id="export-link"
            href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search) }}"
            class="export-button">
-            <span class="material-icons" style="font-size: 18px; vertical-align: middle;">download</span> Export CSV
+            <span class="material-icons">download</span> Export CSV
         </a>
     </form>
 
     <div class="header-controls">
-        <div style="display: flex; align-items: center;">
+        <div class="header-title">
             <h3>Attendance Records</h3>
             <span class="employee-count">(<span id="employee-count">{{ data.total_items }}</span> found)</span>
         </div>
@@ -435,7 +47,7 @@
 
     {% if data.total_items > 0 %}
     <div class="pagination-controls">
-        <span class="page-info" style="margin-right: 15px;">
+        <span class="page-info">
             Total Employees Found: {{ data.total_items }}
         </span>
 
@@ -514,7 +126,7 @@
 
     {% if data.total_items > data.per_page %}
     <div class="pagination-controls">
-        <span class="page-info" style="margin-right: 15px;">
+        <span class="page-info">
             Total Employees Found: {{ data.total_items }}
         </span>
 
@@ -555,7 +167,6 @@
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
     // Not modal fonksiyonları
     let currentEmployeeId = null;
@@ -674,7 +285,7 @@
         }, 3000);
     }
 
-    // Event listener'lar - SADECE BU KISMI DEĞİŞTİRİYORUZ
+    // Event listener'lar
     document.addEventListener('DOMContentLoaded', function() {
         // Modal kapatma
         document.querySelector('.close-button').addEventListener('click', closeNoteModal);

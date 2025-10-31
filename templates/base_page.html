@@ -3,7 +3,6 @@
 <head>
     <title>HR System - {% block title %}{% endblock %}</title>
     <meta charset="UTF-8">
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
@@ -13,50 +12,8 @@
 
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
 
+    <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-    <style>
-        /* ... Tüm eski CSS'leriniz burada ... */
-        .sidebar {
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            height: 100vh;
-        }
-
-        .sidebar-top {
-            flex-grow: 1;
-            padding-bottom: 0;
-            margin-bottom: 0;
-        }
-
-        .sidebar-top a {
-            margin-bottom: 0;
-        }
-
-        .logout-link {
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 5px;
-            padding-bottom: 30px;
-        }
-
-        .logout-link a {
-            color: #dc3545 !important;
-            font-weight: 600;
-        }
-
-        .logout-link a:hover {
-            background-color: rgba(220, 53, 69, 0.2) !important;
-            color: white !important;
-        }
-
-        /* Select2'nin varsayılan görünümünü düzeltme */
-        .select2-container--default .select2-selection--single {
-            height: 38px;
-            padding-top: 5px;
-            border-color: #ced4da;
-        }
-    </style>
 </head>
 <body>
     <div class="sidebar">
@@ -94,6 +51,7 @@
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+    <script src="{{ url_for('static', filename='js/responsive.js') }}"></script>
 
 </body>
 </html>

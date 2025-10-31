@@ -5,72 +5,70 @@
 {% block page_title %}Working Hours Analysis (In/Out Time){% endblock %}
 
 {% block content %}
+<div class="card-large">
     <p>The total time employees spent inside and outside, according to turnstile movements over the selected date range, is listed. Matching is done based on First Name and Last Name.</p>
 
-    <div class="filter-controls" style="margin-bottom: 20px;">
-        <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}" style="display: flex; gap: 10px; align-items: center; width: 100%; flex-wrap: wrap;">
-
-            <div class="searchable-dropdown" style="position: relative; min-width: 300px;">
-                <label for="employee_search" style="font-weight: bold; display: block; margin-bottom: 5px;">Select Employee:</label>
-                <div style="position: relative;">
+    <div class="filter-controls">
+        <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}" class="filter-form-inline">
+            <div class="searchable-dropdown">
+                <label for="employee_search">Select Employee:</label>
+                <div class="search-input-container">
                     <input type="text"
                            id="employee_search"
                            name="employee_search"
                            placeholder="Type to search employees..."
                            autocomplete="off"
                            value="{{ selected_employee_name if selected_person_key else (request.args.get('employee_search') or '') }}"
-                           style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
+                           class="search-input">
 
                     <input type="hidden" id="person_key" name="person_key" value="{{ selected_person_key or '' }}">
 
-                    <div id="search_results" class="search-results" style="display: none; position: absolute; top: 100%; left: 0; right: 0; background: white; border: 1px solid #ccc; border-top: none; border-radius: 0 0 6px 6px; max-height: 200px; overflow-y: auto; z-index: 1000; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"></div>
+                    <div id="search_results" class="search-results"></div>
                 </div>
             </div>
 
-            <div style="min-width: 150px;">
-                <label for="start_date" style="font-weight: bold; display: block; margin-bottom: 5px;">Start Date:</label>
-                <input type="date"
-                       id="start_date"
-                       name="start_date"
-                       value="{{ start_date or '' }}"
-                       style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
+            <div class="form-group-flex">
+                <div>
+                    <label for="start_date">Start Date:</label>
+                    <input type="date"
+                           id="start_date"
+                           name="start_date"
+                           value="{{ start_date or '' }}"
+                           class="form-input">
+                </div>
+
+                <div>
+                    <label for="end_date">End Date:</label>
+                    <input type="date"
+                           id="end_date"
+                           name="end_date"
+                           value="{{ end_date or '' }}"
+                           class="form-input">
+                </div>
             </div>
 
-            <div style="min-width: 150px;">
-                <label for="end_date" style="font-weight: bold; display: block; margin-bottom: 5px;">End Date:</label>
-                <input type="date"
-                       id="end_date"
-                       name="end_date"
-                       value="{{ end_date or '' }}"
-                       style="padding: 8px 12px; border-radius: 6px; border: 1px solid #ccc; width: 100%; box-sizing: border-box;">
-            </div>
-
-            <button type="submit" class="btn" style="background-color: #007bff; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.2s; margin-top: 25px;">
+            <button type="submit" class="apply-filter-button">
                 Filter
             </button>
 
             <a id="export-link"
                href="{{ url_for('export_employee_logs', person_key=selected_person_key or '') }}"
-               class="btn export-btn"
-               style="margin-left: auto; background-color: #28a745; color: white; padding: 8px 15px; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; transition: background-color 0.2s; margin-top: 25px;">
+               class="export-button">
                 <i class="fas fa-file-export"></i> Export to CSV
             </a>
-
         </form>
     </div>
 
-    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-
     {% if start_date and end_date %}
-    <div style="background-color: #e9f7ef; padding: 10px 15px; border-radius: 6px; margin-bottom: 20px; border-left: 4px solid #28a745;">
+    <div class="date-range-info">
         <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
     </div>
     {% endif %}
 
-    <h3 style="margin-top: 20px; color: #333;">
+    <h3 class="section-title">
         Summary Table: {{ selected_employee_name }}
         {% if start_date and end_date %}
-        <small style="font-size: 14px; color: #6c757d;">({{ start_date }} to {{ end_date }})</small>
+        <span class="date-range">({{ start_date }} to {{ end_date }})</span>
         {% endif %}
     </h3>
 
@@ -94,29 +92,26 @@
                 <tr class="clickable-row">
                     <td>{{ log.date }}</td>
                     <td class="employee-name-cell"
-                        data-employee-name="{{ log.name }} {{ log.last_name }}"
-                        style="cursor: pointer; color: #007bff; font-weight: 500; transition: color 0.2s;"
-                        onmouseover="this.style.color='#0056b3'"
-                        onmouseout="this.style.color='#007bff'">
+                        data-employee-name="{{ log.name }} {{ log.last_name }}">
                         {{ log.name }} {{ log.last_name }}
                     </td>
                     <td>{{ log.first_in }}</td>
                     <td>
                         {% if log.is_invalid_day %}
-                            <span style="color: #6c757d;">N/A</span>
+                            <span class="na-text">N/A</span>
                         {% elif log.is_currently_inside %}
-                            <span style="color: #28a745; font-weight: bold;">Still Inside</span>
+                            <span class="inside-text">Still Inside</span>
                         {% else %}
                             {{ log.last_out }}
                         {% endif %}
                     </td>
-                    <td style="font-weight: 600; color: #333;">
+                    <td class="time-value">
                         {{ log.inside_time }}
                     </td>
-                    <td style="font-weight: 600; color: #333;">
+                    <td class="time-value">
                         {{ log.outside_time }}
                     </td>
-                    <td style="font-weight: 600; color: #333;">
+                    <td class="time-value">
                         {% if log.is_invalid_day %}
                             N/A
                         {% elif log.total_span_seconds and log.total_span_seconds > 0 %}
@@ -126,7 +121,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <span style="color: {{ log.status_color }}; font-weight: bold;">
+                        <span class="status-text" style="color: {{ log.status_color }};">
                             {{ log.status_display }}
                         </span>
                     </td>
@@ -138,267 +133,203 @@
         <p class="no-data">No movement data found for the selected employee/time period (Matching Error possible).</p>
         {% endif %}
     </div>
+</div>
 
-    <style>
-        .logs-container {
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-            margin-top: 20px;
-        }
-        .data-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        .data-table th, .data-table td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #ddd;
-        }
-        .data-table th {
-            background-color: #f2f2f2;
-            font-weight: 700;
-            color: #333;
-        }
-        .data-table tbody tr:hover {
-            background-color: #f5f5f5;
-        }
-        .export-btn:hover {
-            background-color: #1e7e34 !important;
-        }
-        .search-results {
-            background: white;
-        }
-        .search-result-item {
-            padding: 10px 12px;
-            cursor: pointer;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .search-result-item:hover {
-            background-color: #f8f9fa;
-        }
-        .search-result-item:last-child {
-            border-bottom: none;
-        }
-        .search-result-item.active {
-            background-color: #007bff;
-            color: white;
-        }
-        .no-data {
-            text-align: center;
-            color: #6c757d;
-            font-style: italic;
-            padding: 40px;
-        }
-        .clickable-row {
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .clickable-row:hover {
-            background-color: #f0f8ff !important;
-        }
-        .employee-name-cell:hover {
-            text-decoration: underline;
-        }
-    </style>
+<script>
+    // Global değişkenler
+    let searchInput, personKeyInput, searchResults, exportLink, startDateInput, endDateInput;
+    let currentResults = [];
+    let selectedIndex = -1;
 
-    <script>
-        // Global değişkenler
-        let searchInput, personKeyInput, searchResults, exportLink, startDateInput, endDateInput;
-        let currentResults = [];
-        let selectedIndex = -1;
+    function goToEmployees(employeeName) {
+        window.location.href = "{{ url_for('employees') }}?employee_search=" + encodeURIComponent(employeeName);
+    }
 
-        function goToEmployees(employeeName) {
-            window.location.href = "{{ url_for('employees') }}?employee_search=" + encodeURIComponent(employeeName);
-        }
-
-        function performSearch(query) {
-            if (query.length < 2) {
-                if (searchResults) {
-                    searchResults.style.display = 'none';
-                }
-                return;
-            }
-
-            fetch(`/api/employee_search?q=${encodeURIComponent(query)}`)
-                .then(response => response.json())
-                .then(data => {
-                    currentResults = data;
-                    selectedIndex = -1;
-
-                    if (data.length === 0) {
-                        searchResults.innerHTML = '<div class="search-result-item">No employees found</div>';
-                        searchResults.style.display = 'block';
-                        return;
-                    }
-
-                    searchResults.innerHTML = data.map(emp =>
-                        `<div class="search-result-item" data-key="${emp.key}" data-name="${emp.name}">${emp.name}</div>`
-                    ).join('');
-                    searchResults.style.display = 'block';
-                })
-                .catch(error => {
-                    console.error('Search error:', error);
-                    if (searchResults) {
-                        searchResults.style.display = 'none';
-                    }
-                });
-        }
-
-        function selectEmployee(key, name) {
-            if (personKeyInput && searchInput) {
-                personKeyInput.value = key;
-                searchInput.value = name;
-                if (searchResults) {
-                    searchResults.style.display = 'none';
-                }
-                updateExportLink();
-            }
-        }
-
-        function updateExportLink() {
-            if (!personKeyInput || !exportLink || !startDateInput || !endDateInput) return;
-
-            const selectedKey = personKeyInput.value;
-            const startDate = startDateInput.value;
-            const endDate = endDateInput.value;
-
-            let exportUrl = "{{ url_for('export_employee_logs') }}";
-            let params = [];
-
-            if (selectedKey) {
-                params.push(`person_key=${selectedKey}`);
-            }
-            if (startDate) {
-                params.push(`start_date=${startDate}`);
-            }
-            if (endDate) {
-                params.push(`end_date=${endDate}`);
-            }
-
-            if (params.length > 0) {
-                exportUrl += '?' + params.join('&');
-            }
-
-            exportLink.href = exportUrl;
-        }
-
-        function updateSelectedItem() {
-            if (!searchResults) return;
-
-            const items = searchResults.querySelectorAll('.search-result-item');
-            items.forEach((item, index) => {
-                item.classList.toggle('active', index === selectedIndex);
-            });
-
-            if (selectedIndex >= 0 && currentResults[selectedIndex] && searchInput) {
-                searchInput.value = currentResults[selectedIndex].name;
-            }
-        }
-
-        function handleSearchKeydown(e) {
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
-                updateSelectedItem();
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                selectedIndex = Math.max(selectedIndex - 1, -1);
-                updateSelectedItem();
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                if (selectedIndex >= 0 && currentResults[selectedIndex]) {
-                    selectEmployee(currentResults[selectedIndex].key, currentResults[selectedIndex].name);
-                }
-            }
-        }
-
-        function handleDocumentClick(e) {
-            if (searchInput && !searchInput.contains(e.target) && searchResults && !searchResults.contains(e.target)) {
+    function performSearch(query) {
+        if (query.length < 2) {
+            if (searchResults) {
                 searchResults.style.display = 'none';
             }
+            return;
         }
 
-        function handleSearchResultsClick(e) {
-            if (e.target.classList.contains('search-result-item')) {
-                const key = e.target.getAttribute('data-key');
-                const name = e.target.getAttribute('data-name');
-                selectEmployee(key, name);
-            }
-        }
+        fetch(`/api/employee_search?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                currentResults = data;
+                selectedIndex = -1;
 
-        function initializeEmployeeSearch() {
-            // Element referanslarını al
-            searchInput = document.getElementById('employee_search');
-            personKeyInput = document.getElementById('person_key');
-            searchResults = document.getElementById('search_results');
-            exportLink = document.getElementById('export-link');
-            startDateInput = document.getElementById('start_date');
-            endDateInput = document.getElementById('end_date');
-
-            // Eğer elementler bulunamazsa çık
-            if (!searchInput || !personKeyInput || !searchResults || !exportLink || !startDateInput || !endDateInput) {
-                console.error('Required elements not found');
-                return;
-            }
-
-            // Event listener'ları ekle
-            document.querySelectorAll('.employee-name-cell').forEach(cell => {
-                cell.addEventListener('click', function(e) {
-                    e.stopPropagation();
-                    const employeeName = this.getAttribute('data-employee-name');
-                    goToEmployees(employeeName);
-                });
-            });
-
-            document.querySelectorAll('.clickable-row').forEach(row => {
-                row.addEventListener('click', function(e) {
-                    if (!e.target.classList.contains('employee-name-cell') && !e.target.closest('.employee-name-cell')) {
-                        const employeeNameCell = this.querySelector('.employee-name-cell');
-                        if (employeeNameCell) {
-                            const employeeName = employeeNameCell.getAttribute('data-employee-name');
-                            goToEmployees(employeeName);
-                        }
-                    }
-                });
-            });
-
-            searchInput.addEventListener('input', function(e) {
-                performSearch(e.target.value);
-            });
-
-            searchInput.addEventListener('focus', function() {
-                if (currentResults.length > 0) {
+                if (data.length === 0) {
+                    searchResults.innerHTML = '<div class="search-result-item">No employees found</div>';
                     searchResults.style.display = 'block';
+                    return;
+                }
+
+                searchResults.innerHTML = data.map(emp =>
+                    `<div class="search-result-item" data-key="${emp.key}" data-name="${emp.name}">${emp.name}</div>`
+                ).join('');
+                searchResults.style.display = 'block';
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                if (searchResults) {
+                    searchResults.style.display = 'none';
                 }
             });
+    }
 
-            searchInput.addEventListener('keydown', handleSearchKeydown);
-            startDateInput.addEventListener('change', updateExportLink);
-            endDateInput.addEventListener('change', updateExportLink);
-            document.addEventListener('click', handleDocumentClick);
-            searchResults.addEventListener('click', handleSearchResultsClick);
-
-            // URL'den employee_search parametresini kontrol et
-            const urlParams = new URLSearchParams(window.location.search);
-            const employeeSearch = urlParams.get('employee_search');
-            if (employeeSearch && employeeSearch.trim() !== '') {
-                searchInput.value = employeeSearch;
-                performSearch(employeeSearch);
-
-                setTimeout(() => {
-                    if (currentResults.length > 0) {
-                        selectEmployee(currentResults[0].key, currentResults[0].name);
-                    }
-                }, 100);
+    function selectEmployee(key, name) {
+        if (personKeyInput && searchInput) {
+            personKeyInput.value = key;
+            searchInput.value = name;
+            if (searchResults) {
+                searchResults.style.display = 'none';
             }
-
             updateExportLink();
         }
+    }
 
-        // DOM yüklendiğinde çalıştır
-        document.addEventListener('DOMContentLoaded', initializeEmployeeSearch);
-    </script>
+    function updateExportLink() {
+        if (!personKeyInput || !exportLink || !startDateInput || !endDateInput) return;
+
+        const selectedKey = personKeyInput.value;
+        const startDate = startDateInput.value;
+        const endDate = endDateInput.value;
+
+        let exportUrl = "{{ url_for('export_employee_logs') }}";
+        let params = [];
+
+        if (selectedKey) {
+            params.push(`person_key=${selectedKey}`);
+        }
+        if (startDate) {
+            params.push(`start_date=${startDate}`);
+        }
+        if (endDate) {
+            params.push(`end_date=${endDate}`);
+        }
+
+        if (params.length > 0) {
+            exportUrl += '?' + params.join('&');
+        }
+
+        exportLink.href = exportUrl;
+    }
+
+    function updateSelectedItem() {
+        if (!searchResults) return;
+
+        const items = searchResults.querySelectorAll('.search-result-item');
+        items.forEach((item, index) => {
+            item.classList.toggle('active', index === selectedIndex);
+        });
+
+        if (selectedIndex >= 0 && currentResults[selectedIndex] && searchInput) {
+            searchInput.value = currentResults[selectedIndex].name;
+        }
+    }
+
+    function handleSearchKeydown(e) {
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
+            updateSelectedItem();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            selectedIndex = Math.max(selectedIndex - 1, -1);
+            updateSelectedItem();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (selectedIndex >= 0 && currentResults[selectedIndex]) {
+                selectEmployee(currentResults[selectedIndex].key, currentResults[selectedIndex].name);
+            }
+        }
+    }
+
+    function handleDocumentClick(e) {
+        if (searchInput && !searchInput.contains(e.target) && searchResults && !searchResults.contains(e.target)) {
+            searchResults.style.display = 'none';
+        }
+    }
+
+    function handleSearchResultsClick(e) {
+        if (e.target.classList.contains('search-result-item')) {
+            const key = e.target.getAttribute('data-key');
+            const name = e.target.getAttribute('data-name');
+            selectEmployee(key, name);
+        }
+    }
+
+    function initializeEmployeeSearch() {
+        // Element referanslarını al
+        searchInput = document.getElementById('employee_search');
+        personKeyInput = document.getElementById('person_key');
+        searchResults = document.getElementById('search_results');
+        exportLink = document.getElementById('export-link');
+        startDateInput = document.getElementById('start_date');
+        endDateInput = document.getElementById('end_date');
+
+        // Eğer elementler bulunamazsa çık
+        if (!searchInput || !personKeyInput || !searchResults || !exportLink || !startDateInput || !endDateInput) {
+            console.error('Required elements not found');
+            return;
+        }
+
+        // Event listener'ları ekle
+        document.querySelectorAll('.employee-name-cell').forEach(cell => {
+            cell.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const employeeName = this.getAttribute('data-employee-name');
+                goToEmployees(employeeName);
+            });
+        });
+
+        document.querySelectorAll('.clickable-row').forEach(row => {
+            row.addEventListener('click', function(e) {
+                if (!e.target.classList.contains('employee-name-cell') && !e.target.closest('.employee-name-cell')) {
+                    const employeeNameCell = this.querySelector('.employee-name-cell');
+                    if (employeeNameCell) {
+                        const employeeName = employeeNameCell.getAttribute('data-employee-name');
+                        goToEmployees(employeeName);
+                    }
+                }
+            });
+        });
+
+        searchInput.addEventListener('input', function(e) {
+            performSearch(e.target.value);
+        });
+
+        searchInput.addEventListener('focus', function() {
+            if (currentResults.length > 0) {
+                searchResults.style.display = 'block';
+            }
+        });
+
+        searchInput.addEventListener('keydown', handleSearchKeydown);
+        startDateInput.addEventListener('change', updateExportLink);
+        endDateInput.addEventListener('change', updateExportLink);
+        document.addEventListener('click', handleDocumentClick);
+        searchResults.addEventListener('click', handleSearchResultsClick);
+
+        // URL'den employee_search parametresini kontrol et
+        const urlParams = new URLSearchParams(window.location.search);
+        const employeeSearch = urlParams.get('employee_search');
+        if (employeeSearch && employeeSearch.trim() !== '') {
+            searchInput.value = employeeSearch;
+            performSearch(employeeSearch);
+
+            setTimeout(() => {
+                if (currentResults.length > 0) {
+                    selectEmployee(currentResults[0].key, currentResults[0].name);
+                }
+            }, 100);
+        }
+
+        updateExportLink();
+    }
+
+    // DOM yüklendiğinde çalıştır
+    document.addEventListener('DOMContentLoaded', initializeEmployeeSearch);
+</script>
 {% endblock %}
