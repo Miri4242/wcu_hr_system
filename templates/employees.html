@@ -13,7 +13,7 @@
         </div>
 
         <div class="search-container">
-            <input type="text" id="employee-search" class="search-input" placeholder="Search employees by name, position, email...">
+            <input type="text" id="employee-search" class="search-input" placeholder="Search employees by name, position, email..." value="{{ request.args.get('search', '') }}">
             <span class="material-icons search-icon">search</span>
         </div>
 
@@ -65,7 +65,7 @@
         </tbody>
     </table>
 
-    <div id="no-results" class="no-results">
+    <div id="no-results" class="no-results" style="display: none;">
         No employees found matching your search criteria.
     </div>
 </div>
@@ -90,7 +90,7 @@
 
         employeeRows.forEach(row => {
             const searchData = row.getAttribute('data-search');
-            const isVisible = searchData.includes(searchTerm);
+            const isVisible = searchTerm === '' || searchData.includes(searchTerm);
 
             if (isVisible) {
                 row.style.display = '';
@@ -102,28 +102,25 @@
 
         employeeCount.textContent = visibleCount;
 
-        if (visibleCount === 0 && searchTerm !== '') {
+        if (visibleCount === 0) {
             noResults.style.display = 'block';
             tableBody.style.display = 'none';
         } else {
             noResults.style.display = 'none';
             tableBody.style.display = '';
         }
-
-        if (searchTerm === '') {
-            employeeCount.textContent = {{ employees|length }};
-        }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('employee-search');
         const employeeRows = document.querySelectorAll('.employee-row');
+        const noResults = document.getElementById('no-results');
+        const tableBody = document.getElementById('employees-tbody');
 
         const urlParams = new URLSearchParams(window.location.search);
-        const employeeSearch = urlParams.get('employee_search');
-        if (employeeSearch) {
-            searchInput.value = employeeSearch;
-            performSearch(employeeSearch.toLowerCase().trim());
+        const searchParam = urlParams.get('search');
+        if (searchParam) {
+            performSearch(searchParam.toLowerCase().trim());
         }
 
         employeeRows.forEach(row => {
@@ -148,6 +145,15 @@
 
         searchInput.addEventListener('input', function() {
             const searchTerm = this.value.toLowerCase().trim();
+
+            const url = new URL(window.location);
+            if (searchTerm) {
+                url.searchParams.set('search', searchTerm);
+            } else {
+                url.searchParams.delete('search');
+            }
+            window.history.replaceState({}, '', url);
+
             performSearch(searchTerm);
         });
 

@@ -1087,48 +1087,51 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
         if cur: cur.close()
         if conn: conn.close()
 
+
 def get_dashboard_data():
     conn = get_db_connection()
     data = {'total_employees': 0, 'total_departments': 0, 'total_transactions': 0,
             'new_employees_this_month': 0, 'today_birthdays': [],
             'present_employees_count': 0,
-            'attendance_percentage': 0.0}
+            'attendance_percentage': 0.0,
+            'absent_employees': [],
+            'late_employees': []}
 
     if conn is None: return data
 
     cur = conn.cursor()
     try:
-        # 1. Total Employees (Non-Student, Non-Visitor)
+        # 1. Total Employees
         cur.execute("""SELECT COUNT(*)
                        FROM public.pers_person p
                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                        WHERE pp.name IS NULL
-                          OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR')""")  # Student ve Visitor Filtresi
+                          OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR')""")
         data['total_employees'] = cur.fetchone()[0]
 
         # 2. Total Departments
         cur.execute("SELECT COUNT(*) FROM public.auth_department")
         data['total_departments'] = cur.fetchone()[0]
 
-        # 3. Today's Total Transactions (Non-Student, Non-Visitor)
+        # 3. Today's Total Transactions
         today_date = date.today()
         cur.execute("""SELECT COUNT(t.*)
                        FROM public.acc_transaction t
                                 INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                       WHERE DATE (t.create_time) = %s AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))""",  # Student ve Visitor Filtresi
+                       WHERE DATE (t.create_time) = %s AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))""",
                     (today_date,))
         data['total_transactions'] = cur.fetchone()[0]
 
-        # 4. New Employees This Month (Non-Student, Non-Visitor)
+        # 4. New Employees This Month
         cur.execute("""SELECT COUNT(p.*)
                        FROM public.pers_person p
                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                        WHERE date_trunc('month', p.create_time) = date_trunc('month', NOW())
-                         AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))""")  # Student ve Visitor Filtresi
+                         AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))""")
         data['new_employees_this_month'] = cur.fetchone()[0]
 
-        # 5. Employees Present Today (Non-Student, Non-Visitor)
+        # 5. Employees Present Today
         cur.execute("""
                     SELECT COUNT(DISTINCT (t.name, t.last_name))
                     FROM public.acc_transaction t
@@ -1138,10 +1141,86 @@ def get_dashboard_data():
                       AND t.reader_name ILIKE '%%-in%%'
                       AND (pp.name IS NULL
                        OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
-                    """, (today_date,))  # Student ve Visitor Filtresi
+                    """, (today_date,))
         data['present_employees_count'] = cur.fetchone()[0]
 
-        # Attendance Percentage Calculation
+        # 6. İŞE GELMEYENLER
+        cur.execute("""
+                    SELECT p.name, p.last_name, pp.name as position_name
+                    FROM public.pers_person p
+                    LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR'))
+                    AND NOT EXISTS (
+                        SELECT 1 
+                        FROM public.acc_transaction t 
+                        WHERE t.name = p.name 
+                        AND t.last_name = p.last_name 
+                        AND DATE(t.create_time) = %s
+                    )
+                    ORDER BY p.last_name, p.name
+                    """, (today_date,))
+
+        absent_employees_raw = cur.fetchall()
+        absent_list = []
+        for name, last_name, position in absent_employees_raw:
+            absent_list.append({
+                'full_name': f"{name} {last_name}",
+                'position': position or 'Undefined'
+            })
+        data['absent_employees'] = absent_list
+
+        # 7. GECİKENLER - YENİ SORGÜ
+        cur.execute("""
+            SELECT 
+                p.name,
+                p.last_name,
+                p.id as person_id,
+                MIN(t.create_time) as first_in_time,
+                pae.attr_value4 as expected_time
+            FROM public.pers_person p
+            LEFT JOIN public.pers_attribute_ext pae ON p.id = pae.person_id
+            INNER JOIN public.acc_transaction t ON t.name = p.name AND t.last_name = p.last_name
+            WHERE DATE(t.create_time) = %s
+              AND pae.attr_value4 IS NOT NULL
+              AND t.reader_name ILIKE '%%-in%%'
+            GROUP BY p.name, p.last_name, p.id, pae.attr_value4
+            HAVING MIN(t.create_time) IS NOT NULL
+            ORDER BY p.last_name, p.name
+        """, (today_date,))
+
+        late_employees_raw = cur.fetchall()
+        late_list = []
+
+        for name, last_name, person_id, first_in_time, expected_time_str in late_employees_raw:
+            if expected_time_str:
+                try:
+                    time_parts = expected_time_str.strip().split()
+                    if len(time_parts) >= 2:
+                        expected_hour = int(time_parts[0])
+                        expected_minute = int(time_parts[1])
+
+                        expected_datetime = datetime.combine(today_date, datetime.min.time()).replace(
+                            hour=expected_hour, minute=expected_minute
+                        )
+
+                        late_minutes = (first_in_time - expected_datetime).total_seconds() / 60
+
+                        if late_minutes > 30:
+                            expected_time_display = f"{expected_hour:02d}:{expected_minute:02d}"
+                            late_list.append({
+                                'full_name': f"{name} {last_name}",
+                                'person_id': person_id,
+                                'expected_time': expected_time_display,
+                                'arrival_time': first_in_time.strftime('%H:%M'),
+                                'late_minutes': int(late_minutes)
+                            })
+                except (ValueError, IndexError) as e:
+                    print(f"⚠ Beklenen zaman format hatası: {expected_time_str} - {e}")
+                    continue
+
+        data['late_employees'] = late_list
+
+        # Attendance Percentage
         total = data['total_employees']
         present = data['present_employees_count']
 
@@ -1149,14 +1228,14 @@ def get_dashboard_data():
             percentage = (present / total) * 100
             data['attendance_percentage'] = round(percentage, 2)
 
-        # 6. Birthdays Today (Non-Student, Non-Visitor)
+        # 8. Birthdays Today
         today_m_d = datetime.now().strftime('%m-%d')
         cur.execute("""
                     SELECT p.id, p.name, p.last_name, p.birthday
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE TO_CHAR(p.birthday, 'MM-DD') = %s
-                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor')) -- Student ve Visitor Filtresi
+                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
                     ORDER BY p.last_name, p.name;
                     """, (today_m_d,))
 
