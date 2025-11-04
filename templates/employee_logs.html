@@ -93,7 +93,7 @@
                     <td>{{ log.date }}</td>
                     <td class="employee-name-cell"
                         data-employee-name="{{ log.name }} {{ log.last_name }}">
-                        {{ log.name }} {{ log.last_name }}
+                        <span class="employee-name-link">{{ log.name }} {{ log.last_name }}</span>
                     </td>
                     <td>{{ log.first_in }}</td>
                     <td>
@@ -142,7 +142,8 @@
     let selectedIndex = -1;
 
     function goToEmployees(employeeName) {
-        window.location.href = "{{ url_for('employees') }}?employee_search=" + encodeURIComponent(employeeName);
+        // Employees sayfasına git ve arama kutusunda bu ismi ara
+        window.location.href = "{{ url_for('employees') }}?search=" + encodeURIComponent(employeeName);
     }
 
     function performSearch(query) {
@@ -275,27 +276,29 @@
             return;
         }
 
-        // Event listener'ları ekle
-        document.querySelectorAll('.employee-name-cell').forEach(cell => {
-            cell.addEventListener('click', function(e) {
+        // Employee name linklerine click event listener ekle
+        document.querySelectorAll('.employee-name-link').forEach(link => {
+            link.addEventListener('click', function(e) {
                 e.stopPropagation();
-                const employeeName = this.getAttribute('data-employee-name');
+                const employeeName = this.textContent.trim();
                 goToEmployees(employeeName);
             });
         });
 
+        // Tüm satırlara click event listener ekle (employee name dışındaki alanlar için)
         document.querySelectorAll('.clickable-row').forEach(row => {
             row.addEventListener('click', function(e) {
-                if (!e.target.classList.contains('employee-name-cell') && !e.target.closest('.employee-name-cell')) {
-                    const employeeNameCell = this.querySelector('.employee-name-cell');
+                if (!e.target.classList.contains('employee-name-link') && !e.target.closest('.employee-name-link')) {
+                    const employeeNameCell = this.querySelector('.employee-name-link');
                     if (employeeNameCell) {
-                        const employeeName = employeeNameCell.getAttribute('data-employee-name');
+                        const employeeName = employeeNameCell.textContent.trim();
                         goToEmployees(employeeName);
                     }
                 }
             });
         });
 
+        // Arama kutusu event listener'ları
         searchInput.addEventListener('input', function(e) {
             performSearch(e.target.value);
         });
@@ -332,4 +335,18 @@
     // DOM yüklendiğinde çalıştır
     document.addEventListener('DOMContentLoaded', initializeEmployeeSearch);
 </script>
+
+<style>
+.employee-name-link {
+    color: #007bff;
+    cursor: pointer;
+    text-decoration: underline;
+    transition: color 0.2s;
+}
+
+.employee-name-link:hover {
+    color: #0056b3;
+    text-decoration: none;
+}
+</style>
 {% endblock %}

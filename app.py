@@ -171,7 +171,7 @@ def get_available_months(num_months=12):
 # --------------------------------------------------------------------------------------
 
 def get_employee_list():
-    """Fetches essential details and positions for all employees (excluding Students and Visitors)."""
+    """Fetches essential details and positions for all employees (excluding Students, Visitors and Teachers)."""
     conn = get_db_connection()
     if conn is None: return []
 
@@ -190,7 +190,9 @@ def get_employee_list():
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE (pp.name IS NULL
-                       OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR')) -- Student ve Visitor Filtresi
+                       OR (pp.name NOT ILIKE 'STUDENT' 
+                           AND pp.name NOT ILIKE 'VISITOR'
+                           AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
                     ORDER BY p.last_name, p.name;
                     """)
 
@@ -223,7 +225,7 @@ def get_employee_list():
         if conn: conn.close()
 
 def get_employee_details(employee_id):
-    """Fetches all details for a specific employee ID (excluding Students and Visitors)."""
+    """Fetches all details for a specific employee ID (excluding Students, Visitors and Teachers)."""
     conn = get_db_connection()
     if conn is None: return None
 
@@ -242,7 +244,10 @@ def get_employee_details(employee_id):
                            p.create_time AS hire_date
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor')) -- Student ve Visitor Filtresi
+                    WHERE (pp.name IS NULL 
+                           OR (pp.name NOT ILIKE 'student' 
+                               AND pp.name NOT ILIKE 'visitor'
+                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
                       AND p.id = %s;
                     """, (employee_id,))
 
@@ -365,7 +370,7 @@ def calculate_times_from_transactions(transactions):
         last_transaction = max(transactions, key=lambda x: x['time'])
         is_currently_inside = (last_transaction['direction'] == 'in')
 
-    # Check if this is an invalid day (last event is IN but not today)
+    # Check if this is an invalid day (last event IN but not today)
     is_invalid_day = is_currently_inside and not is_today
 
     total_inside_seconds = 0
@@ -448,7 +453,7 @@ def calculate_times_from_transactions(transactions):
 # --------------------------------------------------------------------------------------
 
 def get_employee_list_for_dropdown():
-    """Returns employee full name and a normalized key for dropdowns (excluding Students and Visitors)."""
+    """Returns employee full name and a normalized key for dropdowns (excluding Students, Visitors and Teachers)."""
     conn = get_db_connection()
     if conn is None: return []
 
@@ -459,7 +464,9 @@ def get_employee_list_for_dropdown():
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE pp.name IS NULL
-                       OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR') -- Student ve Visitor Filtresi
+                       OR (pp.name NOT ILIKE 'STUDENT' 
+                           AND pp.name NOT ILIKE 'VISITOR'
+                           AND pp.name NOT ILIKE 'MÜƏLLİM') -- Student, Visitor ve Müəllim Filtresi
                     ORDER BY p.last_name, p.name
                     """)
         employees = []
@@ -509,7 +516,10 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
                              INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE t.create_time BETWEEN %s AND %s
-                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
+                      AND (pp.name IS NULL 
+                           OR (pp.name NOT ILIKE 'student' 
+                               AND pp.name NOT ILIKE 'visitor'
+                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
                     ORDER BY t.create_time;
                     """, (start_date, end_date))
         raw_transactions = cur.fetchall()
@@ -712,7 +722,10 @@ def api_employee_search():
             SELECT p.name, p.last_name 
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-            WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR'))
+            WHERE (pp.name IS NULL 
+                   OR (pp.name NOT ILIKE 'STUDENT' 
+                       AND pp.name NOT ILIKE 'VISITOR'
+                       AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
             AND (LOWER(p.name) LIKE %s OR LOWER(p.last_name) LIKE %s OR LOWER(p.name || ' ' || p.last_name) LIKE %s)
             ORDER BY p.last_name, p.name
             LIMIT 20
@@ -754,14 +767,17 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
     try:
         # Use the date range in the database query.
-        # Filter for non-student and non-visitor transactions.
+        # Filter for non-student, non-visitor and non-teacher transactions.
         cur.execute("""
                     SELECT t.name, t.last_name, t.create_time, t.reader_name
                     FROM public.acc_transaction t
                              INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE t.create_time BETWEEN %s AND %s
-                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor')) -- Student ve Visitor Filtresi
+                      AND (pp.name IS NULL 
+                           OR (pp.name NOT ILIKE 'student' 
+                               AND pp.name NOT ILIKE 'visitor'
+                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
                     ORDER BY t.create_time;
                     """, (start_dt, end_dt))
 
@@ -943,13 +959,16 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
     employee_list = []
 
     try:
-        # 1. Fetch all employees (FILTERED: No Students/Visitors + Apply Search)
+        # 1. Fetch all employees (FILTERED: No Students/Visitors/Teachers + Apply Search)
         if search_term:
             cur.execute("""
                         SELECT p.id, p.name, p.last_name, pp.name AS position_name
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                        WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR'))
+                        WHERE (pp.name IS NULL 
+                               OR (pp.name NOT ILIKE 'STUDENT' 
+                                   AND pp.name NOT ILIKE 'VISITOR'
+                                   AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
                           AND (LOWER(p.name) LIKE %s OR LOWER(p.last_name) LIKE %s OR
                                LOWER(p.name || ' ' || p.last_name) LIKE %s)
                         ORDER BY p.last_name, p.name
@@ -960,7 +979,9 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                         WHERE pp.name IS NULL
-                           OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR')
+                           OR (pp.name NOT ILIKE 'STUDENT' 
+                               AND pp.name NOT ILIKE 'VISITOR'
+                               AND pp.name NOT ILIKE 'MÜƏLLİM') -- Student, Visitor ve Müəllim Filtresi
                         ORDER BY p.last_name, p.name
                         """)
 
@@ -972,7 +993,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             employee_list.append(
                 {'key': key, 'id': id_val, 'name': name, 'last_name': last_name, 'full_name': full_name})
 
-        # 2. Fetch all movements within the date range (Only for Non-Students/Non-Visitors)
+        # 2. Fetch all movements within the date range (Only for Non-Students/Non-Visitors/Non-Teachers)
         cur.execute("""
                     SELECT t.name, t.last_name, t.create_time, t.reader_name
                     FROM public.acc_transaction t
@@ -980,7 +1001,10 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE t.create_time >= %s
                       AND t.create_time <= %s
-                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
+                      AND (pp.name IS NULL 
+                           OR (pp.name NOT ILIKE 'student' 
+                               AND pp.name NOT ILIKE 'visitor'
+                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
                     ORDER BY t.create_time;
                     """, (datetime.combine(start_date, datetime.min.time()),
                           datetime.combine(end_date, datetime.max.time())))
@@ -1106,7 +1130,9 @@ def get_dashboard_data():
                        FROM public.pers_person p
                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                        WHERE pp.name IS NULL
-                          OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR')""")
+                          OR (pp.name NOT ILIKE 'STUDENT' 
+                              AND pp.name NOT ILIKE 'VISITOR'
+                              AND pp.name NOT ILIKE 'MÜƏLLİM')""")  # Student, Visitor ve Müəllim Filtresi
         data['total_employees'] = cur.fetchone()[0]
 
         # 2. Total Departments
@@ -1119,7 +1145,11 @@ def get_dashboard_data():
                        FROM public.acc_transaction t
                                 INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                       WHERE DATE (t.create_time) = %s AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))""",
+                       WHERE DATE (t.create_time) = %s 
+                         AND (pp.name IS NULL 
+                              OR (pp.name NOT ILIKE 'student' 
+                                  AND pp.name NOT ILIKE 'visitor'
+                                  AND pp.name NOT ILIKE 'müəllim'))""",  # Student, Visitor ve Müəllim Filtresi
                     (today_date,))
         data['total_transactions'] = cur.fetchone()[0]
 
@@ -1128,7 +1158,10 @@ def get_dashboard_data():
                        FROM public.pers_person p
                                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                        WHERE date_trunc('month', p.create_time) = date_trunc('month', NOW())
-                         AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))""")
+                         AND (pp.name IS NULL 
+                              OR (pp.name NOT ILIKE 'student' 
+                                  AND pp.name NOT ILIKE 'visitor'
+                                  AND pp.name NOT ILIKE 'müəllim'))""")  # Student, Visitor ve Müəllim Filtresi
         data['new_employees_this_month'] = cur.fetchone()[0]
 
         # 5. Employees Present Today
@@ -1140,7 +1173,9 @@ def get_dashboard_data():
                     WHERE DATE (t.create_time) = %s
                       AND t.reader_name ILIKE '%%-in%%'
                       AND (pp.name IS NULL
-                       OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
+                       OR (pp.name NOT ILIKE 'student' 
+                           AND pp.name NOT ILIKE 'visitor'
+                           AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
                     """, (today_date,))
         data['present_employees_count'] = cur.fetchone()[0]
 
@@ -1149,7 +1184,10 @@ def get_dashboard_data():
                     SELECT p.name, p.last_name, pp.name as position_name
                     FROM public.pers_person p
                     LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR'))
+                    WHERE (pp.name IS NULL 
+                           OR (pp.name NOT ILIKE 'STUDENT' 
+                               AND pp.name NOT ILIKE 'VISITOR'
+                               AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
                     AND NOT EXISTS (
                         SELECT 1 
                         FROM public.acc_transaction t 
@@ -1235,7 +1273,10 @@ def get_dashboard_data():
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE TO_CHAR(p.birthday, 'MM-DD') = %s
-                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor'))
+                      AND (pp.name IS NULL 
+                           OR (pp.name NOT ILIKE 'student' 
+                               AND pp.name NOT ILIKE 'visitor'
+                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
                     ORDER BY p.last_name, p.name;
                     """, (today_m_d,))
 
@@ -1308,6 +1349,36 @@ def employees():
         'employees.html',
         employees=employees_list
     )
+
+
+@app.route('/api/employees_list')
+def api_employees_list():
+    """AJAX endpoint for employees list with search"""
+    if (redirect_response := require_login()):
+        return jsonify([])
+
+    search_term = request.args.get('search', '').strip().lower()
+
+    # Mevcut get_employee_list fonksiyonunu kullan
+    employees_list = get_employee_list()
+
+    # Eğer arama terimi varsa filtrele
+    if search_term:
+        filtered_employees = []
+        for emp in employees_list:
+            search_data = (
+                    emp['name'] + ' ' +
+                    emp['last_name'] + ' ' +
+                    emp['position'] + ' ' +
+                    emp['email'] + ' ' +
+                    emp['mobile_phone']
+            ).lower()
+            if search_term in search_data:
+                filtered_employees.append(emp)
+        return jsonify(filtered_employees)
+
+    return jsonify(employees_list)
+
 
 @app.route('/employees/edit/<employee_id>', methods=['GET', 'POST'])
 def edit_employee(employee_id):
@@ -1640,7 +1711,10 @@ def api_employees_search():
                     SELECT p.name, p.last_name
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor')) -- Student ve Visitor Filtresi
+                    WHERE (pp.name IS NULL 
+                           OR (pp.name NOT ILIKE 'student' 
+                               AND pp.name NOT ILIKE 'visitor'
+                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
                       AND (LOWER(p.name) LIKE %s OR LOWER(p.last_name) LIKE %s)
                     ORDER BY p.last_name, p.name LIMIT 10;
                     """, (f'%{search_term}%', f'%{search_term}%'))

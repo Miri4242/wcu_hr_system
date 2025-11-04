@@ -9,7 +9,7 @@
     <div class="header-controls">
         <div class="header-title">
             <h3>All Employees</h3>
-            <span class="employee-count">(<span id="employee-count">{{ employees|length }}</span> found)</span>
+            <span class="employee-count">(<span id="employee-count">0</span> found)</span>
         </div>
 
         <div class="search-container">
@@ -33,44 +33,28 @@
             </tr>
         </thead>
         <tbody id="employees-tbody">
-            {% for employee in employees %}
-            <tr class="employee-row clickable-row"
-                data-search="{{ (employee.name + ' ' + employee.last_name + ' ' + employee.position + ' ' + employee.email + ' ' + employee.mobile_phone)|lower }}"
-                data-employee-name="{{ employee.name }} {{ employee.last_name }}">
-                <td class="employee-name-cell">
-                    <img src="{{ employee.photo_path }}" alt="{{ employee.name }} Photo" class="employee-photo">
-                    {{ employee.name }} {{ employee.last_name }}
-                </td>
-                <td class="employee-position">{{ employee.position }}</td>
-                <td>
-                    {% if employee.email and employee.email != 'N/A' %}
-                        <a href="#"
-                           onclick="openOutlookWeb('{{ employee.email }}'); return false;"
-                           class="mail-link"
-                           title="Send email to {{ employee.name }} {{ employee.last_name }}">
-                            {{ employee.email }}
-                        </a>
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </td>
-                <td class="employee-mobile">{{ employee.mobile_phone }}</td>
-                <td class="employee-hire-date">{{ employee.hire_date }}</td>
-            </tr>
-            {% else %}
+            <!-- İlk yüklemede boş tbody -->
             <tr>
-                <td colspan="5" class="no-data">No employees found in the database.</td>
+                <td colspan="5" class="no-data">Please enter a search term to find employees.</td>
             </tr>
-            {% endfor %}
         </tbody>
     </table>
 
     <div id="no-results" class="no-results" style="display: none;">
         No employees found matching your search criteria.
     </div>
+
+    <div id="loading-spinner" class="loading-spinner" style="display: none;">
+        <div class="spinner"></div>
+        <span>Loading employees...</span>
+    </div>
 </div>
 
 <script>
+    // Global değişkenler
+    let allEmployees = [];
+    let currentSearchTerm = '';
+
     function openOutlookWeb(recipientEmail) {
         const outlookComposeUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(recipientEmail)}`;
         window.open(outlookComposeUrl, '_blank');
@@ -80,88 +64,197 @@
         window.location.href = "{{ url_for('employee_logs') }}?employee_search=" + encodeURIComponent(employeeName);
     }
 
-    function performSearch(searchTerm) {
-        const employeeRows = document.querySelectorAll('.employee-row');
+    // AJAX ile çalışanları getir
+    function fetchEmployees(searchTerm = '') {
+        const loadingSpinner = document.getElementById('loading-spinner');
+        const tableBody = document.getElementById('employees-tbody');
         const noResults = document.getElementById('no-results');
         const employeeCount = document.getElementById('employee-count');
+
+        loadingSpinner.style.display = 'flex';
+        tableBody.style.display = 'none';
+        noResults.style.display = 'none';
+
+        fetch(`/api/employees_list?search=${encodeURIComponent(searchTerm)}`)
+            .then(response => response.json())
+            .then(data => {
+                allEmployees = data;
+                displayEmployees(searchTerm);
+                loadingSpinner.style.display = 'none';
+            })
+            .catch(error => {
+                console.error('Error fetching employees:', error);
+                loadingSpinner.style.display = 'none';
+                tableBody.innerHTML = '<tr><td colspan="5" class="no-data">Error loading employees. Please try again.</td></tr>';
+                tableBody.style.display = '';
+                employeeCount.textContent = '0';
+            });
+    }
+
+    // Çalışanları görüntüle
+    function displayEmployees(searchTerm) {
         const tableBody = document.getElementById('employees-tbody');
+        const noResults = document.getElementById('no-results');
+        const employeeCount = document.getElementById('employee-count');
 
-        let visibleCount = 0;
+        // Arama terimini küçük harfe çevir
+        const searchTermLower = searchTerm.toLowerCase().trim();
 
-        employeeRows.forEach(row => {
-            const searchData = row.getAttribute('data-search');
-            const isVisible = searchTerm === '' || searchData.includes(searchTerm);
+        let filteredEmployees = allEmployees;
 
-            if (isVisible) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
+        // Eğer arama terimi varsa filtrele
+        if (searchTermLower) {
+            filteredEmployees = allEmployees.filter(emp => {
+                const searchData = (
+                    emp.name + ' ' +
+                    emp.last_name + ' ' +
+                    emp.position + ' ' +
+                    emp.email + ' ' +
+                    emp.mobile_phone
+                ).toLowerCase();
+                return searchData.includes(searchTermLower);
+            });
+        }
+
+        // Sonuçları güncelle
+        employeeCount.textContent = filteredEmployees.length;
+
+        if (filteredEmployees.length === 0) {
+            tableBody.style.display = 'none';
+            noResults.style.display = 'block';
+            return;
+        }
+
+        // Tabloyu doldur
+        tableBody.innerHTML = '';
+        filteredEmployees.forEach(employee => {
+            const row = document.createElement('tr');
+            row.className = 'employee-row clickable-row';
+            row.setAttribute('data-employee-name', `${employee.name} ${employee.last_name}`);
+
+            // Email link kontrolü
+            const emailCell = (employee.email && employee.email !== 'N/A') ?
+                `<a href="#" onclick="openOutlookWeb('${employee.email}'); return false;" class="mail-link" title="Send email to ${employee.name} ${employee.last_name}">${employee.email}</a>` :
+                'N/A';
+
+            row.innerHTML = `
+                <td class="employee-name-cell">
+                    <img src="${employee.photo_path}" alt="${employee.name} Photo" class="employee-photo">
+                    ${employee.name} ${employee.last_name}
+                </td>
+                <td class="employee-position">${employee.position}</td>
+                <td>${emailCell}</td>
+                <td class="employee-mobile">${employee.mobile_phone}</td>
+                <td class="employee-hire-date">${employee.hire_date}</td>
+            `;
+
+            // Click event listener ekle
+            row.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A' || e.target.closest('a')) {
+                    return;
+                }
+                goToEmployeeLogs(`${employee.name} ${employee.last_name}`);
+            });
+
+            tableBody.appendChild(row);
         });
 
-        employeeCount.textContent = visibleCount;
+        tableBody.style.display = '';
+        noResults.style.display = 'none';
+    }
 
-        if (visibleCount === 0) {
-            noResults.style.display = 'block';
-            tableBody.style.display = 'none';
+    // Arama işlemi
+    function performSearch(searchTerm) {
+        currentSearchTerm = searchTerm;
+
+        const url = new URL(window.location);
+        if (searchTerm) {
+            url.searchParams.set('search', searchTerm);
         } else {
-            noResults.style.display = 'none';
-            tableBody.style.display = '';
+            url.searchParams.delete('search');
+        }
+        window.history.replaceState({}, '', url);
+
+        if (allEmployees.length === 0 && searchTerm) {
+            // İlk arama - verileri getir
+            fetchEmployees(searchTerm);
+        } else {
+            // Mevcut verilerle filtrele
+            displayEmployees(searchTerm);
+        }
+    }
+
+    // URL'den gelen arama terimini işle
+    function handleUrlSearchParam() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParam = urlParams.get('search');
+
+        if (searchParam && searchParam.trim() !== '') {
+            const searchInput = document.getElementById('employee-search');
+            searchInput.value = searchParam;
+            fetchEmployees(searchParam);
         }
     }
 
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('employee-search');
-        const employeeRows = document.querySelectorAll('.employee-row');
-        const noResults = document.getElementById('no-results');
         const tableBody = document.getElementById('employees-tbody');
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const searchParam = urlParams.get('search');
-        if (searchParam) {
-            performSearch(searchParam.toLowerCase().trim());
-        }
+        // Sayfa yüklendiğinde tabloyu boş göster
+        tableBody.innerHTML = '<tr><td colspan="5" class="no-data">Please enter a search term to find employees.</td></tr>';
+        tableBody.style.display = '';
 
-        employeeRows.forEach(row => {
-            row.addEventListener('click', function(e) {
-                if (e.target.tagName === 'A' || e.target.closest('a')) {
-                    return;
-                }
+        // URL'den gelen arama parametresini işle
+        handleUrlSearchParam();
 
-                const employeeName = this.getAttribute('data-employee-name');
-                goToEmployeeLogs(employeeName);
-            });
-        });
-
-        document.querySelectorAll('.employee-name-cell').forEach(cell => {
-            cell.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const row = this.closest('.employee-row');
-                const employeeName = row.getAttribute('data-employee-name');
-                goToEmployeeLogs(employeeName);
-            });
-        });
-
+        // Arama kutusu event listener
+        let searchTimeout;
         searchInput.addEventListener('input', function() {
-            const searchTerm = this.value.toLowerCase().trim();
+            const searchTerm = this.value;
 
-            const url = new URL(window.location);
-            if (searchTerm) {
-                url.searchParams.set('search', searchTerm);
-            } else {
-                url.searchParams.delete('search');
-            }
-            window.history.replaceState({}, '', url);
-
-            performSearch(searchTerm);
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                performSearch(searchTerm);
+            }, 300); // 300ms debounce
         });
 
+        // Enter tuşu için
         searchInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
+                clearTimeout(searchTimeout);
+                performSearch(this.value);
             }
         });
+
+        // Sayfa yüklendiğinde arama kutusuna odaklan
+        searchInput.focus();
     });
 </script>
+
+<style>
+.loading-spinner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    color: #666;
+}
+
+.spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
 {% endblock %}
