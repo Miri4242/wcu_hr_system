@@ -109,7 +109,7 @@ body {
 
 /* --- Dashboard and Sidebar Styles --- */
 .sidebar {
-    width: 250px;
+    width: 210px;
     background-color: #1e40af;
     height: 100vh;
     position: fixed;
@@ -188,7 +188,7 @@ body {
 }
 
 .main-content {
-    margin-left: 250px;
+    margin-left: 210px;
     padding: 30px;
     min-height: 100vh;
     box-sizing: border-box;
@@ -196,6 +196,7 @@ body {
 
 .header {
     margin-bottom: 30px;
+    margin-right 30px;
     padding: 15px 0;
     border-bottom: 1px solid #e5e7eb;
 }
@@ -397,12 +398,13 @@ body {
 .search-container {
     position: relative;
     flex-grow: 1;
-    max-width: 400px;
+    max-width: 320px; /* 250px yerine 320px yapalım */
+    margin: 0 20px; /* Yanlara biraz boşluk */
 }
 
 .search-input {
     width: 100%;
-    padding: 10px 40px 10px 15px;
+    padding: 10px 40px 10px 15px; /* Sağ tarafa daha fazla boşluk */
     border: 1px solid #ddd;
     border-radius: 6px;
     font-size: 14px;
@@ -419,10 +421,11 @@ body {
 
 .search-icon {
     position: absolute;
-    right: 12px;
+    right: 15px; /* İkonu biraz içeri al */
     top: 50%;
     transform: translateY(-50%);
     color: #6c757d;
+    pointer-events: none; /* Tıklanabilirliği kaldır */
 }
 
 .employee-count {
@@ -497,7 +500,9 @@ body {
 
 .export-button {
     background-color: #10b981;
-    margin-left: auto;
+    margin-left: 10px;
+    flex-shrink: 0; /* Küçülmesin */
+    white-space: nowrap; /* Yazıların alt alta inmesini engelle */
 }
 
 .export-button:hover {
@@ -568,6 +573,8 @@ body {
     margin-bottom: 15px;
     flex-wrap: wrap;
     gap: 15px;
+    /* Aşağıdaki satırları ekle */
+    padding: 0 5px; /* Çok az yan boşluk */
 }
 
 /* --- Employee Table Styles --- */
@@ -647,6 +654,9 @@ body {
     border-radius: 8px;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
     overflow-x: auto;
+
+    margin-left: -25px; /* Main content'teki sol 30px boşluğu iptal eder */
+    margin-right: -25px; /* Main content'teki sağ 30px boşluğu iptal eder */
 }
 
 .attendance-table {
@@ -656,8 +666,8 @@ body {
 
 .attendance-table th, .attendance-table td {
     border: 1px solid #e5e7eb;
-    padding: 10px 5px;
-    font-size: 12px;
+    padding: 10px 3px; /* DEĞİŞTİ - Sıkıştırmak için padding azaltıldı */
+    font-size: 11px; /* DEĞİŞTİ - Sıkıştırmak için font küçültüldü */
     text-align: center;
     white-space: nowrap;
 }
@@ -690,7 +700,7 @@ body {
 
 .attendance-table .status-cell {
     padding: 5px;
-    width: 30px;
+    width: 28px; /* DEĞİŞTİ - Sıkıştırmak için genişlik azaltıldı */
     position: relative;
     cursor: pointer;
     transition: background-color 0.2s;
@@ -1881,4 +1891,42 @@ body {
 }
 .data-table tr:hover {
     background-color: #f5f5f5;
+}
+}
+.status-indicator.weekend {
+    background-color: #6b7280; /* Gri renk */
+    border: 2px solid #4b5563;
+    cursor: default; /* Tıklanabilir değil */
+}
+
+.status-indicator.weekend:hover {
+    background-color: #4b5563;
+    transform: scale(1.1);
+}
+
+/* Haftasonu hücrelerine tıklanmasını engellemek için */
+.status-cell[data-date*=""] .status-indicator.weekend {
+    cursor: default;
+}
+
+/* İsteğe bağlı: Haftasonu tooltip'i */
+.status-indicator.weekend::after {
+    content: "Weekend";
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #374151;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+.status-indicator.weekend:hover::after {
+    opacity: 1;
 }

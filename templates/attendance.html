@@ -2,9 +2,7 @@
 
 {% block title %}Monthly Attendance Control{% endblock %}
 
-{% block page_title %}Monthly Attendance Control Table - {{ data.month_name | default('Select Month') }}{% endblock %}
-
-{% block content %}
+{% block page_title %}{% endblock %} {% block content %}
 <div class="logs-container calendar-view">
 
     <form method="GET" class="filter-form" id="attendance-form">
@@ -24,10 +22,9 @@
 
         <div class="search-container">
             <input type="text" id="search-input" name="search" class="search-input"
-                   placeholder="Search employees by name..."
+                   placeholder="Type to search employee"
                    value="{{ current_selection.search | default('') }}">
-            <span class="material-icons search-icon">search</span>
-        </div>
+            </div>
 
         <button type="submit" class="apply-filter-button">Apply Filter</button>
 
@@ -42,6 +39,9 @@
         <div class="header-title">
             <h3>Attendance Records</h3>
             <span class="employee-count">(<span id="employee-count">{{ data.total_items }}</span> found)</span>
+        </div>
+        <div class="weekday-info">
+            <small>Showing only weekdays (Monday-Friday)</small>
         </div>
     </div>
 
@@ -78,32 +78,50 @@
                 <tr>
                     <th class="name-cell">Employee</th>
                     {% for day in data.headers %}
-                        <th>{{ day }}</th>
+                        {% set day_date = data.current_year ~ '-' ~ '%02d'|format(current_selection.month) ~ '-' ~ '%02d'|format(day) %}
+                        {% set day_obj = day_date|string|str_to_date %}
+                        {% set is_week_start = day_obj.weekday() == 0 %}
+                        <th class="{% if day_obj.weekday() >= 5 %}weekend{% else %}weekday{% endif %} {% if is_week_start %}week-start{% endif %}">
+                            {{ day }}
+                            <br>
+                            <small>{{ day_obj.strftime('%a') }}</small>
+                        </th>
                     {% endfor %}
                 </tr>
             </thead>
             <tbody id="attendance-tbody">
                 {% for log in data.logs %}
                 <tr class="attendance-row">
-                    <td class="name-cell">{{ log.name }}</td>
+                    <td class="name-cell">
+                        <a href="{{ url_for('employees') }}?search={{ log.name | urlencode }}"
+                           class="employee-name-link"
+                           title="Search this employee in Employees page">
+                            {{ log.name }}
+                        </a>
+                    </td>
                     {% for day in data.headers %}
                         {% set status_index = loop.index0 %}
                         {% set status = log.days[status_index] %}
-                        <td class="status-cell"
+                        {% set day_date = data.current_year ~ '-' ~ '%02d'|format(current_selection.month) ~ '-' ~ '%02d'|format(day) %}
+                        {% set day_obj = day_date|string|str_to_date %}
+                        {% set is_week_start = day_obj.weekday() == 0 %}
+                        <td class="status-cell {% if day_obj.weekday() >= 5 %}weekend-cell{% endif %} {% if is_week_start %}week-start-cell{% endif %}"
                             data-employee="{{ log.id }}"
-                            data-date="{{ current_selection.year }}-{{ '%02d' % current_selection.month }}-{{ '%02d' % day }}"
+                            data-date="{{ day_date }}"
                             data-employee-name="{{ log.name }}"
                             data-day="{{ day }}"
-                            onclick="openNoteModal('{{ log.id }}', '{{ log.name }}', '{{ current_selection.year }}-{{ '%02d' % current_selection.month }}-{{ '%02d' % day }}')">
+                            {% if day_obj.weekday() < 5 %}onclick="openNoteModal('{{ log.id }}', '{{ log.name }}', '{{ day_date }}')"{% endif %}>
 
-                            {% if status == 'T' %}
+                            {% if day_obj.weekday() >= 5 %}
+                                <span class="status-indicator weekend" title="Weekend"></span>
+                            {% elif status == 'T' %}
                                 <span class="status-indicator full-day" title="Full Day (8+ hours)"></span>
                             {% elif status == 'E' %}
                                 <span class="status-indicator half-day" title="Partial Day (< 8 hours)"></span>
                             {% elif status == 'D' %}
                                 <span class="status-indicator absence" title="Absent (No entry/exit)"></span>
                             {% elif status == 'N' %}
-                                <span class="status-indicator no-log" title="No Log Found (May be Weekend)"></span>
+                                <span class="status-indicator no-log" title="No Log Found"></span>
                             {% else %}
                                 <span class="status-indicator no-log" title="Undefined Status"></span>
                             {% endif %}
@@ -150,7 +168,6 @@
 
 </div>
 
-<!-- Not Modal -->
 <div id="noteModal" class="note-modal">
     <div class="note-modal-content">
         <div class="note-modal-header">
@@ -167,7 +184,160 @@
     </div>
 </div>
 
+<style>
+.weekend {
+    background-color: #f8f9fa;
+    color: #6c757d;
+}
+
+.weekend-cell {
+    background-color: #f8f9fa;
+    cursor: not-allowed;
+}
+
+.weekend-cell .status-indicator.weekend {
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+}
+
+.weekday-info {
+    margin-top: 5px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Hafta başı çizgileri */
+.week-start {
+    border-left: 3px solid #dee2e6 !important;
+    position: relative;
+}
+
+.week-start-cell {
+    border-left: 3px solid #dee2e6 !important;
+    position: relative;
+}
+
+/* İlk sütun için istisna */
+.attendance-table th:first-child,
+.attendance-table td:first-child {
+    border-left: none !important;
+}
+
+/* Hafta numaraları için opsiyonel stil */
+.week-start::before {
+    content: attr(data-week);
+    position: absolute;
+    top: -25px;
+    left: 5px;
+    font-size: 10px;
+    color: #6c757d;
+    font-weight: normal;
+}
+
+/* Tablo hücreleri için temel stiller */
+.attendance-table th,
+.attendance-table td {
+    border: 1px solid #dee2e6;
+    transition: all 0.2s ease;
+}
+
+.attendance-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    padding: 8px 4px;
+    text-align: center;
+}
+
+.attendance-table td {
+    padding: 4px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.attendance-table td.weekend-cell {
+    cursor: not-allowed;
+}
+
+/* Status indicator stilleri */
+.status-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    border: 2px solid transparent;
+}
+
+.status-indicator.full-day {
+    background-color: #28a745;
+    border-color: #1e7e34;
+}
+
+.status-indicator.half-day {
+    background-color: #ffc107;
+    border-color: #e0a800;
+}
+
+.status-indicator.absence {
+    background-color: #dc3545;
+    border-color: #c82333;
+}
+
+.status-indicator.no-log {
+    background-color: #6c757d;
+    border-color: #545b62;
+}
+
+.status-indicator.weekend {
+    background-color: #e9ecef;
+    border-color: #dee2e6;
+}
+
+/* Hover efektleri */
+.attendance-table td:not(.weekend-cell):hover .status-indicator:not(.weekend) {
+    transform: scale(1.1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+/* İsim hücresi için özel stil */
+.name-cell {
+    font-weight: 600;
+    background-color: #f8f9fa;
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    border-right: 2px solid #dee2e6;
+}
+
+.employee-name-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 600;
+    display: block;
+    padding: 8px 4px;
+    transition: all 0.2s ease;
+}
+
+.employee-name-link:hover {
+    text-decoration: underline;
+    color: #0056b3;
+    background-color: #e3f2fd;
+}
+</style>
+
 <script>
+    // String to date converter for template
+    function strToDate(dateStr) {
+        const [year, month, day] = dateStr.split('-');
+        return new Date(year, month - 1, day);
+    }
+
+    // Hafta numarası hesaplama fonksiyonu
+    function getWeekNumber(date) {
+        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+        const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+        return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+    }
+
     // Not modal fonksiyonları
     let currentEmployeeId = null;
     let currentNoteDate = null;
@@ -296,6 +466,18 @@
         document.getElementById('noteModal').addEventListener('click', function(e) {
             if (e.target === this) {
                 closeNoteModal();
+            }
+        });
+
+        // Hafta başı hücrelerine hafta numarası ekle (opsiyonel)
+        const weekStartHeaders = document.querySelectorAll('.week-start');
+        weekStartHeaders.forEach(header => {
+            const day = header.querySelector('small').textContent;
+            if (day === 'Mon') {
+                const dateStr = `{{ data.current_year }}-{{ '%02d'|format(current_selection.month) }}-${header.textContent.trim()}`;
+                const date = strToDate(dateStr);
+                const weekNumber = getWeekNumber(date);
+                header.setAttribute('data-week', `W${weekNumber}`);
             }
         });
 

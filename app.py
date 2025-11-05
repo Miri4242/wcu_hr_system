@@ -701,6 +701,13 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
 def utility_processor():
     return dict(format_seconds=format_seconds)
 
+@app.template_filter('str_to_date')
+def str_to_date_filter(date_str):
+    """Convert string to date object for template"""
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None
 
 @app.route('/api/employee_search')
 def api_employee_search():
@@ -1044,7 +1051,6 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             if not any(emp['key'] == person_key for emp in employee_list):
                 continue
 
-            # BU SATIR EKLENDİ: day_number değişkenini tanımla
             day_number = log_date.day
 
             # Use the core calculation function
@@ -1063,8 +1069,15 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
 
             employee_daily_status[person_key][day_number] = status_code
 
-        # 5. Prepare Results for HTML
-        day_headers = list(range(1, days_in_month + 1))
+        # 5. Prepare Results for HTML - SADECE İŞ GÜNLERİNİ GÖSTER
+        # Hafta sonları (Cumartesi: 5, Pazar: 6) hariç tüm günleri oluştur
+        day_headers = []
+        current_day = start_date
+        while current_day <= end_date:
+            # Sadece hafta içi günleri ekle (Pazartesi: 0 - Cuma: 4)
+            if current_day.weekday() < 5:
+                day_headers.append(current_day.day)
+            current_day += timedelta(days=1)
 
         final_logs = []
         for emp in employee_list:
@@ -1073,9 +1086,14 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                 'name': emp['full_name'],
                 'days': []
             }
-            for day in day_headers:
-                status = employee_daily_status[emp['key']].get(day, 'N')  # N: Not Logged (RED/NO LOG)
-                row['days'].append(status)
+            # Sadece iş günleri için durum bilgisini topla
+            current_day = start_date
+            while current_day <= end_date:
+                if current_day.weekday() < 5:  # Sadece hafta içi
+                    day_number = current_day.day
+                    status = employee_daily_status[emp['key']].get(day_number, 'N')  # N: Not Logged
+                    row['days'].append(status)
+                current_day += timedelta(days=1)
 
             final_logs.append(row)
 

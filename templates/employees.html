@@ -13,7 +13,7 @@
         </div>
 
         <div class="search-container">
-            <input type="text" id="employee-search" class="search-input" placeholder="Search employees by name, position, email..." value="{{ request.args.get('search', '') }}">
+            <input type="text" id="employee-search" class="search-input" placeholder="Type to search employee" value="{{ request.args.get('search', '') }}">
             <span class="material-icons search-icon">search</span>
         </div>
 
@@ -29,13 +29,12 @@
                 <th>Position</th>
                 <th>Email</th>
                 <th>Mobile</th>
-                <th>Hire Date</th>
             </tr>
         </thead>
         <tbody id="employees-tbody">
             <!-- İlk yüklemede boş tbody -->
             <tr>
-                <td colspan="5" class="no-data">Please enter a search term to find employees.</td>
+                <td colspan="4" class="no-data">Please enter a search term to find employees.</td>
             </tr>
         </tbody>
     </table>
@@ -64,6 +63,15 @@
         window.location.href = "{{ url_for('employee_logs') }}?employee_search=" + encodeURIComponent(employeeName);
     }
 
+    // Email kısaltma fonksiyonu
+    function truncateEmail(email, maxLength = 35) {
+        if (!email || email === 'N/A') return 'N/A';
+
+        if (email.length <= maxLength) return email;
+
+        return email.substring(0, maxLength) + '...';
+    }
+
     // AJAX ile çalışanları getir
     function fetchEmployees(searchTerm = '') {
         const loadingSpinner = document.getElementById('loading-spinner');
@@ -85,7 +93,7 @@
             .catch(error => {
                 console.error('Error fetching employees:', error);
                 loadingSpinner.style.display = 'none';
-                tableBody.innerHTML = '<tr><td colspan="5" class="no-data">Error loading employees. Please try again.</td></tr>';
+                tableBody.innerHTML = '<tr><td colspan="4" class="no-data">Error loading employees. Please try again.</td></tr>';
                 tableBody.style.display = '';
                 employeeCount.textContent = '0';
             });
@@ -132,9 +140,9 @@
             row.className = 'employee-row clickable-row';
             row.setAttribute('data-employee-name', `${employee.name} ${employee.last_name}`);
 
-            // Email link kontrolü
+            // Email link kontrolü ve kısaltma
             const emailCell = (employee.email && employee.email !== 'N/A') ?
-                `<a href="#" onclick="openOutlookWeb('${employee.email}'); return false;" class="mail-link" title="Send email to ${employee.name} ${employee.last_name}">${employee.email}</a>` :
+                `<a href="#" onclick="openOutlookWeb('${employee.email}'); return false;" class="mail-link" title="Send email to ${employee.name} ${employee.last_name}">${truncateEmail(employee.email)}</a>` :
                 'N/A';
 
             row.innerHTML = `
@@ -145,7 +153,6 @@
                 <td class="employee-position">${employee.position}</td>
                 <td>${emailCell}</td>
                 <td class="employee-mobile">${employee.mobile_phone}</td>
-                <td class="employee-hire-date">${employee.hire_date}</td>
             `;
 
             // Click event listener ekle
@@ -184,28 +191,23 @@
         }
     }
 
-    // URL'den gelen arama terimini işle
-    function handleUrlSearchParam() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const searchParam = urlParams.get('search');
-
-        if (searchParam && searchParam.trim() !== '') {
-            const searchInput = document.getElementById('employee-search');
-            searchInput.value = searchParam;
-            fetchEmployees(searchParam);
-        }
-    }
-
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('employee-search');
         const tableBody = document.getElementById('employees-tbody');
 
-        // Sayfa yüklendiğinde tabloyu boş göster
-        tableBody.innerHTML = '<tr><td colspan="5" class="no-data">Please enter a search term to find employees.</td></tr>';
-        tableBody.style.display = '';
+        // URL'den search parametresini al ve otomatik arama yap
+        const urlParams = new URLSearchParams(window.location.search);
+        const searchParam = urlParams.get('search');
 
-        // URL'den gelen arama parametresini işle
-        handleUrlSearchParam();
+        if (searchParam && searchParam.trim() !== '') {
+            searchInput.value = searchParam;
+            // Arama yap ve sonuçları göster
+            fetchEmployees(searchParam);
+        } else {
+            // Eğer search parametresi yoksa boş göster
+            tableBody.innerHTML = '<tr><td colspan="4" class="no-data">Please enter a search term to find employees.</td></tr>';
+            tableBody.style.display = '';
+        }
 
         // Arama kutusu event listener
         let searchTimeout;
@@ -255,6 +257,15 @@
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+.mail-link {
+    display: inline-block;
+    max-width: 250px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    vertical-align: bottom;
 }
 </style>
 {% endblock %}
