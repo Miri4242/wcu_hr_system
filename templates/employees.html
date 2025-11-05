@@ -12,9 +12,12 @@
             <span class="employee-count">(<span id="employee-count">0</span> found)</span>
         </div>
 
-        <div class="search-container">
+        <div class="search-container" style="display: flex; align-items: center; gap: 10px;">
             <input type="text" id="employee-search" class="search-input" placeholder="Type to search employee" value="{{ request.args.get('search', '') }}">
             <span class="material-icons search-icon">search</span>
+            <button id="search-button" class="action-button" style="padding: 8px 16px; min-width: auto;">
+                <i class="fas fa-search"></i> Search
+            </button>
         </div>
 
         <a href="{{ url_for('export_employees') }}" class="action-button export-button">
@@ -53,6 +56,30 @@
     // Global değişkenler
     let allEmployees = [];
     let currentSearchTerm = '';
+
+    // Azerbaycan harfleri için normalize fonksiyonu
+    function normalizeAzerbaijani(text) {
+        if (!text) return '';
+
+        const replacements = {
+            'ə': 'e',
+            'ü': 'u',
+            'ö': 'o',
+            'ğ': 'g',
+            'ş': 's',
+            'ç': 'c',
+            'ı': 'i',
+            'Ə': 'E',
+            'Ü': 'U',
+            'Ö': 'O',
+            'Ğ': 'G',
+            'Ş': 'S',
+            'Ç': 'C',
+            'I': 'I'
+        };
+
+        return text.toLowerCase().replace(/[əüöğşçıƏÜÖĞŞÇI]/g, char => replacements[char] || char);
+    }
 
     function openOutlookWeb(recipientEmail) {
         const outlookComposeUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(recipientEmail)}`;
@@ -105,22 +132,23 @@
         const noResults = document.getElementById('no-results');
         const employeeCount = document.getElementById('employee-count');
 
-        // Arama terimini küçük harfe çevir
-        const searchTermLower = searchTerm.toLowerCase().trim();
+        // Arama terimini normalize et (Azerbaycan harfleri için)
+        const searchTermNormalized = normalizeAzerbaijani(searchTerm).trim();
 
         let filteredEmployees = allEmployees;
 
         // Eğer arama terimi varsa filtrele
-        if (searchTermLower) {
+        if (searchTermNormalized) {
             filteredEmployees = allEmployees.filter(emp => {
-                const searchData = (
+                // Tüm alanları birleştir ve normalize et
+                const searchData = normalizeAzerbaijani(
                     emp.name + ' ' +
                     emp.last_name + ' ' +
                     emp.position + ' ' +
                     emp.email + ' ' +
                     emp.mobile_phone
-                ).toLowerCase();
-                return searchData.includes(searchTermLower);
+                );
+                return searchData.includes(searchTermNormalized);
             });
         }
 
@@ -171,7 +199,9 @@
     }
 
     // Arama işlemi
-    function performSearch(searchTerm) {
+    function performSearch() {
+        const searchInput = document.getElementById('employee-search');
+        const searchTerm = searchInput.value;
         currentSearchTerm = searchTerm;
 
         const url = new URL(window.location);
@@ -193,6 +223,7 @@
 
     document.addEventListener('DOMContentLoaded', function() {
         const searchInput = document.getElementById('employee-search');
+        const searchButton = document.getElementById('search-button');
         const tableBody = document.getElementById('employees-tbody');
 
         // URL'den search parametresini al ve otomatik arama yap
@@ -209,23 +240,16 @@
             tableBody.style.display = '';
         }
 
-        // Arama kutusu event listener
-        let searchTimeout;
-        searchInput.addEventListener('input', function() {
-            const searchTerm = this.value;
-
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                performSearch(searchTerm);
-            }, 300); // 300ms debounce
+        // Search butonu event listener
+        searchButton.addEventListener('click', function() {
+            performSearch();
         });
 
         // Enter tuşu için
         searchInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
-                clearTimeout(searchTimeout);
-                performSearch(this.value);
+                performSearch();
             }
         });
 
@@ -266,6 +290,18 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     vertical-align: bottom;
+}
+
+.search-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#search-button {
+    padding: 8px 16px;
+    min-width: auto;
+    white-space: nowrap;
 }
 </style>
 {% endblock %}
