@@ -1225,7 +1225,7 @@ def get_dashboard_data():
             })
         data['absent_employees'] = absent_list
 
-        # 7. GECİKENLER - YENİ SORGÜ
+        # 7. GECİKENLER - DÜZELTİLMİŞ SORGÜ (MÜƏLLİM FİLTRESİ EKLENDİ)
         cur.execute("""
             SELECT 
                 p.name,
@@ -1236,9 +1236,14 @@ def get_dashboard_data():
             FROM public.pers_person p
             LEFT JOIN public.pers_attribute_ext pae ON p.id = pae.person_id
             INNER JOIN public.acc_transaction t ON t.name = p.name AND t.last_name = p.last_name
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
             WHERE DATE(t.create_time) = %s
               AND pae.attr_value4 IS NOT NULL
               AND t.reader_name ILIKE '%%-in%%'
+              AND (pp.name IS NULL 
+                   OR (pp.name NOT ILIKE 'student' 
+                       AND pp.name NOT ILIKE 'visitor'
+                       AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi EKLENDİ
             GROUP BY p.name, p.last_name, p.id, pae.attr_value4
             HAVING MIN(t.create_time) IS NOT NULL
             ORDER BY p.last_name, p.name
