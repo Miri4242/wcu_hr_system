@@ -110,18 +110,18 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th>ID</th>
                     <th>First Name</th>
                     <th>Last Name</th>
+                    <th>Position</th>
                     <th>Date of Birth</th>
                 </tr>
             </thead>
             <tbody>
                 {% for employee in data.today_birthdays %}
                 <tr>
-                    <td>{{ employee.person_id }}</td>
                     <td>{{ employee.name }}</td>
                     <td>{{ employee.surname }}</td>
+                    <td>{{ employee.position or 'Undefined' }}</td>
                     <td>{{ employee.birth_date_str }}</td>
                 </tr>
                 {% endfor %}

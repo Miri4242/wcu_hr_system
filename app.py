@@ -1059,7 +1059,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
 
             # DÜZELTME: None değer kontrolü
             if total_inside_seconds is None:
-                status_code = 'N'  # No Data/Invalid
+                status_code = 'D'  # DEĞİŞİKLİK: N yerine D (Absent)
             elif total_inside_seconds >= EIGHT_HOURS_SECONDS:
                 status_code = 'T'  # Full Day (GREEN)
             elif total_inside_seconds > 0:
@@ -1070,7 +1070,6 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             employee_daily_status[person_key][day_number] = status_code
 
         # 5. Prepare Results for HTML - SADECE İŞ GÜNLERİNİ GÖSTER
-        # Hafta sonları (Cumartesi: 5, Pazar: 6) hariç tüm günleri oluştur
         day_headers = []
         current_day = start_date
         while current_day <= end_date:
@@ -1080,6 +1079,8 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             current_day += timedelta(days=1)
 
         final_logs = []
+        today = date.today()
+
         for emp in employee_list:
             row = {
                 'id': emp['id'],
@@ -1091,7 +1092,15 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             while current_day <= end_date:
                 if current_day.weekday() < 5:  # Sadece hafta içi
                     day_number = current_day.day
-                    status = employee_daily_status[emp['key']].get(day_number, 'N')  # N: Not Logged
+
+                    # DEĞİŞİKLİK: Sadece gelecek günler için N, bugün ve geçmiş için normal durum
+                    if current_day > today:
+                        # Gelecek günler için N (No Log)
+                        status = 'N'
+                    else:
+                        # Bugün ve geçmiş günler için: eğer log varsa onu kullan, yoksa D (Absent)
+                        status = employee_daily_status[emp['key']].get(day_number, 'D')
+
                     row['days'].append(status)
                 current_day += timedelta(days=1)
 
@@ -1289,10 +1298,10 @@ def get_dashboard_data():
             percentage = (present / total) * 100
             data['attendance_percentage'] = round(percentage, 2)
 
-        # 8. Birthdays Today
+        # 8. Birthdays Today - GÜNCELLENMİŞ SORGÜ (POZİSYON BİLGİSİ EKLENDİ)
         today_m_d = datetime.now().strftime('%m-%d')
         cur.execute("""
-                    SELECT p.id, p.name, p.last_name, p.birthday
+                    SELECT p.id, p.name, p.last_name, p.birthday, pp.name as position_name
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE TO_CHAR(p.birthday, 'MM-DD') = %s
@@ -1305,11 +1314,11 @@ def get_dashboard_data():
 
         today_birthdays_raw = cur.fetchall()
         birthday_list = []
-        for id_val, name, last_name_val, birthday_date in today_birthdays_raw:
+        for id_val, name, last_name_val, birthday_date, position_name in today_birthdays_raw:
             birth_date_str = birthday_date.strftime('%d.%m.%Y') if isinstance(birthday_date,
                                                                               (datetime, date)) else 'N/A'
             birthday_list.append(
-                {'person_id': id_val, 'name': name, 'surname': last_name_val, 'birth_date_str': birth_date_str})
+                {'person_id': id_val, 'name': name, 'surname': last_name_val, 'position': position_name, 'birth_date_str': birth_date_str})
         data['today_birthdays'] = birthday_list
 
     except psycopg2.Error as e:

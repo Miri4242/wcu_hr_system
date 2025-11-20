@@ -121,7 +121,7 @@
                             {% elif status == 'D' %}
                                 <span class="status-indicator absence" title="Absent (No entry/exit)"></span>
                             {% elif status == 'N' %}
-                                <span class="status-indicator no-log" title="No Log Found"></span>
+                                <span class="status-indicator no-log" title="No Log Found (Future date)"></span>
                             {% else %}
                                 <span class="status-indicator no-log" title="Undefined Status"></span>
                             {% endif %}
@@ -321,6 +321,37 @@
     text-decoration: underline;
     color: #0056b3;
     background-color: #e3f2fd;
+}
+
+/* Not göstergesi için stil */
+.has-note .status-indicator {
+    position: relative;
+}
+
+.has-note .status-indicator::after {
+    content: "📝";
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 10px;
+    background: white;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+.note-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background-color: #007bff;
+    border-radius: 50%;
 }
 </style>
 
