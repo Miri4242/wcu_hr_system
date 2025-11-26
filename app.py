@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, jsonify
 import psycopg2
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone  # timezone eklendi
 from collections import defaultdict
 from io import StringIO
 import csv
@@ -37,6 +37,24 @@ EN_MONTHS = {
     7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"
 }
 
+
+# --------------------------------------------------------------------------------------
+# --- TIMEZONE HELPER (BAKU FIX) ---
+# --------------------------------------------------------------------------------------
+
+def get_current_baku_time():
+    """
+    Returns the current time in Baku (UTC+4).
+    Removes timezone info at the end to match 'naive' database timestamps.
+    """
+    # UTC zamanını al
+    utc_now = datetime.now(timezone.utc)
+    # Bakü için 4 saat ekle (Azerbaycan'da DST/Yaz saati uygulaması yoktur, sabittir)
+    baku_now = utc_now + timedelta(hours=4)
+    # Veritabanı ile karşılaştırma yapabilmek için tzinfo'yu temizle (naive yap)
+    return baku_now.replace(tzinfo=None)
+
+
 def get_db_connection():
     """Tries to connect to the PostgreSQL database."""
     try:
@@ -45,6 +63,7 @@ def get_db_connection():
     except psycopg2.Error as e:
         print(f"🚨 Database connection error: {e}")
         return None
+
 
 # --------------------------------------------------------------------------------------
 # --- AUTHENTICATION FUNCTIONS ---
@@ -56,6 +75,7 @@ def hash_password(password):
     password_hash = hashlib.sha256((password + salt).encode()).hexdigest()
     return f"sha256${salt}${password_hash}"
 
+
 def verify_password(stored_password, provided_password):
     """Verify a stored password against one provided by user"""
     try:
@@ -64,6 +84,7 @@ def verify_password(stored_password, provided_password):
         return provided_hash == stored_hash
     except:
         return False
+
 
 def get_user_by_email(email):
     """Get user by email from database."""
@@ -96,6 +117,7 @@ def get_user_by_email(email):
         if cur: cur.close()
         if conn: conn.close()
 
+
 def update_last_login(user_id):
     """Update user's last login timestamp."""
     conn = get_db_connection()
@@ -117,6 +139,7 @@ def update_last_login(user_id):
         if cur: cur.close()
         if conn: conn.close()
 
+
 # --------------------------------------------------------------------------------------
 # --- CORE HELPER FUNCTIONS ---
 # --------------------------------------------------------------------------------------
@@ -130,11 +153,13 @@ def format_seconds(seconds):
     secs = seconds % 60
     return f"{hours:02}:{minutes:02}:{secs:02}"
 
+
 def normalize_name(name):
     """Converts name/surname to lowercase and strips whitespace, removing inner spaces."""
     if name is None:
         return ""
     return name.lower().strip().replace(' ', '')
+
 
 def require_login():
     """
@@ -146,10 +171,12 @@ def require_login():
         return redirect(url_for('login'))
     return None
 
+
 def get_available_months(num_months=12):
     """Prepares a list of the last X available months (value: YYYY-MM, label: Month YYYY)."""
     months = []
-    today = datetime.now().date()
+    # BAKU TIME FIX: datetime.now().date() -> get_current_baku_time().date()
+    today = get_current_baku_time().date()
     current_month_start = today.replace(day=1)
 
     for i in range(num_months):
@@ -165,6 +192,7 @@ def get_available_months(num_months=12):
         months.append((value, label))
 
     return months[::-1]
+
 
 # --------------------------------------------------------------------------------------
 # --- EMPLOYEE MANAGEMENT FUNCTIONS (CRUD/LIST) ---
@@ -224,6 +252,7 @@ def get_employee_list():
         if cur: cur.close()
         if conn: conn.close()
 
+
 def get_employee_details(employee_id):
     """Fetches all details for a specific employee ID (excluding Students, Visitors and Teachers)."""
     conn = get_db_connection()
@@ -280,6 +309,7 @@ def get_employee_details(employee_id):
         if cur: cur.close()
         if conn: conn.close()
 
+
 def get_all_positions():
     """Fetches all positions by ID and Name (for Dropdown)."""
     conn = get_db_connection()
@@ -294,6 +324,7 @@ def get_all_positions():
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
 
 def update_employee_details(employee_id, data):
     """Updates employee information."""
@@ -335,6 +366,7 @@ def update_employee_details(employee_id, data):
         if cur: cur.close()
         if conn: conn.close()
 
+
 # --------------------------------------------------------------------------------------
 # --- TIME CALCULATION CORE LOGIC ---
 # --------------------------------------------------------------------------------------
@@ -346,14 +378,17 @@ def calculate_times_from_transactions(transactions):
     """
     transactions.sort(key=lambda x: x['time'])
 
-    # Check if all transactions are from today
-    today = datetime.now().date()
+    # BAKU TIME FIX: datetime.now().date() -> get_current_baku_time().date()
+    today = get_current_baku_time().date()
+
     transaction_dates = set(t['time'].date() for t in transactions)
     is_today = today in transaction_dates
 
     first_in_time = None
     last_out_time = None
-    current_time = datetime.now()
+
+    # BAKU TIME FIX: datetime.now() -> get_current_baku_time()
+    current_time = get_current_baku_time()
 
     # Find the first 'in' and last 'out'
     in_logs = [t['time'] for t in transactions if t['direction'] == 'in']
@@ -435,7 +470,6 @@ def calculate_times_from_transactions(transactions):
         if total_outside_seconds < 0:
             total_outside_seconds = 0
 
-    # DÜZELTME: None değerleri 0 yap
     return {
         'first_in': first_in_time,
         'last_out': last_out_time,
@@ -447,6 +481,7 @@ def calculate_times_from_transactions(transactions):
         'is_invalid_day': is_invalid_day,
         'is_today': is_today
     }
+
 
 # --------------------------------------------------------------------------------------
 # --- HOURS TRACKED AND ATTENDANCE FUNCTIONS ---
@@ -494,14 +529,17 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
 
     cur = conn.cursor()
 
+    # BAKU TIME FIX: datetime.now() -> get_current_baku_time()
+    current_baku = get_current_baku_time()
+
     # Date range handling
     if not start_date:
-        start_date = datetime.now() - timedelta(days=365)
+        start_date = current_baku - timedelta(days=365)
     else:
         start_date = datetime.combine(start_date, datetime.min.time())
 
     if not end_date:
-        end_date = datetime.now()
+        end_date = current_baku
     else:
         end_date = datetime.combine(end_date, datetime.max.time())
 
@@ -539,27 +577,20 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
             # YENİ IN/OUT TESPİT ALGORİTMASI - Building A-1 pattern'ine göre
             direction_type = None
             if reader_name:
-                # Reader name'i lowercase'e çevir
                 reader_lower = reader_name.lower()
-
-                # Building pattern'ini kontrol et
                 if 'building' in reader_lower:
-                    # Reader numarasını çıkar (1, 2, 3, 4 gibi)
                     import re
                     numbers = re.findall(r'\d+', reader_name)
                     if numbers:
                         reader_number = int(numbers[0])
-
-                        # 1 ve 2 numaralı reader'lar IN, 3 ve 4 numaralı reader'lar OUT
                         if reader_number in [1, 2]:
                             direction_type = 'in'
                         elif reader_number in [3, 4]:
                             direction_type = 'out'
 
             if not direction_type:
-                continue  # Direction tespit edilemezse atla
+                continue
 
-            # Key: (Log Date, Normalized Name Surname)
             key = (log_date, t_key)
             daily_transactions[key].append({
                 'name': t_name,
@@ -583,7 +614,7 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
                 employee_name = transactions[0]['name']
                 employee_last_name = transactions[0]['last_name']
 
-            # Status calculation based on inside time
+            # Status calculation
             status_display = ""
             status_color = ""
             status_class = ""
@@ -610,14 +641,12 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
 
             # Prepare display values based on validity
             if times['is_invalid_day']:
-                # For invalid days (last event IN but not today), show N/A for all time fields
                 first_in_display = "N/A"
                 last_out_display = "N/A"
                 inside_time_display = "N/A"
                 outside_time_display = "N/A"
                 total_span_display = "N/A"
             else:
-                # For valid days
                 first_in_display = times['first_in'].strftime('%H:%M:%S') if times['first_in'] else 'N/A'
 
                 if times['is_currently_inside']:
@@ -654,7 +683,8 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
 
         # 4. Add missing workdays from first data date to today
         if person_key and employee_first_date:
-            today = datetime.now().date()
+            # BAKU TIME FIX: datetime.now().date() -> get_current_baku_time().date()
+            today = get_current_baku_time().date()
             current_date = employee_first_date
 
             while current_date <= today:
@@ -697,9 +727,11 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
         if cur: cur.close()
         if conn: conn.close()
 
+
 @app.context_processor
 def utility_processor():
     return dict(format_seconds=format_seconds)
+
 
 @app.template_filter('str_to_date')
 def str_to_date_filter(date_str):
@@ -708,6 +740,7 @@ def str_to_date_filter(date_str):
         return datetime.strptime(date_str, '%Y-%m-%d').date()
     except (ValueError, TypeError):
         return None
+
 
 @app.route('/api/employee_search')
 def api_employee_search():
@@ -752,6 +785,7 @@ def api_employee_search():
         if cur: cur.close()
         if conn: conn.close()
 
+
 def get_tracked_hours_by_dates(person_key, start_date, end_date):
     """
     Calculates total worked time (time spent inside) and daily statuses
@@ -774,7 +808,6 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
     try:
         # Use the date range in the database query.
-        # Filter for non-student, non-visitor and non-teacher transactions.
         cur.execute("""
                     SELECT t.name, t.last_name, t.create_time, t.reader_name
                     FROM public.acc_transaction t
@@ -794,24 +827,20 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
         for t_name, t_last_name, create_time, reader_name in raw_transactions:
             if create_time is None or not t_name or not t_last_name: continue
 
-            # Filter by the exact person_key here (Python filtering is safer)
             t_key = normalize_name(t_name) + normalize_name(t_last_name)
             if t_key != person_key:
                 continue
 
             log_date = create_time.date()
 
-            # YENİ IN/OUT TESPİT ALGORİTMASI - Building A-1 pattern'ine göre
             direction_type = None
             if reader_name:
                 reader_lower = reader_name.lower()
-
                 if 'building' in reader_lower:
                     import re
                     numbers = re.findall(r'\d+', reader_name)
                     if numbers:
                         reader_number = int(numbers[0])
-
                         if reader_number in [1, 2]:
                             direction_type = 'in'
                         elif reader_number in [3, 4]:
@@ -822,7 +851,6 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
         # Calculate working times and status for each day with logs
         for log_date, transactions in daily_transactions.items():
-            # Skip weekend calculation if log date is a Saturday (5) or Sunday (6)
             if log_date.weekday() >= 5:
                 continue
 
@@ -843,12 +871,9 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
         tracked_logs = []
         current_day = start_date
 
-        # Process all days from start_date up to end_date
         while current_day <= end_date:
-            day_data = daily_data.get(current_day, {'total_inside_seconds': 0,
-                                                    'status_code': 'D'})
+            day_data = daily_data.get(current_day, {'total_inside_seconds': 0, 'status_code': 'D'})
 
-            # Only include weekdays (Monday=0 to Friday=4)
             if current_day.weekday() < 5:
                 tracked_logs.append({
                     'date': current_day.strftime('%a, %b %d'),
@@ -874,6 +899,7 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
 
 # --------------------------------------------------------------------------------------
 # --- EMPLOYEE DAILY NOTES FUNCTIONS ---
@@ -901,6 +927,7 @@ def get_employee_daily_note(employee_id, note_date):
     finally:
         if cur: cur.close()
         if conn: conn.close()
+
 
 def save_employee_daily_note(employee_id, note_date, note_text, created_by='admin'):
     """Saves or updates daily note for an employee."""
@@ -951,7 +978,8 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
         days_in_month = end_date.day
 
     except ValueError:
-        today = date.today()
+        # BAKU TIME FIX: date.today() -> get_current_baku_time().date()
+        today = get_current_baku_time().date()
         selected_month = today.month
         selected_year = today.year
         start_date = date(selected_year, selected_month, 1)
@@ -966,7 +994,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
     employee_list = []
 
     try:
-        # 1. Fetch all employees (FILTERED: No Students/Visitors/Teachers + Apply Search)
+        # 1. Fetch all employees (FILTERED)
         if search_term:
             cur.execute("""
                         SELECT p.id, p.name, p.last_name, pp.name AS position_name
@@ -1000,7 +1028,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             employee_list.append(
                 {'key': key, 'id': id_val, 'name': name, 'last_name': last_name, 'full_name': full_name})
 
-        # 2. Fetch all movements within the date range (Only for Non-Students/Non-Visitors/Non-Teachers)
+        # 2. Fetch all movements within the date range
         cur.execute("""
                     SELECT t.name, t.last_name, t.create_time, t.reader_name
                     FROM public.acc_transaction t
@@ -1024,17 +1052,14 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
 
             log_date = create_time.date()
 
-            # YENİ IN/OUT TESPİT ALGORİTMASI - Building A-1 pattern'ine göre
             direction_type = None
             if reader_name:
                 reader_lower = reader_name.lower()
-
                 if 'building' in reader_lower:
                     import re
                     numbers = re.findall(r'\d+', reader_name)
                     if numbers:
                         reader_number = int(numbers[0])
-
                         if reader_number in [1, 2]:
                             direction_type = 'in'
                         elif reader_number in [3, 4]:
@@ -1045,41 +1070,37 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                 key = (log_date, t_key)
                 daily_transactions[key].append({'time': create_time, 'direction': direction_type})
 
-        # 4. Determine Daily Status (for employees in employee_list)
+        # 4. Determine Daily Status
         for (log_date, person_key), transactions in daily_transactions.items():
-            # Check if this log belongs to an employee in the list
             if not any(emp['key'] == person_key for emp in employee_list):
                 continue
 
             day_number = log_date.day
-
-            # Use the core calculation function
             times = calculate_times_from_transactions(transactions)
             total_inside_seconds = times['total_inside_seconds']
 
-            # DÜZELTME: None değer kontrolü
             if total_inside_seconds is None:
-                status_code = 'D'  # DEĞİŞİKLİK: N yerine D (Absent)
+                status_code = 'D'
             elif total_inside_seconds >= EIGHT_HOURS_SECONDS:
-                status_code = 'T'  # Full Day (GREEN)
+                status_code = 'T'
             elif total_inside_seconds > 0:
-                status_code = 'E'  # Short Hours/Partial Day (YELLOW)
+                status_code = 'E'
             else:
-                status_code = 'D'  # Absent (RED)
+                status_code = 'D'
 
             employee_daily_status[person_key][day_number] = status_code
 
-        # 5. Prepare Results for HTML - SADECE İŞ GÜNLERİNİ GÖSTER
+        # 5. Prepare Results for HTML
         day_headers = []
         current_day = start_date
         while current_day <= end_date:
-            # Sadece hafta içi günleri ekle (Pazartesi: 0 - Cuma: 4)
             if current_day.weekday() < 5:
                 day_headers.append(current_day.day)
             current_day += timedelta(days=1)
 
         final_logs = []
-        today = date.today()
+        # BAKU TIME FIX: date.today() -> get_current_baku_time().date()
+        today = get_current_baku_time().date()
 
         for emp in employee_list:
             row = {
@@ -1087,18 +1108,14 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                 'name': emp['full_name'],
                 'days': []
             }
-            # Sadece iş günleri için durum bilgisini topla
             current_day = start_date
             while current_day <= end_date:
-                if current_day.weekday() < 5:  # Sadece hafta içi
+                if current_day.weekday() < 5:
                     day_number = current_day.day
 
-                    # DEĞİŞİKLİK: Sadece gelecek günler için N, bugün ve geçmiş için normal durum
                     if current_day > today:
-                        # Gelecek günler için N (No Log)
                         status = 'N'
                     else:
-                        # Bugün ve geçmiş günler için: eğer log varsa onu kullan, yoksa D (Absent)
                         status = employee_daily_status[emp['key']].get(day_number, 'D')
 
                     row['days'].append(status)
@@ -1110,7 +1127,6 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
         total_items = len(final_logs)
         total_pages = (total_items + per_page - 1) // per_page
 
-        # Ensure page number is valid
         if page < 1: page = 1
         if page > total_pages and total_pages > 0: page = total_pages
 
@@ -1152,6 +1168,9 @@ def get_dashboard_data():
 
     cur = conn.cursor()
     try:
+        # BAKU TIME FIX: date.today() -> get_current_baku_time().date()
+        today_date = get_current_baku_time().date()
+
         # 1. Total Employees
         cur.execute("""SELECT COUNT(*)
                        FROM public.pers_person p
@@ -1159,7 +1178,7 @@ def get_dashboard_data():
                        WHERE pp.name IS NULL
                           OR (pp.name NOT ILIKE 'STUDENT' 
                               AND pp.name NOT ILIKE 'VISITOR'
-                              AND pp.name NOT ILIKE 'MÜƏLLİM')""")  # Student, Visitor ve Müəllim Filtresi
+                              AND pp.name NOT ILIKE 'MÜƏLLİM')""")
         data['total_employees'] = cur.fetchone()[0]
 
         # 2. Total Departments
@@ -1167,7 +1186,6 @@ def get_dashboard_data():
         data['total_departments'] = cur.fetchone()[0]
 
         # 3. Today's Total Transactions
-        today_date = date.today()
         cur.execute("""SELECT COUNT(t.*)
                        FROM public.acc_transaction t
                                 INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
@@ -1176,7 +1194,7 @@ def get_dashboard_data():
                          AND (pp.name IS NULL 
                               OR (pp.name NOT ILIKE 'student' 
                                   AND pp.name NOT ILIKE 'visitor'
-                                  AND pp.name NOT ILIKE 'müəllim'))""",  # Student, Visitor ve Müəllim Filtresi
+                                  AND pp.name NOT ILIKE 'müəllim'))""",
                     (today_date,))
         data['total_transactions'] = cur.fetchone()[0]
 
@@ -1188,7 +1206,7 @@ def get_dashboard_data():
                          AND (pp.name IS NULL 
                               OR (pp.name NOT ILIKE 'student' 
                                   AND pp.name NOT ILIKE 'visitor'
-                                  AND pp.name NOT ILIKE 'müəllim'))""")  # Student, Visitor ve Müəllim Filtresi
+                                  AND pp.name NOT ILIKE 'müəllim'))""")
         data['new_employees_this_month'] = cur.fetchone()[0]
 
         # 5. Employees Present Today
@@ -1202,11 +1220,11 @@ def get_dashboard_data():
                       AND (pp.name IS NULL
                        OR (pp.name NOT ILIKE 'student' 
                            AND pp.name NOT ILIKE 'visitor'
-                           AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
+                           AND pp.name NOT ILIKE 'müəllim'))
                     """, (today_date,))
         data['present_employees_count'] = cur.fetchone()[0]
 
-        # 6. İŞE GELMEYENLER
+        # 6. ABSENT EMPLOYEES
         cur.execute("""
                     SELECT p.name, p.last_name, pp.name as position_name
                     FROM public.pers_person p
@@ -1214,7 +1232,7 @@ def get_dashboard_data():
                     WHERE (pp.name IS NULL 
                            OR (pp.name NOT ILIKE 'STUDENT' 
                                AND pp.name NOT ILIKE 'VISITOR'
-                               AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
+                               AND pp.name NOT ILIKE 'MÜƏLLİM'))
                     AND NOT EXISTS (
                         SELECT 1 
                         FROM public.acc_transaction t 
@@ -1234,7 +1252,7 @@ def get_dashboard_data():
             })
         data['absent_employees'] = absent_list
 
-        # 7. GECİKENLER - DÜZELTİLMİŞ SORGÜ (MÜƏLLİM FİLTRESİ EKLENDİ)
+        # 7. LATE EMPLOYEES
         cur.execute("""
             SELECT 
                 p.name,
@@ -1252,7 +1270,7 @@ def get_dashboard_data():
               AND (pp.name IS NULL 
                    OR (pp.name NOT ILIKE 'student' 
                        AND pp.name NOT ILIKE 'visitor'
-                       AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi EKLENDİ
+                       AND pp.name NOT ILIKE 'müəllim'))
             GROUP BY p.name, p.last_name, p.id, pae.attr_value4
             HAVING MIN(t.create_time) IS NOT NULL
             ORDER BY p.last_name, p.name
@@ -1298,8 +1316,9 @@ def get_dashboard_data():
             percentage = (present / total) * 100
             data['attendance_percentage'] = round(percentage, 2)
 
-        # 8. Birthdays Today - GÜNCELLENMİŞ SORGÜ (POZİSYON BİLGİSİ EKLENDİ)
-        today_m_d = datetime.now().strftime('%m-%d')
+        # 8. Birthdays Today
+        # BAKU TIME FIX: datetime.now().strftime -> get_current_baku_time().strftime
+        today_m_d = get_current_baku_time().strftime('%m-%d')
         cur.execute("""
                     SELECT p.id, p.name, p.last_name, p.birthday, pp.name as position_name
                     FROM public.pers_person p
@@ -1308,7 +1327,7 @@ def get_dashboard_data():
                       AND (pp.name IS NULL 
                            OR (pp.name NOT ILIKE 'student' 
                                AND pp.name NOT ILIKE 'visitor'
-                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
+                               AND pp.name NOT ILIKE 'müəllim'))
                     ORDER BY p.last_name, p.name;
                     """, (today_m_d,))
 
@@ -1318,7 +1337,8 @@ def get_dashboard_data():
             birth_date_str = birthday_date.strftime('%d.%m.%Y') if isinstance(birthday_date,
                                                                               (datetime, date)) else 'N/A'
             birthday_list.append(
-                {'person_id': id_val, 'name': name, 'surname': last_name_val, 'position': position_name, 'birth_date_str': birth_date_str})
+                {'person_id': id_val, 'name': name, 'surname': last_name_val, 'position': position_name,
+                 'birth_date_str': birth_date_str})
         data['today_birthdays'] = birthday_list
 
     except psycopg2.Error as e:
@@ -1327,6 +1347,7 @@ def get_dashboard_data():
         if cur: cur.close()
         if conn: conn.close()
     return data
+
 
 # ***************************************************************
 # --- FLASK ROUTES (ROUTES) ---
@@ -1365,11 +1386,13 @@ def login():
 
     return render_template('login.html')
 
+
 @app.route('/dashboard')
 def dashboard():
     if (redirect_response := require_login()): return redirect_response
     dashboard_data = get_dashboard_data()
     return render_template('dashboard.html', data=dashboard_data)
+
 
 @app.route('/employees')
 def employees():
@@ -1405,15 +1428,12 @@ def api_employees_list():
             text = text.replace(az_char, en_char)
         return text
 
-    # Mevcut get_employee_list fonksiyonunu kullan
     employees_list = get_employee_list()
 
-    # Eğer arama terimi varsa filtrele
     if search_term:
         normalized_search = normalize_az(search_term)
         filtered_employees = []
         for emp in employees_list:
-            # Tüm alanları birleştir ve normalize et
             search_data = normalize_az(
                 emp['name'] + ' ' +
                 emp['last_name'] + ' ' +
@@ -1464,6 +1484,7 @@ def edit_employee(employee_id):
         positions=positions
     )
 
+
 @app.route('/employees/export')
 def export_employees():
     if (redirect_response := require_login()): return redirect_response
@@ -1505,6 +1526,7 @@ def export_employees():
 
     return response
 
+
 @app.route('/api/save_daily_note', methods=['POST'])
 def api_save_daily_note():
     if (redirect_response := require_login()):
@@ -1536,6 +1558,7 @@ def api_save_daily_note():
     except Exception as e:
         print(f"🚨 API Save Note Error: {e}")
         return jsonify({'success': False, 'message': 'Server error'})
+
 
 @app.route('/api/get_daily_note', methods=['GET'])
 def api_get_daily_note():
@@ -1618,7 +1641,6 @@ def export_employee_logs():
 
     output = si.getvalue()
 
-    # Update filename to include date range
     if person_key:
         if start_date and end_date:
             filename = f"log_export_{person_key}_{start_date_str}_to_{end_date_str}.csv"
@@ -1647,20 +1669,17 @@ def employee_logs():
     start_date_str = None
     end_date_str = None
 
-    # Varsayılan tarih aralığını belirle
-    today = datetime.now().date()
+    # BAKU TIME FIX: datetime.now().date() -> get_current_baku_time().date()
+    today = get_current_baku_time().date()
 
-    # Bugün haftasonu mu kontrol et
-    if today.weekday() >= 5:  # 5: Cumartesi, 6: Pazar
-        # Son iş gününü bul (Cuma)
+    if today.weekday() >= 5:
         days_back = (today.weekday() - 4) % 7
         if days_back == 0:
-            days_back = 7  # Pazar için 2 gün geri git
+            days_back = 7
         last_workday = today - timedelta(days=days_back)
         start_date_str = last_workday.strftime('%Y-%m-%d')
         end_date_str = last_workday.strftime('%Y-%m-%d')
     else:
-        # Bugün iş günü ise bugünü göster
         start_date_str = today.strftime('%Y-%m-%d')
         end_date_str = today.strftime('%Y-%m-%d')
 
@@ -1670,11 +1689,9 @@ def employee_logs():
         end_date_str = request.form.get('end_date') or end_date_str
     else:
         selected_person_key = request.args.get('person_key') or ''
-        # Eğer URL'de tarih parametreleri yoksa, varsayılan tarihleri kullan
         start_date_str = request.args.get('start_date') or start_date_str
         end_date_str = request.args.get('end_date') or end_date_str
 
-    # Date parsing
     start_date = None
     end_date = None
 
@@ -1686,7 +1703,6 @@ def employee_logs():
     except ValueError:
         pass
 
-    # Get selected employee name
     if selected_person_key:
         selected_employee = next((emp for emp in employee_list if emp['key'] == selected_person_key), None)
         if selected_employee:
@@ -1706,11 +1722,13 @@ def employee_logs():
         end_date=end_date_str
     )
 
+
 @app.route('/attendance', methods=['GET', 'POST'])
 def attendance():
     if (redirect_response := require_login()): return redirect_response
 
-    today = date.today()
+    # BAKU TIME FIX: date.today() -> get_current_baku_time().date()
+    today = get_current_baku_time().date()
     selected_month = today.month
     selected_year = today.year
     page = int(request.args.get('page', 1))
@@ -1742,6 +1760,7 @@ def attendance():
         months=months,
         current_selection={'month': selected_month, 'year': selected_year, 'search': search_term, 'page': page}
     )
+
 
 @app.route('/api/employees_search')
 def api_employees_search():
@@ -1781,11 +1800,13 @@ def api_employees_search():
         if cur: cur.close()
         if conn: conn.close()
 
+
 @app.route('/attendance/export', methods=['GET'])
 def export_monthly_attendance():
     if (redirect_response := require_login()): return redirect_response
 
-    today = date.today()
+    # BAKU TIME FIX: date.today() -> get_current_baku_time().date()
+    today = get_current_baku_time().date()
     try:
         selected_month = int(request.args.get('month', today.month))
         selected_year = int(request.args.get('year', today.year))
@@ -1821,6 +1842,7 @@ def export_monthly_attendance():
 
     return response
 
+
 @app.route('/hours_tracked', methods=['GET'])
 def hours_tracked():
     if (redirect_response := require_login()): return redirect_response
@@ -1843,7 +1865,8 @@ def hours_tracked():
         pass
 
     if not start_date or not end_date:
-        end_date = date.today()
+        # BAKU TIME FIX: date.today() -> get_current_baku_time().date()
+        end_date = get_current_baku_time().date()
         start_date = end_date - timedelta(days=6)
 
     if start_date > end_date:
@@ -1868,16 +1891,19 @@ def hours_tracked():
         tracked_data=tracked_data
     )
 
+
 @app.route('/salary')
 def salary():
     if (redirect_response := require_login()): return redirect_response
     return render_template('salary.html')
+
 
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     flash("Successfully logged out.", 'success')
     return redirect(url_for('login'))
+
 
 if __name__ == '__main__':
     app.run(debug=True)
