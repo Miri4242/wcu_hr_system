@@ -574,21 +574,20 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
 
             log_date = create_time.date()
 
-            # YENİ IN/OUT TESPİT ALGORİTMASI - Building A-1 pattern'ine göre
+            # SADECE RAKAM KONTROLÜ - Building A-1 pattern'ine göre
             direction_type = None
             if reader_name:
-                reader_lower = reader_name.lower()
-                if 'building' in reader_lower:
-                    import re
-                    numbers = re.findall(r'\d+', reader_name)
-                    if numbers:
-                        reader_number = int(numbers[0])
-                        if reader_number in [1, 2]:
-                            direction_type = 'in'
-                        elif reader_number in [3, 4]:
-                            direction_type = 'out'
+                import re
+                numbers = re.findall(r'\d+', reader_name)
+                if numbers:
+                    reader_number = int(numbers[0])
+                    if reader_number in [1, 2]:
+                        direction_type = 'in'
+                    elif reader_number in [3, 4]:
+                        direction_type = 'out'
 
             if not direction_type:
+                # Eğer rakam bulunamadıysa veya 1-4 arasında değilse, bu kaydı yok say
                 continue
 
             key = (log_date, t_key)
@@ -825,7 +824,8 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
         daily_transactions = defaultdict(list)
         for t_name, t_last_name, create_time, reader_name in raw_transactions:
-            if create_time is None or not t_name or not t_last_name: continue
+            if create_time is None or not t_name or not t_last_name:
+                continue
 
             t_key = normalize_name(t_name) + normalize_name(t_last_name)
             if t_key != person_key:
@@ -833,21 +833,23 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
             log_date = create_time.date()
 
+            # SADECE RAKAM KONTROLÜ - Building A-1 pattern'ine göre
             direction_type = None
             if reader_name:
-                reader_lower = reader_name.lower()
-                if 'building' in reader_lower:
-                    import re
-                    numbers = re.findall(r'\d+', reader_name)
-                    if numbers:
-                        reader_number = int(numbers[0])
-                        if reader_number in [1, 2]:
-                            direction_type = 'in'
-                        elif reader_number in [3, 4]:
-                            direction_type = 'out'
+                import re
+                numbers = re.findall(r'\d+', reader_name)
+                if numbers:
+                    reader_number = int(numbers[0])
+                    if reader_number in [1, 2]:
+                        direction_type = 'in'
+                    elif reader_number in [3, 4]:
+                        direction_type = 'out'
 
-            if direction_type:
-                daily_transactions[log_date].append({'time': create_time, 'direction': direction_type})
+            if not direction_type:
+                # Eğer rakam bulunamadıysa veya 1-4 arasında değilse, bu kaydı yok say
+                continue
+
+            daily_transactions[log_date].append({'time': create_time, 'direction': direction_type})
 
         # Calculate working times and status for each day with logs
         for log_date, transactions in daily_transactions.items():
@@ -1048,27 +1050,32 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
 
         # 3. Process transactions and Grouping
         for t_name, t_last_name, create_time, reader_name in raw_transactions:
-            if create_time is None or not t_name or not t_last_name: continue
+            if create_time is None or not t_name or not t_last_name:
+                continue
 
             log_date = create_time.date()
 
+            # YENİ GÜNCELLENMİŞ IN/OUT TESPİT ALGORİTMASI - SADECE RAKAMLAR
             direction_type = None
             if reader_name:
-                reader_lower = reader_name.lower()
-                if 'building' in reader_lower:
-                    import re
-                    numbers = re.findall(r'\d+', reader_name)
-                    if numbers:
-                        reader_number = int(numbers[0])
-                        if reader_number in [1, 2]:
-                            direction_type = 'in'
-                        elif reader_number in [3, 4]:
-                            direction_type = 'out'
+                import re
+                # Sadece rakamları bul
+                numbers = re.findall(r'\d+', reader_name)
+                if numbers:
+                    reader_number = int(numbers[0])
+                    # 1 ve 2: GİRİŞ, 3 ve 4: ÇIKIŞ
+                    if reader_number in [1, 2]:
+                        direction_type = 'in'
+                    elif reader_number in [3, 4]:
+                        direction_type = 'out'
 
-            if direction_type:
-                t_key = normalize_name(t_name) + normalize_name(t_last_name)
-                key = (log_date, t_key)
-                daily_transactions[key].append({'time': create_time, 'direction': direction_type})
+            if not direction_type:
+                # Eğer rakam bulunamadıysa veya 1-4 arasında değilse, yok say
+                continue
+
+            t_key = normalize_name(t_name) + normalize_name(t_last_name)
+            key = (log_date, t_key)
+            daily_transactions[key].append({'time': create_time, 'direction': direction_type})
 
         # 4. Determine Daily Status
         for (log_date, person_key), transactions in daily_transactions.items():
@@ -1127,8 +1134,10 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
         total_items = len(final_logs)
         total_pages = (total_items + per_page - 1) // per_page
 
-        if page < 1: page = 1
-        if page > total_pages and total_pages > 0: page = total_pages
+        if page < 1:
+            page = 1
+        if page > total_pages and total_pages > 0:
+            page = total_pages
 
         start_index = (page - 1) * per_page
         end_index = start_index + per_page
@@ -1151,8 +1160,10 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
         return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year,
                 'month_name': 'Error', 'total_items': 0, 'total_pages': 1, 'current_page': page, 'per_page': per_page}
     finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
 
 
 def get_dashboard_data():
