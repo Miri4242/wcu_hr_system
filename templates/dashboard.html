@@ -1,221 +1,458 @@
 {% extends "base_page.html" %}
 
 {% block title %}Dashboard{% endblock %}
-
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="stats-container">
-    <div class="stat-card">
-        <h4>Total Employees</h4>
-        <p>{{ data.total_employees }}</p>
-        <div class="progress-bar" style="width: 80%;"></div>
+<!-- Stats Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon primary">
+                <i class="fas fa-users"></i>
+            </div>
+            <div class="stat-number">{{ data.total_employees }}</div>
+            <div class="stat-label">Total Employees</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <h4>Total Departments</h4>
-        <p>{{ data.total_departments }}</p>
-        <div class="progress-bar" style="width: 90%;"></div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon success">
+                <i class="fas fa-building"></i>
+            </div>
+            <div class="stat-number">{{ data.total_departments }}</div>
+            <div class="stat-label">Departments</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <h4>Today's Transactions</h4>
-        <p>{{ data.total_transactions }}</p>
-        <div class="progress-bar" style="width: 70%;"></div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon warning">
+                <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div class="stat-number">{{ data.total_transactions }}</div>
+            <div class="stat-label">Today's Entries</div>
+        </div>
     </div>
-    <div class="stat-card">
-        <h4>New Hires This Month</h4>
-        <p>{{ data.new_employees_this_month }}</p>
-        <div class="progress-bar" style="width: 10%;"></div>
+    
+    <div class="col-lg-3 col-md-6">
+        <div class="stat-card">
+            <div class="stat-icon danger">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="stat-number">{{ data.new_employees_this_month }}</div>
+            <div class="stat-label">New Hires This Month</div>
+        </div>
     </div>
 </div>
 
-<!-- Absent and Late Employees Panels -->
-<div class="row-container">
-    <div class="chart-card">
-        <h4>🚫 Absent Employees (Today)</h4>
-        {% if data.absent_employees %}
-        <div class="absent-list">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Employee</th>
-                        <th>Position</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for employee in data.absent_employees %}
-                    <tr onclick="window.location.href='{{ url_for('employees') }}?search={{ employee.full_name }}'" style="cursor: pointer;">
-                        <td>{{ employee.full_name }}</td>
-                        <td>{{ employee.position }}</td>
-                        <td>
-                            <span class="status-badge status-absent">Absent</span>
-                        </td>
-                    </tr>
+<!-- Absent and Late Employees (Priority Section) -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="fas fa-user-times text-danger me-2"></i>
+                    Absent Employees Today
+                    <span class="badge bg-danger ms-2">{{ data.absent_employees|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if data.absent_employees %}
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Employee</th>
+                                <th>Position</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employee in data.absent_employees %}
+                            <tr class="absent-row clickable-employee-row" 
+                                data-employee-name="{{ employee.full_name }}"
+                                style="cursor: pointer;">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="employee-avatar bg-danger me-2">
+                                            {{ employee.full_name[0].upper() }}
+                                        </div>
+                                        <strong>{{ employee.full_name }}</strong>
+                                    </div>
+                                </td>
+                                <td>{{ employee.position }}</td>
+                                <td><span class="badge bg-danger">Absent</span></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="success-icon mb-3">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <h5 class="text-success">Perfect Attendance!</h5>
+                    <p class="text-muted">All employees are present today 🎉</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="fas fa-clock text-warning me-2"></i>
+                    Late Employees Today
+                    <span class="badge bg-warning ms-2">{{ data.late_employees|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if data.late_employees %}
+                <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Employee</th>
+                                <th class="text-center">Time</th>
+                                <th class="text-center">Late</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employee in data.late_employees %}
+                            <tr class="late-row clickable-employee-row" 
+                                data-employee-name="{{ employee.full_name }}"
+                                style="cursor: pointer;">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="employee-avatar bg-warning me-2">
+                                            {{ employee.full_name[0].upper() }}
+                                        </div>
+                                        <div class="employee-name-compact">{{ employee.full_name }}</div>
+                                    </div>
+                                </td>
+                                <td class="text-center">
+                                    <small class="text-muted">{{ employee.arrival_time }}</small>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger">{{ employee.late_minutes }}m</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="success-icon mb-3">
+                        <i class="fas fa-thumbs-up"></i>
+                    </div>
+                    <h5 class="text-success">On Time!</h5>
+                    <p class="text-muted">No one is late today 👍</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Chart and Birthdays (Secondary Section) -->
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="fas fa-chart-pie me-2"></i>
+                    Today's Attendance Overview
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <div style="height: 300px; position: relative;">
+                            <canvas id="attendanceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="attendance-stats">
+                            <div class="stat-item mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="stat-label">Present Employees</span>
+                                    <span class="stat-value text-success">{{ data.present_employees_count }}</span>
+                                </div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-success" style="width: {{ (data.present_employees_count / data.total_employees * 100) if data.total_employees > 0 else 0 }}%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="stat-item mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="stat-label">Absent Employees</span>
+                                    <span class="stat-value text-danger">{{ data.total_employees - data.present_employees_count }}</span>
+                                </div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-danger" style="width: {{ ((data.total_employees - data.present_employees_count) / data.total_employees * 100) if data.total_employees > 0 else 0 }}%"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="attendance-percentage text-center mt-4">
+                                <h3 class="text-primary">{{ data.attendance_percentage }}%</h3>
+                                <p class="text-muted">Attendance Rate</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">
+                    <i class="fas fa-birthday-cake me-2"></i>
+                    Today's Birthdays
+                    <span class="badge bg-info ms-2">{{ data.today_birthdays|length }}</span>
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if data.today_birthdays %}
+                <div class="birthday-list">
+                    {% for employee in data.today_birthdays %}
+                    <div class="birthday-item">
+                        <div class="d-flex align-items-center">
+                            <div class="employee-avatar bg-info me-3">
+                                {{ employee.name[0].upper() }}
+                            </div>
+                            <div>
+                                <div class="fw-bold">{{ employee.name }} {{ employee.surname }}</div>
+                                <small class="text-muted">{{ employee.position or 'Employee' }}</small>
+                            </div>
+                            <div class="ms-auto">
+                                <i class="fas fa-gift text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
-                </tbody>
-            </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <div class="birthday-icon mb-3">
+                        <i class="fas fa-calendar-day"></i>
+                    </div>
+                    <h6 class="text-muted">No Birthdays Today</h6>
+                    <p class="text-muted small">Check back tomorrow!</p>
+                </div>
+                {% endif %}
+            </div>
         </div>
-        {% else %}
-        <p class="no-data">All employees are at work! 🎉</p>
-        {% endif %}
-    </div>
-
-    <div class="chart-card">
-        <h4>⏰ Late Employees (Today)</h4>
-        {% if data.late_employees %}
-        <div class="late-list">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Employee</th>
-                        <th>Expected Time</th>
-                        <th>Arrival Time</th>
-                        <th>Late Duration</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for employee in data.late_employees %}
-                    <tr onclick="window.location.href='{{ url_for('employees') }}?search={{ employee.full_name }}'" style="cursor: pointer;">
-                        <td>{{ employee.full_name }}</td>
-                        <td>{{ employee.expected_time }}</td>
-                        <td>
-                            <span class="status-badge status-late">{{ employee.arrival_time }}</span>
-                        </td>
-                        <td>{{ employee.late_minutes }} minutes</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-        <p class="no-data">No one is late! 👍</p>
-        {% endif %}
     </div>
 </div>
+{% endblock %}
 
-<div class="row-container">
-    <div class="chart-card">
-        <h4>Today's Attendance Status</h4>
-        <div class="chart-container">
-            <canvas id="attendanceChart"></canvas>
-        </div>
-        <p class="attendance-summary">
-            Present: <span class="present-count">{{ data.present_employees_count }}</span> / Total: {{ data.total_employees }}
-        </p>
-    </div>
-
-    <div class="chart-card birthdays-list">
-        <h4>Today's Birthdays ({{ data.today_birthdays | length }} People 🎉)</h4>
-        {% if data.today_birthdays %}
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Position</th>
-                    <th>Date of Birth</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for employee in data.today_birthdays %}
-                <tr>
-                    <td>{{ employee.name }}</td>
-                    <td>{{ employee.surname }}</td>
-                    <td>{{ employee.position or 'Undefined' }}</td>
-                    <td>{{ employee.birth_date_str }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="no-data">No employees have a birthday today.</p>
-        {% endif %}
-    </div>
-</div>
-
-<style>
-.absent-list, .late-list {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-.status-badge {
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-}
-
-.status-absent {
-    background-color: #fee2e2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-}
-
-.status-late {
-    background-color: #fef3c7;
-    color: #d97706;
-    border: 1px solid #fde68a;
-}
-
-.data-table tr:hover {
-    background-color: #f5f5f5;
-    transition: background-color 0.2s;
-}
-</style>
-
+{% block scripts %}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const totalEmployees = {{ data.total_employees }};
-        const presentCount = {{ data.present_employees_count }};
-        const absentCount = totalEmployees - presentCount;
-        const percentage = {{ data.attendance_percentage }};
+document.addEventListener('DOMContentLoaded', function() {
+    const totalEmployees = {{ data.total_employees }};
+    const presentCount = {{ data.present_employees_count }};
+    const absentCount = totalEmployees - presentCount;
+    const percentage = {{ data.attendance_percentage }};
 
-        const chartData = {
-            labels: [
-                'Present Employees',
-                'Absent Employees'
+    const chartData = {
+        labels: ['Present', 'Absent'],
+        datasets: [{
+            data: [presentCount, absentCount],
+            backgroundColor: [
+                'rgba(74, 222, 128, 0.8)',
+                'rgba(248, 113, 113, 0.8)'
             ],
-            datasets: [{
-                data: [presentCount, absentCount],
-                backgroundColor: [
-                    '#28a745',
-                    '#dc3545'
-                ],
-                hoverBackgroundColor: [
-                    '#218838',
-                    '#c82333'
-                ],
-                borderWidth: 0
-            }]
-        };
+            borderColor: [
+                'rgba(34, 197, 94, 1)',
+                'rgba(239, 68, 68, 1)'
+            ],
+            borderWidth: 2,
+            hoverBackgroundColor: [
+                'rgba(74, 222, 128, 1)',
+                'rgba(248, 113, 113, 1)'
+            ]
+        }]
+    };
 
-        const config = {
-            type: 'doughnut',
-            data: chartData,
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                    },
-                    title: {
-                        display: true,
-                        text: 'Attendance Percentage: %' + percentage,
+    const config = {
+        type: 'doughnut',
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
                         font: {
-                            size: 16,
-                            weight: 'bold'
+                            size: 14,
+                            weight: '500'
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
                         }
                     }
                 }
-            }
-        };
-
-        const ctx = document.getElementById('attendanceChart');
-        if(ctx) {
-            new Chart(ctx, config);
+            },
+            cutout: '60%'
         }
+    };
+
+    const ctx = document.getElementById('attendanceChart');
+    if(ctx) {
+        new Chart(ctx, config);
+    }
+
+    // Add click handlers for employee rows
+    document.querySelectorAll('.clickable-employee-row').forEach(row => {
+        row.addEventListener('click', function() {
+            const employeeName = this.getAttribute('data-employee-name');
+            if (employeeName) {
+                // Navigate to employees page with search parameter
+                window.location.href = `/employees?search=${encodeURIComponent(employeeName)}`;
+            }
+        });
     });
+});
 </script>
+
+<style>
+.employee-name-compact {
+    font-weight: 600;
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 120px;
+}
+
+.employee-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* Stat card height consistency */
+.stat-card {
+    min-height: 180px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.stat-label {
+    font-size: 14px;
+    line-height: 1.2;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.success-icon {
+    font-size: 3rem;
+    color: #22c55e;
+}
+
+.birthday-icon {
+    font-size: 2.5rem;
+    color: #94a3b8;
+}
+
+.birthday-item {
+    padding: 15px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.birthday-item:last-child {
+    border-bottom: none;
+}
+
+.birthday-item:hover {
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 10px;
+    padding: 15px 10px;
+}
+
+.attendance-stats .stat-item {
+    padding: 15px;
+    background: rgba(102, 126, 234, 0.05);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.attendance-stats .stat-item:hover {
+    background: rgba(102, 126, 234, 0.1);
+    transform: scale(1.02);
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #64748b;
+}
+
+.stat-value {
+    font-weight: 700;
+    font-size: 1.2rem;
+}
+
+.progress {
+    height: 8px;
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+.absent-row:hover,
+.late-row:hover {
+    background: rgba(102, 126, 234, 0.05);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.clickable-employee-row {
+    transition: all 0.2s ease;
+}
+
+.clickable-employee-row:hover {
+    background: rgba(102, 126, 234, 0.08) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.card-body {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+.stat-card:nth-child(1) { animation-delay: 0.1s; }
+.stat-card:nth-child(2) { animation-delay: 0.2s; }
+.stat-card:nth-child(3) { animation-delay: 0.3s; }
+.stat-card:nth-child(4) { animation-delay: 0.4s; }
+</style>
 {% endblock %}

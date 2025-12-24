@@ -1,141 +1,354 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HR System - Login</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        /*
-        --------------------------------------------------
-        Base and Layout Styles
-        --------------------------------------------------
-        */
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: #f3f4f6; /* Light gray background for the whole page */
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
             min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin: 0;
             padding: 20px;
-            box-sizing: border-box;
         }
-
+        
         .login-container {
+            width: 100%;
             max-width: 400px;
-            width: 100%; /* Make sure it takes up full width on small screens */
-            padding: 40px;
+        }
+        
+        .login-card {
             background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .logo {
+            margin-bottom: 30px;
+        }
+        
+        .logo-icon {
+            width: 70px;
+            height: 70px;
+            background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+            border-radius: 15px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        
+        .logo-icon i {
+            font-size: 2rem;
+            color: white;
+        }
+        
+        .logo h2 {
+            color: #1F2937;
+            margin-bottom: 8px;
+            font-weight: 700;
+            font-size: 1.8rem;
+        }
+        
+        .logo p {
+            color: #6B7280;
+            font-size: 14px;
+            margin-bottom: 0;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #1F2937;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #E5E7EB;
             border-radius: 12px;
-            /* Hafifletilmiş gölge, çünkü başlık ve demo kısmı kalktı */
-            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
-        }
-
-        /*
-        --------------------------------------------------
-        Header and Form Styles (Başlık kaldırıldı, sadece form stilleri kaldı)
-        --------------------------------------------------
-        */
-
-        .login-container input {
-            width: 100%;
-            padding: 14px;
-            margin: 10px 0;
-            border: 1px solid #d1d5db; /* Lighter, cleaner border */
-            border-radius: 8px;
             font-size: 16px;
-            box-sizing: border-box;
-            transition: border-color 0.3s, box-shadow 0.3s;
+            transition: all 0.3s ease;
+            background: #F9FAFB;
         }
-
-        .login-container input:focus {
-            border-color: #3b82f6; /* Blue focus color */
+        
+        .form-control:focus {
+            border-color: #8B5CF6;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25); /* Subtle glow */
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+            background: white;
         }
 
-        .login-container button {
+        .input-group {
+            position: relative;
+        }
+
+        .input-group i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6B7280;
+            z-index: 5;
+        }
+
+        .input-group .form-control {
+            padding-left: 45px;
+        }
+        
+        .btn-login {
             width: 100%;
-            padding: 14px;
-            /* Using a clean, professional blue gradient */
-            background: linear-gradient(135deg, #2563eb, #1e40af);
+            padding: 15px;
+            background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            margin: 20px 0 10px 0; /* Üstteki boşluğu koru, alttakini biraz azalt */
-            transition: background 0.3s, transform 0.1s;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
         }
 
-        .login-container button:hover {
-            /* Slightly darker gradient on hover */
-            background: linear-gradient(135deg, #1e40af, #2563eb);
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+        .btn-login:active {
+            transform: translateY(0);
         }
 
-        .login-container button:active {
-            transform: scale(0.99); /* Press effect */
+        .btn-login:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top: 2px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         .login-options {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin: 15px 0 0 0; /* Üst ve alt marjini düzenle */
+            margin: 20px 0;
             font-size: 14px;
-            color: #4b5563; /* Subtle text color */
         }
 
-        .login-options a {
-            color: #3b82f6;
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #6B7280;
+            cursor: pointer;
+        }
+
+        .remember-me input[type="checkbox"] {
+            margin: 0;
+        }
+
+        .forgot-password {
+            color: #8B5CF6;
             text-decoration: none;
-            transition: color 0.2s;
+            font-weight: 500;
         }
 
-        .login-options a:hover {
-            color: #2563eb;
+        .forgot-password:hover {
+            color: #7C3AED;
             text-decoration: underline;
         }
 
-        /*
-        --------------------------------------------------
-        Messages (Demo Accounts kaldırıldı)
-        --------------------------------------------------
-        */
-        .error {
-            color: #dc2626; /* Red text */
-            text-align: center;
-            margin: 15px 0 0 0; /* Hata mesajını en alta kaydır */
-            padding: 10px;
-            background: #fef2f2; /* Light red background */
-            border: 1px solid #fecaca; /* Red border */
-            border-radius: 6px;
-            font-size: 14px;
+        .alert {
+            border-radius: 12px;
+            border: none;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            animation: slideDown 0.3s ease-out;
         }
 
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10B981;
+            border-left: 4px solid #10B981;
+        }
+
+        .alert-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: #EF4444;
+            border-left: 4px solid #EF4444;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .login-card {
+                padding: 30px 20px;
+            }
+            
+            .logo h2 {
+                font-size: 1.5rem;
+            }
+            
+            .logo-icon {
+                width: 60px;
+                height: 60px;
+            }
+            
+            .logo-icon i {
+                font-size: 1.5rem;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <form method="POST">
-            <input type="email" name="email" placeholder="Email Address" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <button type="submit">Login</button>
-            <div class="login-options">
-                <label><input type="checkbox" name="remember"> Remember me</label>
-                <a href="#">Forgot Password?</a>
+        <div class="login-card">
+            <div class="logo">
+                <div class="logo-icon">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h2>HR System</h2>
+                <p>Welcome back! Please sign in to your account</p>
             </div>
-        </form>
 
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <p class="error">{{ messages[0] }}</p>
-            {% endif %}
-        {% endwith %}
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else category }}">
+                            <i class="fas fa-{{ 'exclamation-circle' if category == 'danger' or category == 'error' else 'check-circle' }} me-2"></i>
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
 
+            <form method="POST" id="loginForm">
+                <div class="form-group">
+                    <label for="email" class="form-label">Email Address</label>
+                    <div class="input-group">
+                        <i class="fas fa-envelope"></i>
+                        <input type="email" 
+                               id="email" 
+                               name="email" 
+                               class="form-control" 
+                               placeholder="Enter your email" 
+                               required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="input-group">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" 
+                               id="password" 
+                               name="password" 
+                               class="form-control" 
+                               placeholder="Enter your password" 
+                               required>
+                    </div>
+                </div>
+
+                <div class="login-options">
+                    <label class="remember-me">
+                        <input type="checkbox" name="remember_me">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" class="forgot-password">Forgot Password?</a>
+                </div>
+
+                <button type="submit" class="btn-login" id="loginBtn">
+                    <span class="loading-spinner" id="loadingSpinner"></span>
+                    <span id="loginText">Sign In</span>
+                </button>
+            </form>
         </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Form submission with loading state
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            const loginBtn = document.getElementById('loginBtn');
+            const loginText = document.getElementById('loginText');
+            const loadingSpinner = document.getElementById('loadingSpinner');
+            
+            // Show loading state
+            loginBtn.disabled = true;
+            loginText.textContent = 'Signing In...';
+            loadingSpinner.style.display = 'inline-block';
+            
+            // Reset after 3 seconds if no redirect happens
+            setTimeout(() => {
+                loginBtn.disabled = false;
+                loginText.textContent = 'Sign In';
+                loadingSpinner.style.display = 'none';
+            }, 3000);
+        });
+
+        // Auto-hide alerts
+        setTimeout(() => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                alert.style.animation = 'slideDown 0.3s ease-out reverse';
+                setTimeout(() => alert.remove(), 300);
+            });
+        }, 5000);
+
+        // Input focus animations
+        document.querySelectorAll('.form-control').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.02)';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
+        });
+    </script>
 </body>
 </html>

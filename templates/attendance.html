@@ -2,417 +2,544 @@
 
 {% block title %}Monthly Attendance Control{% endblock %}
 
-{% block page_title %}{% endblock %} {% block content %}
-<div class="logs-container calendar-view">
+{% block page_title %}Monthly Attendance Control{% endblock %}
 
-    <form method="GET" class="filter-form" id="attendance-form">
-        <label for="month">Month:</label>
-        <select name="month" id="month">
-            {% for m_id, m_name in months %}
-            <option value="{{ m_id }}" {% if m_id == current_selection.month %} selected{% endif %}>{{ m_name }}</option>
-            {% endfor %}
-        </select>
+{% block content %}
+<!-- Filter Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title">
+            <i class="fas fa-filter me-2"></i>
+            Filter Options
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" id="attendance-form">
+            <div class="row g-3 align-items-end">
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label for="month" class="form-label">Month</label>
+                    <select name="month" id="month" class="form-select">
+                        {% for m_id, m_name in months %}
+                        <option value="{{ m_id }}" {% if m_id == current_selection.month %} selected{% endif %}>{{ m_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <label for="year">Year:</label>
-        <select name="year" id="year">
-            {% for y in years %}
-            <option value="{{ y }}" {% if y == current_selection.year %} selected{% endif %}>{{ y }}</option>
-            {% endfor %}
-        </select>
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label for="year" class="form-label">Year</label>
+                    <select name="year" id="year" class="form-select">
+                        {% for y in years %}
+                        <option value="{{ y }}" {% if y == current_selection.year %} selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <div class="search-container">
-            <input type="text" id="search-input" name="search" class="search-input"
-                   placeholder="Type to search employee"
-                   value="{{ current_selection.search | default('') }}">
+                <div class="col-lg-4 col-md-4 col-sm-8">
+                    <label for="search-input" class="form-label">Search Employee</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" id="search-input" name="search" class="form-control"
+                               placeholder="Type to search employee"
+                               value="{{ current_selection.search | default('') }}">
+                    </div>
+                </div>
+
+                <div class="col-lg-2 col-md-2 col-sm-4">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Filter
+                    </button>
+                </div>
+
+                <div class="col-lg-2 col-md-12 col-sm-12">
+                    <a id="export-link"
+                       href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search) }}"
+                       class="btn btn-success w-100">
+                        <i class="fas fa-download me-1"></i>Export CSV
+                    </a>
+                </div>
             </div>
-
-        <button type="submit" class="apply-filter-button">Apply Filter</button>
-
-        <a id="export-link"
-           href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search) }}"
-           class="export-button">
-            <span class="material-icons">download</span> Export CSV
-        </a>
-    </form>
-
-    <div class="header-controls">
-        <div class="header-title">
-            <h3>Attendance Records</h3>
-            <span class="employee-count">(<span id="employee-count">{{ data.total_items }}</span> found)</span>
-        </div>
-        <div class="weekday-info">
-            <small>Showing only weekdays (Monday-Friday)</small>
-        </div>
+        </form>
     </div>
-
-    {% if data.total_items > 0 %}
-    <div class="pagination-controls">
-        <span class="page-info">
-            Total Employees Found: {{ data.total_items }}
-        </span>
-
-        {% if data.total_items > data.per_page %}
-            <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
-               class="page-link"
-               {% if data.current_page <= 1 %} disabled {% endif %}>
-                Previous
-            </a>
-
-            <span class="page-info">
-                Page {{ data.current_page }} of {{ data.total_pages }}
-            </span>
-
-            <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
-               class="page-link"
-               {% if data.current_page >= data.total_pages %} disabled {% endif %}>
-                Next
-            </a>
-        {% endif %}
-    </div>
-    {% endif %}
-
-    {% if data.logs %}
-    <div class="table-responsive">
-        <table class="attendance-table">
-            <thead>
-                <tr>
-                    <th class="name-cell">Employee</th>
-                    {% for day in data.headers %}
-                        {% set day_date = data.current_year ~ '-' ~ '%02d'|format(current_selection.month) ~ '-' ~ '%02d'|format(day) %}
-                        {% set day_obj = day_date|string|str_to_date %}
-                        {% set is_week_start = day_obj.weekday() == 0 %}
-                        <th class="{% if day_obj.weekday() >= 5 %}weekend{% else %}weekday{% endif %} {% if is_week_start %}week-start{% endif %}">
-                            {{ day }}
-                            <br>
-                            <small>{{ day_obj.strftime('%a') }}</small>
-                        </th>
-                    {% endfor %}
-                </tr>
-            </thead>
-            <tbody id="attendance-tbody">
-                {% for log in data.logs %}
-                <tr class="attendance-row">
-                    <td class="name-cell">
-                        <a href="{{ url_for('employees') }}?search={{ log.name | urlencode }}"
-                           class="employee-name-link"
-                           title="Search this employee in Employees page">
-                            {{ log.name }}
-                        </a>
-                    </td>
-                    {% for day in data.headers %}
-                        {% set status_index = loop.index0 %}
-                        {% set status = log.days[status_index] %}
-                        {% set day_date = data.current_year ~ '-' ~ '%02d'|format(current_selection.month) ~ '-' ~ '%02d'|format(day) %}
-                        {% set day_obj = day_date|string|str_to_date %}
-                        {% set is_week_start = day_obj.weekday() == 0 %}
-                        <td class="status-cell {% if day_obj.weekday() >= 5 %}weekend-cell{% endif %} {% if is_week_start %}week-start-cell{% endif %}"
-                            data-employee="{{ log.id }}"
-                            data-date="{{ day_date }}"
-                            data-employee-name="{{ log.name }}"
-                            data-day="{{ day }}"
-                            {% if day_obj.weekday() < 5 %}onclick="openNoteModal('{{ log.id }}', '{{ log.name }}', '{{ day_date }}')"{% endif %}>
-
-                            {% if day_obj.weekday() >= 5 %}
-                                <span class="status-indicator weekend" title="Weekend"></span>
-                            {% elif status == 'T' %}
-                                <span class="status-indicator full-day" title="Full Day (8+ hours)"></span>
-                            {% elif status == 'E' %}
-                                <span class="status-indicator half-day" title="Partial Day (< 8 hours)"></span>
-                            {% elif status == 'D' %}
-                                <span class="status-indicator absence" title="Absent (No entry/exit)"></span>
-                            {% elif status == 'N' %}
-                                <span class="status-indicator no-log" title="No Log Found (Future date)"></span>
-                            {% else %}
-                                <span class="status-indicator no-log" title="Undefined Status"></span>
-                            {% endif %}
-                        </td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    {% else %}
-    <p class="no-data">
-        {% if current_selection.search %}
-            No employees found matching "{{ current_selection.search }}" for {{ data.month_name }} {{ data.current_year }}.
-        {% else %}
-            No attendance data found for {{ data.month_name }} {{ data.current_year }}.
-        {% endif %}
-    </p>
-    {% endif %}
-
-    {% if data.total_items > data.per_page %}
-    <div class="pagination-controls">
-        <span class="page-info">
-            Total Employees Found: {{ data.total_items }}
-        </span>
-
-        <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
-           class="page-link"
-           {% if data.current_page <= 1 %} disabled {% endif %}>
-            Previous
-        </a>
-
-        <span class="page-info">
-            Page {{ data.current_page }} of {{ data.total_pages }}
-        </span>
-
-        <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
-           class="page-link"
-           {% if data.current_page >= data.total_pages %} disabled {% endif %}>
-            Next
-        </a>
-    </div>
-    {% endif %}
-
 </div>
 
-<div id="noteModal" class="note-modal">
-    <div class="note-modal-content">
-        <div class="note-modal-header">
-            <h3 id="noteModalTitle">Add Daily Note</h3>
-            <button class="close-button">&times;</button>
+<!-- Results Card -->
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-calendar-check me-2"></i>
+                Attendance Records
+                <span class="badge bg-primary ms-2" id="employee-count">{{ data.total_items }} found</span>
+            </h5>
+            <small class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                Showing only weekdays (Monday-Friday)
+            </small>
         </div>
-        <div>
-            <textarea id="noteTextarea" class="note-textarea" placeholder="Enter note for this day..."></textarea>
+    </div>
+    
+    <div class="card-body">
+        {% if data.total_items > 0 %}
+        <!-- Pagination Controls -->
+        {% if data.total_items > data.per_page %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted">Total Employees Found: {{ data.total_items }}</span>
+            <div class="btn-group">
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
+                   class="btn btn-outline-primary {% if data.current_page <= 1 %}disabled{% endif %}">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                <span class="btn btn-outline-secondary disabled">
+                    Page {{ data.current_page }} of {{ data.total_pages }}
+                </span>
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
+                   class="btn btn-outline-primary {% if data.current_page >= data.total_pages %}disabled{% endif %}">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
         </div>
-        <div class="note-modal-footer">
-            <button class="cancel-note-button">Cancel</button>
-            <button class="save-note-button">Save Note</button>
+        {% endif %}
+
+        <!-- Attendance Table -->
+        {% if data.logs %}
+        <div class="table-responsive">
+            <table class="table table-hover attendance-table">
+                <thead>
+                    <tr>
+                        <th class="name-cell sticky-column">Employee</th>
+                        {% for day in data.headers %}
+                            {% set day_date = data.current_year ~ '-' ~ '%02d'|format(current_selection.month) ~ '-' ~ '%02d'|format(day) %}
+                            {% set day_obj = day_date|string|str_to_date %}
+                            {% set is_week_start = day_obj.weekday() == 0 %}
+                            <th class="text-center {% if day_obj.weekday() >= 5 %}weekend{% else %}weekday{% endif %} {% if is_week_start %}week-start{% endif %}">
+                                <div class="day-header">
+                                    <strong>{{ day }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ day_obj.strftime('%a') }}</small>
+                                </div>
+                            </th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in data.logs %}
+                    <tr class="attendance-row">
+                        <td class="name-cell sticky-column">
+                            <a href="{{ url_for('employees') }}?search={{ log.name | urlencode }}"
+                               class="employee-name-link text-decoration-none">
+                                <div class="d-flex align-items-center">
+                                    <div class="employee-avatar me-2">
+                                        {{ log.name[0].upper() }}
+                                    </div>
+                                    <strong>{{ log.name }}</strong>
+                                </div>
+                            </a>
+                        </td>
+                        {% for day in data.headers %}
+                            {% set status_index = loop.index0 %}
+                            {% set status = log.days[status_index] %}
+                            {% set day_date = data.current_year ~ '-' ~ '%02d'|format(current_selection.month) ~ '-' ~ '%02d'|format(day) %}
+                            {% set day_obj = day_date|string|str_to_date %}
+                            {% set is_week_start = day_obj.weekday() == 0 %}
+                            <td class="status-cell text-center {% if day_obj.weekday() >= 5 %}weekend-cell{% endif %} {% if is_week_start %}week-start-cell{% endif %}"
+                                data-employee="{{ log.id }}"
+                                data-date="{{ day_date }}"
+                                data-employee-name="{{ log.name }}"
+                                data-day="{{ day }}"
+                                {% if day_obj.weekday() < 5 %}onclick="openNoteModal('{{ log.id }}', '{{ log.name }}', '{{ day_date }}')"{% endif %}>
+
+                                {% if day_obj.weekday() >= 5 %}
+                                    <span class="status-indicator weekend" title="Weekend">
+                                        <i class="fas fa-calendar-times"></i>
+                                    </span>
+                                {% elif status == 'T' %}
+                                    <span class="status-indicator full-day" title="Full Day (8+ hours)">
+                                        <i class="fas fa-check-circle"></i>
+                                    </span>
+                                {% elif status == 'E' %}
+                                    <span class="status-indicator half-day" title="Partial Day (< 8 hours)">
+                                        <i class="fas fa-clock"></i>
+                                    </span>
+                                {% elif status == 'D' %}
+                                    <span class="status-indicator absence" title="Absent (No entry/exit)">
+                                        <i class="fas fa-times-circle"></i>
+                                    </span>
+                                {% elif status == 'N' %}
+                                    <span class="status-indicator no-log" title="No Log Found (Future date)">
+                                        <i class="fas fa-question-circle"></i>
+                                    </span>
+                                {% else %}
+                                    <span class="status-indicator no-log" title="Undefined Status">
+                                        <i class="fas fa-question-circle"></i>
+                                    </span>
+                                {% endif %}
+                            </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-search fa-3x text-muted"></i>
+            </div>
+            <h5 class="text-muted">No Data Found</h5>
+            <p class="text-muted">
+                {% if current_selection.search %}
+                    No employees found matching "{{ current_selection.search }}" for {{ data.month_name }} {{ data.current_year }}.
+                {% else %}
+                    No attendance data found for {{ data.month_name }} {{ data.current_year }}.
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+
+        <!-- Bottom Pagination -->
+        {% if data.total_items > data.per_page %}
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+            <span class="text-muted">Total Employees Found: {{ data.total_items }}</span>
+            <div class="btn-group">
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
+                   class="btn btn-outline-primary {% if data.current_page <= 1 %}disabled{% endif %}">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                <span class="btn btn-outline-secondary disabled">
+                    Page {{ data.current_page }} of {{ data.total_pages }}
+                </span>
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
+                   class="btn btn-outline-primary {% if data.current_page >= data.total_pages %}disabled{% endif %}">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Note Modal -->
+<div class="modal fade" id="noteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="noteModalTitle">
+                    <i class="fas fa-sticky-note me-2"></i>Add Daily Note
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <textarea id="noteTextarea" class="form-control" rows="4" 
+                          placeholder="Enter note for this day..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="saveNoteBtn">
+                    <i class="fas fa-save me-2"></i>Save Note
+                </button>
+            </div>
         </div>
     </div>
 </div>
 
 <style>
-.weekend {
-    background-color: #f8f9fa;
-    color: #6c757d;
+/* Attendance Table - Clean and Compact */
+.attendance-table {
+    font-size: 11px;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin: 0;
 }
 
-.weekend-cell {
-    background-color: #f8f9fa;
-    cursor: not-allowed;
-}
-
-.weekend-cell .status-indicator.weekend {
-    background-color: #e9ecef;
-    border: 1px solid #dee2e6;
-}
-
-.weekday-info {
-    margin-top: 5px;
-    color: #6c757d;
-    font-style: italic;
-}
-
-/* Hafta başı çizgileri */
-.week-start {
-    border-left: 3px solid #dee2e6 !important;
-    position: relative;
-}
-
-.week-start-cell {
-    border-left: 3px solid #dee2e6 !important;
-    position: relative;
-}
-
-/* İlk sütun için istisna */
-.attendance-table th:first-child,
-.attendance-table td:first-child {
-    border-left: none !important;
-}
-
-/* Hafta numaraları için opsiyonel stil */
-.week-start::before {
-    content: attr(data-week);
-    position: absolute;
-    top: -25px;
-    left: 5px;
-    font-size: 10px;
-    color: #6c757d;
-    font-weight: normal;
-}
-
-/* Tablo hücreleri için temel stiller */
 .attendance-table th,
 .attendance-table td {
-    border: 1px solid #dee2e6;
-    transition: all 0.2s ease;
-}
-
-.attendance-table th {
-    background-color: #f8f9fa;
-    font-weight: 600;
-    padding: 8px 4px;
+    padding: 3px 1px;
+    vertical-align: middle;
+    border: 1px solid rgba(139, 92, 246, 0.1);
     text-align: center;
+    overflow: hidden;
 }
 
-.attendance-table td {
-    padding: 4px;
-    text-align: center;
-    cursor: pointer;
-}
-
-.attendance-table td.weekend-cell {
-    cursor: not-allowed;
-}
-
-/* Status indicator stilleri */
-.status-indicator {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border-radius: 3px;
-    border: 2px solid transparent;
-}
-
-.status-indicator.full-day {
-    background-color: #28a745;
-    border-color: #1e7e34;
-}
-
-.status-indicator.half-day {
-    background-color: #ffc107;
-    border-color: #e0a800;
-}
-
-.status-indicator.absence {
-    background-color: #dc3545;
-    border-color: #c82333;
-}
-
-.status-indicator.no-log {
-    background-color: #6c757d;
-    border-color: #545b62;
-}
-
-.status-indicator.weekend {
-    background-color: #e9ecef;
-    border-color: #dee2e6;
-}
-
-/* Hover efektleri */
-.attendance-table td:not(.weekend-cell):hover .status-indicator:not(.weekend) {
-    transform: scale(1.1);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-}
-
-/* İsim hücresi için özel stil */
+/* Employee Name Column */
 .name-cell {
-    font-weight: 600;
-    background-color: #f8f9fa;
+    width: 150px !important;
+    min-width: 150px !important;
+    max-width: 150px !important;
     position: sticky;
     left: 0;
+    background: rgba(255, 255, 255, 0.98);
     z-index: 10;
-    border-right: 2px solid #dee2e6;
+    border-right: 2px solid #8B5CF6;
+    box-shadow: 2px 0 3px rgba(139, 92, 246, 0.1);
+    text-align: left;
+    padding: 5px 8px;
 }
 
-.employee-name-link {
-    color: #007bff;
-    text-decoration: none;
-    font-weight: 600;
+/* Day Headers */
+.day-header {
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    font-size: 9px;
+    line-height: 1;
+    padding: 3px 1px;
+    height: 50px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+.day-header strong {
+    font-size: 11px;
     display: block;
-    padding: 8px 4px;
-    transition: all 0.2s ease;
+    margin-bottom: 2px;
 }
 
-.employee-name-link:hover {
-    text-decoration: underline;
-    color: #0056b3;
-    background-color: #e3f2fd;
+.day-header small {
+    font-size: 8px;
+    opacity: 0.7;
 }
 
-/* Not göstergesi için stil */
-.has-note .status-indicator {
-    position: relative;
+/* Status Cells */
+.status-cell {
+    width: 20px !important;
+    min-width: 20px !important;
+    max-width: 20px !important;
+    padding: 2px 0;
+    cursor: pointer;
+    text-align: center;
+    vertical-align: middle;
 }
 
-.has-note .status-indicator::after {
-    content: "📝";
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    font-size: 10px;
-    background: white;
-    border-radius: 50%;
-    width: 14px;
-    height: 14px;
+.status-cell:hover:not(.weekend-cell) {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+/* Status Indicators */
+.status-indicator {
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    font-size: 8px;
+    transition: all 0.2s ease;
+    font-weight: bold;
+    line-height: 1;
 }
 
-.note-indicator {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    width: 6px;
-    height: 6px;
-    background-color: #007bff;
+.status-indicator:hover {
+    transform: scale(1.1);
+}
+
+.status-indicator.full-day {
+    background: #10B981;
+    color: white;
+}
+
+.status-indicator.half-day {
+    background: #F59E0B;
+    color: white;
+}
+
+.status-indicator.absence {
+    background: #EF4444;
+    color: white;
+}
+
+.status-indicator.weekend {
+    background: #9CA3AF;
+    color: white;
+}
+
+.status-indicator.no-log {
+    background: #D1D5DB;
+    color: #6B7280;
+}
+
+/* Employee Info */
+.employee-avatar {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
     border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 10px;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+
+.employee-name-link {
+    color: #1F2937;
+    font-weight: 500;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    overflow: hidden;
+}
+
+.employee-name-link:hover {
+    color: #8B5CF6;
+}
+
+.employee-name-link strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 110px;
+}
+
+/* Table Container */
+.table-responsive {
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 75vh;
+    overflow-y: auto;
+    overflow-x: hidden !important;
+    position: relative;
+    width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Weekend Styling */
+.weekend {
+    background: rgba(156, 163, 175, 0.05);
+}
+
+.weekend-cell {
+    background: rgba(156, 163, 175, 0.05);
+    cursor: not-allowed;
+}
+
+.week-start {
+    border-left: 2px solid rgba(139, 92, 246, 0.4);
+}
+
+.week-start-cell {
+    border-left: 2px solid rgba(139, 92, 246, 0.4);
+}
+
+/* Scrollbar */
+.table-responsive::-webkit-scrollbar {
+    width: 6px;
+    height: 0 !important;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(139, 92, 246, 0.1);
+    border-radius: 3px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-radius: 3px;
+}
+
+/* Force no horizontal scroll */
+.table-responsive {
+    scrollbar-width: thin;
+    scrollbar-color: #8B5CF6 rgba(139, 92, 246, 0.1);
+}
+
+.attendance-table {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .name-cell {
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
+    }
+    
+    .day-header,
+    .status-cell {
+        width: 18px !important;
+        min-width: 18px !important;
+        max-width: 18px !important;
+    }
+    
+    .status-indicator {
+        width: 14px;
+        height: 14px;
+        font-size: 7px;
+    }
+    
+    .employee-avatar {
+        width: 20px;
+        height: 20px;
+        font-size: 8px;
+    }
+    
+    .attendance-table {
+        font-size: 10px;
+    }
 }
 </style>
 
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
-    // String to date converter for template
-    function strToDate(dateStr) {
-        const [year, month, day] = dateStr.split('-');
-        return new Date(year, month - 1, day);
-    }
-
-    // Hafta numarası hesaplama fonksiyonu
-    function getWeekNumber(date) {
-        const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-        const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-        return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-    }
-
-    // Not modal fonksiyonları
+    // Global variables
     let currentEmployeeId = null;
     let currentNoteDate = null;
 
+    // Note modal functions
     function openNoteModal(employeeId, employeeName, date) {
         currentEmployeeId = employeeId;
         currentNoteDate = date;
 
-        // Önce mevcut notu getir
+        // Fetch existing note
         fetch(`/api/get_daily_note?employee_id=${employeeId}&note_date=${date}`)
             .then(response => response.json())
             .then(data => {
-                // Modal başlığını güncelle
-                const modalTitle = document.getElementById('noteModalTitle');
-                modalTitle.textContent = `Note for ${employeeName} - ${date}`;
+                // Update modal title
+                document.getElementById('noteModalTitle').innerHTML = 
+                    `<i class="fas fa-sticky-note me-2"></i>Note for ${employeeName} - ${date}`;
 
-                // Textarea'yı güncelle
+                // Update textarea
                 document.getElementById('noteTextarea').value = data.note || '';
 
-                // Modal'ı göster
-                document.getElementById('noteModal').style.display = 'block';
+                // Show modal using Bootstrap
+                const modal = new bootstrap.Modal(document.getElementById('noteModal'));
+                modal.show();
             })
             .catch(error => {
                 console.error('Error fetching note:', error);
-                // Hata durumunda da modal'ı göster
-                document.getElementById('noteModal').style.display = 'block';
+                // Show modal anyway
+                const modal = new bootstrap.Modal(document.getElementById('noteModal'));
+                modal.show();
             });
-    }
-
-    function closeNoteModal() {
-        document.getElementById('noteModal').style.display = 'none';
-        currentEmployeeId = null;
-        currentNoteDate = null;
     }
 
     function saveNote() {
         const noteText = document.getElementById('noteTextarea').value;
 
         if (!currentEmployeeId || !currentNoteDate) {
-            alert('Error: Missing employee or date information');
+            showNotification('Error: Missing employee or date information', 'danger');
             return;
         }
 
-        // API'ye gönder
+        // Show loading state
+        const saveBtn = document.getElementById('saveNoteBtn');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.innerHTML = '<div class="loading-spinner me-2"></div>Saving...';
+        saveBtn.disabled = true;
+
+        // Send to API
         fetch('/api/save_daily_note', {
             method: 'POST',
             headers: {
@@ -427,157 +554,641 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Başarılı kayıt sonrası hücreyi güncelle
+                // Update note indicator
                 updateNoteIndicator(currentEmployeeId, currentNoteDate, noteText);
-                closeNoteModal();
+                
+                // Hide modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('noteModal'));
+                modal.hide();
 
-                // Kullanıcıya feedback göster
+                // Show success notification
                 showNotification('Note saved successfully!', 'success');
             } else {
-                alert('Error saving note: ' + data.message);
+                showNotification('Error saving note: ' + data.message, 'danger');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error saving note');
+            showNotification('Error saving note', 'danger');
+        })
+        .finally(() => {
+            // Reset button state
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
         });
     }
 
     function updateNoteIndicator(employeeId, noteDate, noteText) {
-        // İlgili hücreyi bul ve not göstergesini güncelle
         const cell = document.querySelector(`[data-employee="${employeeId}"][data-date="${noteDate}"]`);
         if (cell) {
             if (noteText.trim()) {
                 cell.classList.add('has-note');
-                if (!cell.querySelector('.note-indicator')) {
-                    const indicator = document.createElement('div');
-                    indicator.className = 'note-indicator';
-                    cell.appendChild(indicator);
-                }
             } else {
                 cell.classList.remove('has-note');
-                const indicator = cell.querySelector('.note-indicator');
-                if (indicator) {
-                    indicator.remove();
-                }
             }
         }
     }
 
     function showNotification(message, type = 'info') {
-        // Basit bir notification göster
-        const notification = document.createElement('div');
-        notification.style.cssText = `
-            position: fixed;
+        // Create Bootstrap alert
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = `
             top: 20px;
             right: 20px;
-            padding: 12px 20px;
-            background-color: ${type === 'success' ? '#10b981' : '#3b82f6'};
-            color: white;
-            border-radius: 6px;
-            z-index: 1001;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            z-index: 9999;
+            min-width: 300px;
         `;
-        notification.textContent = message;
-        document.body.appendChild(notification);
+        alertDiv.innerHTML = `
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
 
+        // Auto remove after 5 seconds
         setTimeout(() => {
-            notification.remove();
-        }, 3000);
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
     }
 
-    // Event listener'lar
+    // Document ready
     document.addEventListener('DOMContentLoaded', function() {
-        // Modal kapatma
-        document.querySelector('.close-button').addEventListener('click', closeNoteModal);
-        document.querySelector('.cancel-note-button').addEventListener('click', closeNoteModal);
-        document.querySelector('.save-note-button').addEventListener('click', saveNote);
+        // Save note button event
+        document.getElementById('saveNoteBtn').addEventListener('click', saveNote);
 
-        // Modal dışına tıklayınca kapat
-        document.getElementById('noteModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                closeNoteModal();
-            }
-        });
+        // Form management
+        const searchInput = document.getElementById('search-input');
+        const monthSelect = document.getElementById('month');
+        const yearSelect = document.getElementById('year');
+        const exportLink = document.getElementById('export-link');
+        const attendanceForm = document.getElementById('attendance-form');
 
-        // Hafta başı hücrelerine hafta numarası ekle (opsiyonel)
-        const weekStartHeaders = document.querySelectorAll('.week-start');
-        weekStartHeaders.forEach(header => {
-            const day = header.querySelector('small').textContent;
-            if (day === 'Mon') {
-                const dateStr = `{{ data.current_year }}-{{ '%02d'|format(current_selection.month) }}-${header.textContent.trim()}`;
-                const date = strToDate(dateStr);
-                const weekNumber = getWeekNumber(date);
-                header.setAttribute('data-week', `W${weekNumber}`);
-            }
-        });
-
-        // Basit form yönetimi
-        var searchInput = $('#search-input');
-        var monthSelect = $('#month');
-        var yearSelect = $('#year');
-        var exportLink = $('#export-link');
-        var attendanceForm = $('#attendance-form');
-
-        // Export link güncelleme
+        // Update export link
         function updateExportLink() {
-            var month = monthSelect.val();
-            var year = yearSelect.val();
-            var search = searchInput.val();
+            const month = monthSelect.value;
+            const year = yearSelect.value;
+            const search = searchInput.value;
 
-            var newHref = '{{ url_for("export_monthly_attendance") }}' +
+            const newHref = '{{ url_for("export_monthly_attendance") }}' +
                           '?month=' + month +
                           '&year=' + year +
                           '&search=' + encodeURIComponent(search);
-            exportLink.attr('href', newHref);
+            exportLink.href = newHref;
         }
 
-        // Arama yapıldığında otomatik olarak formu submit et (1 saniye debounce ile)
-        var searchTimeout;
-        searchInput.on('keyup', function() {
+        // Search with debounce
+        let searchTimeout;
+        searchInput.addEventListener('keyup', function() {
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(function() {
-                // Arama yapıldığında her zaman 1. sayfaya git
-                var currentUrl = new URL(window.location.href);
-                currentUrl.searchParams.set('search', searchInput.val());
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('search', searchInput.value);
                 currentUrl.searchParams.set('page', '1');
                 window.location.href = currentUrl.toString();
             }, 1000);
         });
 
-        // Enter tuşuna basıldığında formu submit et
-        searchInput.on('keydown', function(e) {
+        // Enter key handling
+        searchInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 clearTimeout(searchTimeout);
-                // Arama yapıldığında her zaman 1. sayfaya git
-                var currentUrl = new URL(window.location.href);
-                currentUrl.searchParams.set('search', searchInput.val());
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('search', searchInput.value);
                 currentUrl.searchParams.set('page', '1');
                 window.location.href = currentUrl.toString();
             }
         });
 
-        // Diğer event listener'lar
-        monthSelect.on('change', function() {
-            // Ay değiştiğinde arama terimini koru ama sayfayı 1'e sıfırla
-            var currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('month', $(this).val());
+        // Month/Year change handlers
+        monthSelect.addEventListener('change', function() {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('month', this.value);
             currentUrl.searchParams.set('page', '1');
             window.location.href = currentUrl.toString();
         });
 
-        yearSelect.on('change', function() {
-            // Yıl değiştiğinde arama terimini koru ama sayfayı 1'e sıfırla
-            var currentUrl = new URL(window.location.href);
-            currentUrl.searchParams.set('year', $(this).val());
+        yearSelect.addEventListener('change', function() {
+            const currentUrl = new URL(window.location.href);
+            currentUrl.searchParams.set('year', this.value);
             currentUrl.searchParams.set('page', '1');
             window.location.href = currentUrl.toString();
         });
 
-        // Sayfa yüklendiğinde export link'i güncelle
+        // Initialize export link
         updateExportLink();
+
+        // Dynamic table sizing - Basit ve etkili
+        function optimizeTableSize() {
+            // Hiçbir şey yapma, CSS'te sabit boyutlar kullan
+        }
+
+        // Apply optimization on load and resize
+        optimizeTableSize();
+        
+        let resizeTimeout;
+        window.addEventListener('resize', function() {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(optimizeTableSize, 100);
+        });
+
+        // Add smooth animations
+        const cards = document.querySelectorAll('.card');
+        cards.forEach((card, index) => {
+            card.style.animationDelay = `${index * 0.1}s`;
+        });
     });
 </script>
 
 {% endblock %}
+
+<style>
+/* Attendance Table - Balanced Compact Design */
+.attendance-table {
+    font-size: 12px;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.attendance-table th,
+.attendance-table td {
+    padding: 3px 2px;
+    white-space: nowrap;
+    vertical-align: middle;
+    border: 1px solid rgba(139, 92, 246, 0.1);
+    text-align: center;
+    overflow: hidden;
+}
+
+.name-cell {
+    width: 140px;
+    min-width: 140px;
+    max-width: 140px;
+    position: sticky;
+    left: 0;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 10;
+    border-right: 2px solid #8B5CF6;
+    box-shadow: 2px 0 3px rgba(139, 92, 246, 0.1);
+    text-align: left;
+    padding: 5px 8px;
+}
+
+.day-header {
+    font-size: 10px;
+    line-height: 1;
+    padding: 2px 1px;
+    height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+}
+
+.day-header strong {
+    font-size: 12px;
+    display: block;
+    margin-bottom: 2px;
+    writing-mode: horizontal-tb;
+    text-orientation: upright;
+}
+
+.day-header small {
+    font-size: 8px;
+    opacity: 0.7;
+    writing-mode: horizontal-tb;
+    text-orientation: upright;
+}
+
+.status-cell {
+    width: calc((100vw - 220px) / 31);
+    min-width: 16px;
+    max-width: 25px;
+    padding: 2px;
+    cursor: pointer;
+    position: relative;
+}
+
+.status-cell:hover:not(.weekend-cell) {
+    background: rgba(139, 92, 246, 0.1);
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    font-size: 8px;
+    transition: all 0.2s ease;
+    margin: 1px auto;
+    font-weight: bold;
+}
+
+.status-indicator:hover {
+    transform: scale(1.2);
+    border-radius: 50%;
+}
+
+.status-indicator.full-day {
+    background: #10B981;
+    color: white;
+}
+
+.status-indicator.half-day {
+    background: #F59E0B;
+    color: white;
+}
+
+.status-indicator.absence {
+    background: #EF4444;
+    color: white;
+}
+
+.status-indicator.weekend {
+    background: #9CA3AF;
+    color: white;
+}
+
+.status-indicator.no-log {
+    background: #D1D5DB;
+    color: #6B7280;
+}
+
+.weekend {
+    background: rgba(156, 163, 175, 0.03);
+}
+
+.weekday {
+    background: rgba(139, 92, 246, 0.01);
+}
+
+.weekend-cell {
+    background: rgba(156, 163, 175, 0.03);
+    cursor: not-allowed;
+}
+
+.week-start {
+    border-left: 2px solid rgba(139, 92, 246, 0.4);
+}
+
+.week-start-cell {
+    border-left: 2px solid rgba(139, 92, 246, 0.4);
+}
+
+.employee-avatar {
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 10px;
+    flex-shrink: 0;
+    margin-right: 6px;
+}
+
+.employee-name-link {
+    color: #1F2937;
+    font-weight: 500;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.employee-name-link:hover {
+    color: #8B5CF6;
+}
+
+.employee-name-link strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 100px;
+}
+
+/* Container optimizations - Yatay kaydırma tamamen kapalı */
+.table-responsive {
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 75vh;
+    overflow-y: auto;
+    overflow-x: hidden !important;
+    position: relative;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+}
+
+/* Tablo wrapper için ek güvenlik */
+.card-body {
+    overflow-x: hidden !important;
+    padding: 15px 10px;
+}
+
+/* Tüm tablo elementleri için yatay taşma önleme */
+.attendance-table,
+.attendance-table *,
+.table-responsive * {
+    box-sizing: border-box;
+    max-width: 100%;
+}
+
+/* Responsive breakpoints - Makul boyutlar */
+@media (max-width: 1600px) {
+    .status-cell {
+        width: calc((100vw - 200px) / 31);
+        min-width: 18px;
+        max-width: 32px;
+    }
+    
+    .status-indicator {
+        width: 16px;
+        height: 16px;
+        font-size: 9px;
+    }
+    
+    .name-cell {
+        width: 130px;
+        min-width: 130px;
+        max-width: 130px;
+    }
+}
+
+@media (max-width: 1400px) {
+    .status-cell {
+        width: calc((100vw - 190px) / 31);
+        min-width: 16px;
+        max-width: 28px;
+    }
+    
+    .status-indicator {
+        width: 14px;
+        height: 14px;
+        font-size: 8px;
+    }
+    
+    .name-cell {
+        width: 120px;
+        min-width: 120px;
+        max-width: 120px;
+    }
+    
+    .employee-avatar {
+        width: 20px;
+        height: 20px;
+        font-size: 9px;
+    }
+    
+    .attendance-table {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .status-cell {
+        width: calc((100vw - 180px) / 31);
+        min-width: 14px;
+        max-width: 24px;
+    }
+    
+    .status-indicator {
+        width: 12px;
+        height: 12px;
+        font-size: 7px;
+    }
+    
+    .name-cell {
+        width: 110px;
+        min-width: 110px;
+        max-width: 110px;
+    }
+    
+    .day-header {
+        font-size: 9px;
+        height: 45px;
+    }
+    
+    .day-header strong {
+        font-size: 10px;
+    }
+    
+    .attendance-table {
+        font-size: 10px;
+    }
+}
+
+@media (max-width: 992px) {
+    .status-cell {
+        width: calc((100vw - 170px) / 31);
+        min-width: 12px;
+        max-width: 20px;
+    }
+    
+    .status-indicator {
+        width: 10px;
+        height: 10px;
+        font-size: 6px;
+    }
+    
+    .name-cell {
+        width: 100px;
+        min-width: 100px;
+        max-width: 100px;
+    }
+    
+    .employee-avatar {
+        width: 18px;
+        height: 18px;
+        font-size: 8px;
+    }
+    
+    .day-header {
+        font-size: 8px;
+        height: 40px;
+    }
+    
+    .day-header strong {
+        font-size: 9px;
+    }
+    
+    .attendance-table {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 768px) {
+    .status-cell {
+        width: calc((100vw - 160px) / 31);
+        min-width: 10px;
+        max-width: 16px;
+    }
+    
+    .status-indicator {
+        width: 8px;
+        height: 8px;
+        font-size: 5px;
+        border-radius: 2px;
+    }
+    
+    .name-cell {
+        width: 90px;
+        min-width: 90px;
+        max-width: 90px;
+    }
+    
+    .employee-avatar {
+        width: 16px;
+        height: 16px;
+        font-size: 7px;
+    }
+    
+    .day-header {
+        font-size: 7px;
+        height: 35px;
+    }
+    
+    .day-header strong {
+        font-size: 8px;
+    }
+    
+    .attendance-table {
+        font-size: 8px;
+    }
+    
+    .employee-name-link strong {
+        max-width: 70px;
+    }
+}
+        height: 8px;
+        font-size: 4px;
+    }
+    
+    .name-cell {
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+    }
+    
+    .employee-avatar {
+        width: 16px;
+        height: 16px;
+        font-size: 6px;
+    }
+    
+    .day-header {
+        font-size: 6px;
+    }
+    
+    .day-header strong {
+        font-size: 7px;
+    }
+    
+    .attendance-table {
+        font-size: 7px;
+    }
+}
+
+@media (max-width: 768px) {
+    .status-cell {
+        width: calc((100vw - 300px) / 31);
+        min-width: 8px;
+        max-width: 14px;
+    }
+    
+    .status-indicator {
+        width: 6px;
+        height: 6px;
+        font-size: 3px;
+    }
+    
+    .name-cell {
+        width: 70px;
+        min-width: 70px;
+        max-width: 70px;
+    }
+    
+    .employee-avatar {
+        width: 14px;
+        height: 14px;
+        font-size: 5px;
+    }
+    
+    .day-header {
+        font-size: 5px;
+    }
+    
+    .day-header strong {
+        font-size: 6px;
+    }
+    
+    .attendance-table {
+        font-size: 6px;
+    }
+}
+
+/* Custom scrollbar - sadece dikey */
+.table-responsive::-webkit-scrollbar {
+    width: 4px;
+    height: 0 !important; /* Yatay scrollbar tamamen kapalı */
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 2px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-radius: 2px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #7C3AED 0%, #DB2777 100%);
+}
+
+/* Yatay scrollbar tamamen kaldırıldı */
+.table-responsive::-webkit-scrollbar:horizontal {
+    display: none !important;
+}
+
+/* Firefox için yatay scrollbar kaldırma */
+.table-responsive {
+    scrollbar-width: thin;
+    scrollbar-color: #8B5CF6 rgba(139, 92, 246, 0.05);
+    overflow-x: hidden !important;
+    overflow-y: auto;
+}
+
+/* Tablo genişliği sabit tutma */
+.attendance-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+}
+
+/* Hücre genişliklerini zorla sabit tut */
+.status-cell {
+    flex-shrink: 0;
+    flex-grow: 0;
+}
+
+.name-cell {
+    flex-shrink: 0;
+    flex-grow: 0;
+}
+</style>

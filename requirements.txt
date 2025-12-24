@@ -1,7 +1,13 @@
 Flask==2.3.2
-# Kodunuzun istedigi binary paketi
+# Database
 psycopg2-binary==2.9.9
-# WSGI Sunucusu
+# WSGI Server
 gunicorn==21.2.0
-# .env okumak icin
-python-dotenv
+# Environment variables
+python-dotenv==1.0.0
+# Security
+Flask-WTF==1.1.1
+# Rate limiting
+Flask-Limiter==3.5.0
+# Caching
+Flask-Caching==2.1.0

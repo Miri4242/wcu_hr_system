@@ -29,7 +29,8 @@ DB_CONFIG = {
 
 # 8 HOURS REFERENCE
 EIGHT_HOURS_SECONDS = 28800
-PER_PAGE_ATTENDANCE = 50
+PER_PAGE_ATTENDANCE = 20
+PER_PAGE_EMPLOYEE_LOGS = 20
 
 # Helper dictionary for month names
 EN_MONTHS = {
@@ -79,10 +80,16 @@ def hash_password(password):
 def verify_password(stored_password, provided_password):
     """Verify a stored password against one provided by user"""
     try:
-        _, salt, stored_hash = stored_password.split('$')
-        provided_hash = hashlib.sha256((provided_password + salt).encode()).hexdigest()
-        return provided_hash == stored_hash
-    except:
+        if stored_password.startswith('sha256$'):
+            # Hashed password format: sha256$salt$hash
+            _, salt, stored_hash = stored_password.split('$')
+            provided_hash = hashlib.sha256((provided_password + salt).encode()).hexdigest()
+            return provided_hash == stored_hash
+        else:
+            # Temporary support for plaintext passwords (SECURITY RISK - should be removed)
+            return stored_password == provided_password
+    except Exception as e:
+        print(f"🚨 Password verification error: {e}")
         return False
 
 
@@ -198,32 +205,76 @@ def get_available_months(num_months=12):
 # --- EMPLOYEE MANAGEMENT FUNCTIONS (CRUD/LIST) ---
 # --------------------------------------------------------------------------------------
 
-def get_employee_list():
-    """Fetches essential details and positions for all employees (excluding Students, Visitors and Teachers)."""
+def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
+    """Fetches employees with pagination and search for admin panel."""
     conn = get_db_connection()
-    if conn is None: return []
+    if conn is None: 
+        return {
+            'employees': [], 
+            'pagination': {
+                'current_page': 1, 
+                'total_pages': 1, 
+                'total_items': 0
+            }
+        }
 
     cur = conn.cursor()
     try:
-        cur.execute("""
-                    SELECT p.id,
-                           p.name,
-                           p.last_name,
-                           p.mobile_phone,
-                           p.email,
-                           p.birthday,
-                           p.photo_path,
-                           pp.name       AS position_name,
-                           p.create_time AS hire_date
-                    FROM public.pers_person p
-                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE (pp.name IS NULL
-                       OR (pp.name NOT ILIKE 'STUDENT' 
-                           AND pp.name NOT ILIKE 'VISITOR'
-                           AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
-                    ORDER BY p.last_name, p.name;
-                    """)
-
+        # Base query
+        base_query = """
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            WHERE (pp.name IS NULL
+               OR (pp.name NOT ILIKE 'STUDENT' 
+                   AND pp.name NOT ILIKE 'VISITOR'
+                   AND pp.name NOT ILIKE 'MÜƏLLİM'))
+        """
+        
+        # Search filter
+        search_filter = ""
+        search_params = []
+        if search_term:
+            search_filter = """
+                AND (LOWER(p.name) LIKE %s 
+                     OR LOWER(p.last_name) LIKE %s 
+                     OR LOWER(p.email) LIKE %s 
+                     OR LOWER(pp.name) LIKE %s
+                     OR LOWER(p.name || ' ' || p.last_name) LIKE %s)
+            """
+            search_pattern = f'%{search_term.lower()}%'
+            search_params = [search_pattern] * 5
+        
+        # Count total items
+        count_query = f"SELECT COUNT(*) {base_query} {search_filter}"
+        cur.execute(count_query, search_params)
+        total_items = cur.fetchone()[0]
+        
+        # Calculate pagination
+        total_pages = (total_items + per_page - 1) // per_page
+        if page < 1: page = 1
+        if page > total_pages and total_pages > 0: page = total_pages
+        
+        offset = (page - 1) * per_page
+        
+        # Fetch employees
+        employees_query = f"""
+            SELECT p.id,
+                   p.name,
+                   p.last_name,
+                   p.mobile_phone,
+                   p.email,
+                   p.birthday,
+                   p.photo_path,
+                   pp.name AS position_name,
+                   p.create_time AS hire_date
+            {base_query} {search_filter}
+            ORDER BY p.last_name, p.name
+            LIMIT %s OFFSET %s
+        """
+        
+        params = search_params + [per_page, offset]
+        cur.execute(employees_query, params)
+        
         employees_raw = cur.fetchall()
         employees = []
 
@@ -243,6 +294,70 @@ def get_employee_list():
                 'photo_path': photo_path,
                 'position': row[7] or 'Undefined',
                 'hire_date': row[8].strftime('%d.%m.%Y') if row[8] else 'N/A'
+            })
+        
+        return {
+            'employees': employees,
+            'pagination': {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total_items': total_items
+            }
+        }
+        
+    except psycopg2.Error as e:
+        print(f"🚨 Admin Employees Paginated Fetch Error: {e}")
+        return {
+            'employees': [], 
+            'pagination': {
+                'current_page': 1, 
+                'total_pages': 1, 
+                'total_items': 0
+            }
+        }
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def get_employee_list():
+    """Fetches essential details and positions for all employees (excluding Students, Visitors and Teachers)."""
+    conn = get_db_connection()
+    if conn is None: return []
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+                    SELECT p.id,
+                           p.name,
+                           p.last_name,
+                           p.mobile_phone,
+                           p.email,
+                           p.birthday,
+                           pp.name       AS position_name,
+                           p.create_time AS hire_date
+                    FROM public.pers_person p
+                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    WHERE (pp.name IS NULL
+                       OR (pp.name NOT ILIKE 'STUDENT' 
+                           AND pp.name NOT ILIKE 'VISITOR'
+                           AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
+                    ORDER BY p.last_name, p.name;
+                    """)
+
+        employees_raw = cur.fetchall()
+        employees = []
+
+        for row in employees_raw:
+            employees.append({
+                'id': row[0],
+                'name': row[1],
+                'last_name': row[2],
+                'mobile_phone': row[3] or 'N/A',
+                'email': row[4] or 'N/A',
+                'birthday': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
+                'position': row[6] or 'Undefined',
+                'hire_date': row[7].strftime('%d.%m.%Y') if row[7] else 'N/A'
             })
         return employees
     except psycopg2.Error as e:
@@ -267,7 +382,6 @@ def get_employee_details(employee_id):
                            p.mobile_phone,
                            p.email,
                            p.birthday,
-                           p.photo_path,
                            pp.name       AS position_name,
                            p.position_id,
                            p.create_time AS hire_date
@@ -281,13 +395,9 @@ def get_employee_details(employee_id):
                     """, (employee_id,))
 
         row = cur.fetchone()
+        print(f"🔍 Query result: {row}")
 
         if row:
-            try:
-                photo_path = row[6] if row[6] else url_for('static', filename='images/default_avatar.png')
-            except RuntimeError:
-                photo_path = row[6] if row[6] else '/static/images/default_avatar.png'
-
             return {
                 'id': row[0],
                 'name': row[1],
@@ -296,10 +406,9 @@ def get_employee_details(employee_id):
                 'email': row[4] or '',
                 'birthday_form': row[5].strftime('%Y-%m-%d') if row[5] else '',
                 'birthday_display': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
-                'photo_path': photo_path,
-                'position_name': row[7] or 'Undefined',
-                'position_id': row[8],
-                'hire_date': row[9].strftime('%d.%m.%Y') if row[9] else 'N/A'
+                'position_name': row[6] or 'Undefined',
+                'position_id': row[7],
+                'hire_date': row[8].strftime('%d.%m.%Y') if row[8] else 'N/A'
             }
         return None
     except psycopg2.Error as e:
@@ -904,6 +1013,160 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
 
 # --------------------------------------------------------------------------------------
+# --- SYSTEM USER MANAGEMENT FUNCTIONS (ADMIN) ---
+# --------------------------------------------------------------------------------------
+
+def get_all_system_users():
+    """Tüm sistem kullanıcılarını getirir."""
+    conn = get_db_connection()
+    if conn is None: return []
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, email, full_name, user_role, is_active, created_at, last_login
+            FROM public.system_users 
+            ORDER BY full_name
+        """)
+        
+        users = []
+        for row in cur.fetchall():
+            users.append({
+                'id': row[0],
+                'email': row[1],
+                'full_name': row[2],
+                'user_role': row[3],
+                'is_active': row[4],
+                'created_at': row[5].strftime('%d.%m.%Y %H:%M') if row[5] else 'N/A',
+                'last_login': row[6].strftime('%d.%m.%Y %H:%M') if row[6] else 'Hiç giriş yapmamış'
+            })
+        return users
+    except psycopg2.Error as e:
+        print(f"🚨 System Users Fetch Error: {e}")
+        return []
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def get_system_user_by_id(user_id):
+    """ID'ye göre sistem kullanıcısını getirir."""
+    conn = get_db_connection()
+    if conn is None: return None
+
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, email, full_name, user_role, is_active, created_at, last_login
+            FROM public.system_users 
+            WHERE id = %s
+        """, (user_id,))
+        
+        row = cur.fetchone()
+        if row:
+            return {
+                'id': row[0],
+                'email': row[1],
+                'full_name': row[2],
+                'user_role': row[3],
+                'is_active': row[4],
+                'created_at': row[5].strftime('%d.%m.%Y %H:%M') if row[5] else 'N/A',
+                'last_login': row[6].strftime('%d.%m.%Y %H:%M') if row[6] else 'Hiç giriş yapmamış'
+            }
+        return None
+    except psycopg2.Error as e:
+        print(f"🚨 System User Fetch Error: {e}")
+        return None
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def update_system_user(user_id, data):
+    """Updates system user."""
+    conn = get_db_connection()
+    if conn is None:
+        return False, "Database connection error."
+
+    cur = conn.cursor()
+    try:
+        # Şifre güncellemesi varsa
+        if 'password' in data:
+            cur.execute("""
+                UPDATE public.system_users
+                SET full_name = %s, email = %s, user_role = %s, is_active = %s, password = %s
+                WHERE id = %s
+            """, (
+                data.get('full_name'),
+                data.get('email'),
+                data.get('user_role'),
+                data.get('is_active'),
+                data.get('password'),
+                user_id
+            ))
+        else:
+            cur.execute("""
+                UPDATE public.system_users
+                SET full_name = %s, email = %s, user_role = %s, is_active = %s
+                WHERE id = %s
+            """, (
+                data.get('full_name'),
+                data.get('email'),
+                data.get('user_role'),
+                data.get('is_active'),
+                user_id
+            ))
+        
+        conn.commit()
+        return True, "User successfully updated."
+    except psycopg2.Error as e:
+        conn.rollback()
+        print(f"🚨 System User Update Error: {e}")
+        return False, f"Update error: {e}"
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def create_system_user(data):
+    """Creates new system user."""
+    conn = get_db_connection()
+    if conn is None:
+        return False, "Database connection error."
+
+    cur = conn.cursor()
+    try:
+        # Email kontrolü
+        cur.execute("SELECT id FROM public.system_users WHERE email = %s", (data.get('email'),))
+        if cur.fetchone():
+            return False, "This email address is already in use."
+        
+        # Şifreyi hash'le
+        hashed_password = hash_password(data.get('password'))
+        
+        cur.execute("""
+            INSERT INTO public.system_users (email, password, full_name, user_role, is_active, created_at)
+            VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+        """, (
+            data.get('email'),
+            hashed_password,
+            data.get('full_name'),
+            data.get('user_role'),
+            data.get('is_active', True)
+        ))
+        
+        conn.commit()
+        return True, "User successfully created."
+    except psycopg2.Error as e:
+        conn.rollback()
+        print(f"🚨 System User Create Error: {e}")
+        return False, f"Creation error: {e}"
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+# --------------------------------------------------------------------------------------
 # --- EMPLOYEE DAILY NOTES FUNCTIONS ---
 # --------------------------------------------------------------------------------------
 
@@ -1380,7 +1643,17 @@ def login():
 
         user = get_user_by_email(email)
 
-        if user and user['password'] == password:
+        # Geçici: Hem hash'li hem düz metin şifre kontrolü
+        password_valid = False
+        if user:
+            if user['password'].startswith('sha256$'):
+                # Hash'li şifre kontrolü
+                password_valid = verify_password(user['password'], password)
+            else:
+                # Düz metin şifre kontrolü (geçici)
+                password_valid = (user['password'] == password)
+
+        if user and password_valid:
             session['user'] = {
                 'id': user['id'],
                 'email': user['email'],
@@ -1679,6 +1952,8 @@ def employee_logs():
     selected_employee_name = "All Employees"
     start_date_str = None
     end_date_str = None
+    page = int(request.args.get('page', 1))
+    employee_search = request.args.get('employee_search', '').strip()
 
     # BAKU TIME FIX: datetime.now().date() -> get_current_baku_time().date()
     today = get_current_baku_time().date()
@@ -1698,6 +1973,7 @@ def employee_logs():
         selected_person_key = request.form.get('person_key')
         start_date_str = request.form.get('start_date') or start_date_str
         end_date_str = request.form.get('end_date') or end_date_str
+        employee_search = request.form.get('employee_search', '').strip()
     else:
         selected_person_key = request.args.get('person_key') or ''
         start_date_str = request.args.get('start_date') or start_date_str
@@ -1714,6 +1990,23 @@ def employee_logs():
     except ValueError:
         pass
 
+    # Employee search ile person_key bulma
+    if employee_search and not selected_person_key:
+        # Arama terimini kullanarak çalışan bul
+        matching_employees = []
+        for emp in employee_list:
+            if employee_search.lower() in emp['name'].lower():
+                matching_employees.append(emp)
+        
+        # Eğer tek bir eşleşme varsa otomatik seç
+        if len(matching_employees) == 1:
+            selected_person_key = matching_employees[0]['key']
+            selected_employee_name = matching_employees[0]['name']
+        elif len(matching_employees) > 1:
+            # Birden fazla eşleşme varsa ilkini seç
+            selected_person_key = matching_employees[0]['key']
+            selected_employee_name = matching_employees[0]['name']
+
     if selected_person_key:
         selected_employee = next((emp for emp in employee_list if emp['key'] == selected_person_key), None)
         if selected_employee:
@@ -1721,7 +2014,15 @@ def employee_logs():
     else:
         selected_employee_name = "All Employees"
 
-    logs_data = get_employee_logs(person_key=selected_person_key, start_date=start_date, end_date=end_date)
+    # Get all logs first
+    all_logs = get_employee_logs(person_key=selected_person_key, start_date=start_date, end_date=end_date)
+    
+    # Calculate pagination
+    total_logs = len(all_logs)
+    total_pages = (total_logs + PER_PAGE_EMPLOYEE_LOGS - 1) // PER_PAGE_EMPLOYEE_LOGS
+    start_index = (page - 1) * PER_PAGE_EMPLOYEE_LOGS
+    end_index = start_index + PER_PAGE_EMPLOYEE_LOGS
+    logs_data = all_logs[start_index:end_index]
 
     return render_template(
         'employee_logs.html',
@@ -1730,7 +2031,11 @@ def employee_logs():
         selected_person_key=selected_person_key,
         selected_employee_name=selected_employee_name,
         start_date=start_date_str,
-        end_date=end_date_str
+        end_date=end_date_str,
+        current_page=page,
+        total_pages=total_pages,
+        total_logs=total_logs,
+        per_page=PER_PAGE_EMPLOYEE_LOGS
     )
 
 
@@ -1903,10 +2208,172 @@ def hours_tracked():
     )
 
 
+@app.route('/admin')
+def admin():
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    return render_template('admin.html')
+
+
+@app.route('/admin/users')
+def admin_users():
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    users = get_all_system_users()
+    return render_template('admin_users.html', users=users)
+
+
+@app.route('/admin/users/edit/<int:user_id>', methods=['GET', 'POST'])
+def admin_edit_user(user_id):
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        data = {
+            'full_name': request.form.get('full_name'),
+            'email': request.form.get('email'),
+            'user_role': request.form.get('user_role'),
+            'is_active': request.form.get('is_active') == 'on'
+        }
+        
+        # Şifre değişikliği varsa
+        new_password = request.form.get('new_password')
+        if new_password:
+            data['password'] = hash_password(new_password)
+        
+        success, message = update_system_user(user_id, data)
+        
+        if success:
+            flash(message, 'success')
+            return redirect(url_for('admin_users'))
+        else:
+            flash(message, 'danger')
+    
+    user = get_system_user_by_id(user_id)
+    if not user:
+        flash("User not found.", 'danger')
+        return redirect(url_for('admin_users'))
+    
+    return render_template('admin_edit_user.html', user=user)
+
+
+@app.route('/admin/employees')
+def admin_employees():
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Pagination ve search parametreleri
+    page = int(request.args.get('page', 1))
+    per_page = 20
+    search_term = request.args.get('search', '').strip()
+    
+    # Çalışanları getir (pagination ve search ile)
+    employees_data = get_admin_employees_paginated(page=page, per_page=per_page, search_term=search_term)
+    
+    return render_template('admin_employees.html', 
+                         employees=employees_data['employees'],
+                         pagination=employees_data['pagination'])
+
+
+@app.route('/admin/employees/edit/<employee_id>', methods=['GET', 'POST'])
+def admin_edit_employee(employee_id):
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        data = {
+            'name': request.form.get('name'),
+            'last_name': request.form.get('last_name'),
+            'mobile_phone': request.form.get('mobile_phone'),
+            'email': request.form.get('email'),
+            'birthday': request.form.get('birthday'),
+            'position_id': request.form.get('position_id')
+        }
+        
+        success, message = update_employee_details(employee_id, data)
+        
+        if success:
+            flash(message, 'success')
+            return redirect(url_for('admin_employees'))
+        else:
+            flash(message, 'danger')
+    
+    employee = get_employee_details(employee_id)
+    positions = get_all_positions()
+    
+    if not employee:
+        flash("Employee not found.", 'danger')
+        return redirect(url_for('admin_employees'))
+    
+    return render_template('admin_edit_employee.html', employee=employee, positions=positions)
+
+
+@app.route('/admin/users/add', methods=['GET', 'POST'])
+def admin_add_user():
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if request.method == 'POST':
+        data = {
+            'full_name': request.form.get('full_name'),
+            'email': request.form.get('email'),
+            'password': request.form.get('password'),
+            'user_role': request.form.get('user_role'),
+            'is_active': request.form.get('is_active') == 'on'
+        }
+        
+        success, message = create_system_user(data)
+        
+        if success:
+            flash(message, 'success')
+            return redirect(url_for('admin_users'))
+        else:
+            flash(message, 'danger')
+    
+    return render_template('admin_add_user.html')
+
+
 @app.route('/salary')
 def salary():
     if (redirect_response := require_login()): return redirect_response
     return render_template('salary.html')
+
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('You have been logged out successfully.', 'info')
+    return redirect(url_for('login'))
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
 
 
 @app.route('/logout')

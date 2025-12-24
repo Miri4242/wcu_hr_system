@@ -5,75 +5,115 @@
 {% block page_title %}Working Hours Analysis (In/Out Time){% endblock %}
 
 {% block content %}
-<div class="card-large">
-    <p></p>
-
-    <div class="filter-controls">
-        <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}" class="filter-form-inline">
-            <div class="searchable-dropdown">
-                <label for="employee_search">Select Employee:</label>
-                <div class="search-input-container">
-                    <input type="text"
-                           id="employee_search"
-                           name="employee_search"
-                           placeholder="Type to search employees..."
-                           autocomplete="off"
-                           value="{{ selected_employee_name if selected_person_key else (request.args.get('employee_search') or '') }}"
-                           class="search-input">
-
-                    <input type="hidden" id="person_key" name="person_key" value="{{ selected_person_key or '' }}">
-
-                    <div id="search_results" class="search-results"></div>
+<!-- Filter Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title">
+            <i class="fas fa-filter me-2"></i>
+            Filter Options
+        </h5>
+    </div>
+    <div class="card-body">
+        <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-lg-4 col-md-6 col-sm-12">
+                    <label for="employee_search" class="form-label">Select Employee</label>
+                    <div class="searchable-dropdown">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <input type="text"
+                                   id="employee_search"
+                                   name="employee_search"
+                                   placeholder="Type to search employees..."
+                                   autocomplete="off"
+                                   value="{{ selected_employee_name if selected_person_key else (request.args.get('employee_search') or '') }}"
+                                   class="form-control">
+                        </div>
+                        <input type="hidden" id="person_key" name="person_key" value="{{ selected_person_key or '' }}">
+                        <div id="search_results" class="search-results"></div>
+                    </div>
                 </div>
-            </div>
 
-            <div class="form-group-flex">
-                <div>
-                    <label for="start_date">Start Date:</label>
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label for="start_date" class="form-label">Start Date</label>
                     <input type="date"
                            id="start_date"
                            name="start_date"
                            value="{{ start_date or '' }}"
-                           class="form-input">
+                           class="form-control">
                 </div>
 
-                <div>
-                    <label for="end_date">End Date:</label>
+                <div class="col-lg-2 col-md-3 col-sm-6">
+                    <label for="end_date" class="form-label">End Date</label>
                     <input type="date"
                            id="end_date"
                            name="end_date"
                            value="{{ end_date or '' }}"
-                           class="form-input">
+                           class="form-control">
+                </div>
+
+                <div class="col-lg-2 col-md-6 col-sm-6">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Filter
+                    </button>
+                </div>
+
+                <div class="col-lg-2 col-md-6 col-sm-6">
+                    <a id="export-link"
+                       href="{{ url_for('export_employee_logs', person_key=selected_person_key or '') }}"
+                       class="btn btn-success w-100">
+                        <i class="fas fa-download me-1"></i>Export CSV
+                    </a>
                 </div>
             </div>
-
-            <button type="submit" class="apply-filter-button">
-                Filter
-            </button>
-
-            <a id="export-link"
-               href="{{ url_for('export_employee_logs', person_key=selected_person_key or '') }}"
-               class="export-button">
-                <i class="fas fa-file-export"></i> Export to CSV
-            </a>
         </form>
     </div>
+</div>
 
-    {% if start_date and end_date %}
-    <div class="date-range-info">
-        <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
+<!-- Date Range Info -->
+{% if start_date and end_date %}
+<div class="alert alert-info">
+    <i class="fas fa-calendar-alt me-2"></i>
+    <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
+</div>
+{% endif %}
+
+<!-- Results Card -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-clock me-2"></i>
+            Summary Table: {{ selected_employee_name or "All Employees" }}
+            {% if start_date and end_date %}
+            <span class="badge bg-primary ms-2">({{ start_date }} to {{ end_date }})</span>
+            {% endif %}
+        </h5>
     </div>
-    {% endif %}
-
-    <h3 class="section-title">
-        Summary Table: {{ selected_employee_name }}
-        {% if start_date and end_date %}
-        <span class="date-range">({{ start_date }} to {{ end_date }})</span>
-        {% endif %}
-    </h3>
-
-    <div class="logs-container">
+    
+    <div class="card-body">
         {% if logs %}
+        <!-- Pagination Controls -->
+        {% if total_pages > 1 %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted">Total Records: {{ total_logs }}</span>
+            <div class="btn-group">
+                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page - 1) }}"
+                   class="btn btn-outline-primary {% if current_page <= 1 %}disabled{% endif %}">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                <span class="btn btn-outline-secondary disabled">
+                    Page {{ current_page }} of {{ total_pages }}
+                </span>
+                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page + 1) }}"
+                   class="btn btn-outline-primary {% if current_page >= total_pages %}disabled{% endif %}">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
         <table class="data-table">
             <thead>
                 <tr>
@@ -129,8 +169,28 @@
                 {% endfor %}
             </tbody>
         </table>
+
+        <!-- Bottom Pagination -->
+        {% if total_pages > 1 %}
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+            <span class="text-muted">Total Records: {{ total_logs }}</span>
+            <div class="btn-group">
+                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page - 1) }}"
+                   class="btn btn-outline-primary {% if current_page <= 1 %}disabled{% endif %}">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                <span class="btn btn-outline-secondary disabled">
+                    Page {{ current_page }} of {{ total_pages }}
+                </span>
+                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page + 1) }}"
+                   class="btn btn-outline-primary {% if current_page >= total_pages %}disabled{% endif %}">
+                    Next <i class="fas fa-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+        {% endif %}
         {% else %}
-        <p class="no-data">No movement data found for the selected employee/time period (Matching Error possible).</p>
+        <p class="no-data">No movement data found for the selected employee/time period.</p>
         {% endif %}
     </div>
 </div>
@@ -241,8 +301,15 @@
             updateSelectedItem();
         } else if (e.key === 'Enter') {
             e.preventDefault();
+            // Eğer dropdown'dan bir seçim varsa onu kullan
             if (selectedIndex >= 0 && currentResults[selectedIndex]) {
                 selectEmployee(currentResults[selectedIndex].key, currentResults[selectedIndex].name);
+            } else {
+                // Yoksa direkt arama yap
+                const form = document.querySelector('form');
+                if (form) {
+                    form.submit();
+                }
             }
         }
     }
@@ -337,16 +404,117 @@
 </script>
 
 <style>
+/* Employee Logs Modern Styling */
 .employee-name-link {
-    color: #007bff;
+    color: #8B5CF6;
     cursor: pointer;
-    text-decoration: underline;
+    text-decoration: none;
     transition: color 0.2s;
+    font-weight: 500;
 }
 
 .employee-name-link:hover {
-    color: #0056b3;
-    text-decoration: none;
+    color: #7C3AED;
+    text-decoration: underline;
+}
+
+.clickable-row {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clickable-row:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
+}
+
+/* Data Table - Original Style */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.data-table thead th {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    color: white;
+    padding: 15px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.data-table tbody tr:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
+}
+
+.data-table tbody td {
+    padding: 12px 15px;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.na-text {
+    color: #6c757d;
+    font-style: italic;
+}
+
+.inside-text {
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.time-value {
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+}
+
+.status-text {
+    font-weight: 500;
+}
+
+.no-data {
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    padding: 40px 20px;
+}
+
+/* Search Results Dropdown */
+.searchable-dropdown {
+    position: relative;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-result-item {
+    padding: 10px 15px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item.active {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+    color: #8B5CF6;
 }
 </style>
 {% endblock %}

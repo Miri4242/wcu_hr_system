@@ -2,133 +2,456 @@
 
 {% block title %}Tracked Hours{% endblock %}
 
-{% block page_title %}Working Hours Tracking (Daily Duration){% endblock %}
+{% block page_title %}Working Hours Tracking{% endblock %}
 
 {% block content %}
-<div class="hours-tracked-container">
-    <div class="filter-section">
-        <div class="section-title">Filter Options</div>
+<!-- Filter Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title">
+            <i class="fas fa-filter me-2"></i>
+            Filter Options
+        </h5>
+    </div>
+    <div class="card-body">
         <form method="GET" id="hoursFilterForm">
-            <div class="filter-grid">
-                <div class="form-group">
-                    <label for="search_input">Search Employee</label>
-                    <div class="search-container">
-                        <input type="text" id="search_input" name="search" class="search-input"
-                               placeholder="Type employee name..."
-                               value="{{ request.args.get('search', '') }}"
-                               autocomplete="off">
-                        <span class="material-icons search-icon">search</span>
-                        <div id="search-results" class="search-results-container"></div>
+            <div class="row g-3">
+                <!-- Employee Search -->
+                <div class="col-md-6">
+                    <label for="search_input" class="form-label">Search Employee</label>
+                    <div class="searchable-dropdown">
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <i class="fas fa-user"></i>
+                            </span>
+                            <input type="text" id="search_input" name="search" class="form-control"
+                                   placeholder="Type employee name..."
+                                   value="{{ request.args.get('search', '') }}"
+                                   autocomplete="off">
+                        </div>
+                        <div id="search-results" class="search-results"></div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="start_date">Start Date</label>
-                    <input type="date" id="start_date" name="start_date" class="date-input"
+                <!-- Date Range -->
+                <div class="col-md-3">
+                    <label for="start_date" class="form-label">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" class="form-control"
                            value="{{ request.args.get('start_date', '') }}">
-                    <div class="quick-buttons">
-                        <button type="button" class="quick-btn" data-days="7">7 Days</button>
-                        <button type="button" class="quick-btn" data-days="30">30 Days</button>
-                        <button type="button" class="quick-btn" data-month="current">This Month</button>
+                    <div class="mt-2">
+                        <div class="btn-group-vertical w-100" role="group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm quick-btn" data-days="7">Last 7 Days</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm quick-btn" data-days="30">Last 30 Days</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm quick-btn" data-month="current">This Month</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="form-group">
-                    <label for="end_date">End Date</label>
-                    <input type="date" id="end_date" name="end_date" class="date-input"
+                <div class="col-md-3">
+                    <label for="end_date" class="form-label">End Date</label>
+                    <input type="date" id="end_date" name="end_date" class="form-control"
                            value="{{ request.args.get('end_date', '') }}">
-                    <div class="quick-buttons">
-                        <button type="button" class="quick-btn" data-days="-1">Yesterday</button>
-                        <button type="button" class="quick-btn" data-days="0">Today</button>
+                    <div class="mt-2">
+                        <div class="btn-group-vertical w-100" role="group">
+                            <button type="button" class="btn btn-outline-secondary btn-sm quick-btn" data-days="-1">Yesterday</button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm quick-btn" data-days="0">Today</button>
+                        </div>
                     </div>
                 </div>
+            </div>
 
-                <div class="filter-button-wrapper">
-                    <button type="submit" class="filter-button">
-                        <span class="material-icons">search</span>
-                        Show Hours
+            <div class="row mt-4">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-2"></i>Show Hours
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times me-2"></i>Clear Filters
                     </button>
                 </div>
             </div>
         </form>
     </div>
+</div>
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <div class="flash-message">{{ messages[0] }}</div>
-        {% endif %}
-    {% endwith %}
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>{{ messages[0] }}
+        </div>
+    {% endif %}
+{% endwith %}
 
-    <div id="employeeSelectionArea" class="employee-selection-area" style="{% if selected_person_key %}display:none;{% endif %}">
-        <h3>Select an Employee</h3>
-        <p>Search for an employee above to view their tracked working hours</p>
-        <div id="employeeListContainer" class="employee-list"></div>
+<div id="employeeSelectionArea" class="employee-selection-area" style="{% if selected_person_key %}display:none;{% endif %}">
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-user-clock fa-3x text-muted"></i>
+            </div>
+            <h5 class="text-muted">Select an Employee</h5>
+            <p class="text-muted">Search for an employee above to view their tracked working hours</p>
+            <div id="employeeListContainer" class="employee-list mt-4"></div>
+        </div>
     </div>
+</div>
 
-    {% if selected_person_key %}
-    <div class="results-section">
+{% if selected_person_key %}
+<!-- Employee Results Card -->
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="employee-avatar me-3">
+                    {{ selected_employee_name[0].upper() }}
+                </div>
+                <div>
+                    <h5 class="card-title mb-0">{{ selected_employee_name }}</h5>
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>
+                        {{ tracked_data.total_time_str }} Total Working Time
+                    </small>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge bg-primary fs-6 px-3 py-2">
+                    {{ tracked_data.total_time_str }}
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body">
         {% if tracked_data.logs %}
-        <div class="selected-employee-header">
-            <div class="employee-info">
-                <h2 class="employee-name">{{ selected_employee_name }}</h2>
-                <span class="total-time">{{ tracked_data.total_time_str }} <small>Total Working Time</small></span>
+        <!-- Legend -->
+        <div class="legend-box mb-4">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="legend-item">
+                        <div class="legend-color bar-full mb-2"></div>
+                        <small class="text-muted">≥ 8 Hours (Full Day)</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="legend-item">
+                        <div class="legend-color bar-partial mb-2"></div>
+                        <small class="text-muted">< 8 Hours (Partial)</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="legend-item">
+                        <div class="legend-color bar-absent mb-2"></div>
+                        <small class="text-muted">0 Hours (Absent)</small>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="content-area">
-            <div class="legend-box">
-                <span class="legend-title">Daily Time Status:</span>
-                <span class="legend-item">
-                    <div class="legend-color bar-full"></div> ≥ 8 Hours (Full)
-                </span>
-                <span class="legend-item">
-                    <div class="legend-color bar-partial"></div> &lt; 8 Hours (Partial)
-                </span>
-                <span class="legend-item">
-                    <div class="legend-color bar-absent"></div> 0 Hours (Absent)
-                </span>
-            </div>
-
-            <div class="daily-hours-list">
-                {% for log in tracked_data.logs %}
-                <div class="daily-hour-item">
-                    <span class="day-label">{{ log.date }}</span>
-
-                    <div class="progress-wrapper">
-                        {% set max_seconds = 36000 %}
-                        {% set percentage = (log.seconds / max_seconds) * 100 if max_seconds > 0 else 0 %}
-                        {% set percentage_clamped = [100, percentage]|min %}
-
-                        {% if log.status == 'T' %}
-                            {% set bar_class = 'bar-full' %}
-                        {% elif log.status == 'E' %}
-                            {% set bar_class = 'bar-partial' %}
-                        {% else %}
-                            {% set bar_class = 'bar-absent' %}
-                        {% endif %}
-
-                        <div class="hour-bar-container">
-                            <div class="hour-bar {{ bar_class }}" style="width: {{ percentage_clamped }}%;"></div>
+        <!-- Daily Hours List -->
+        <div class="daily-hours-container">
+            {% for log in tracked_data.logs %}
+            <div class="daily-hour-item">
+                <div class="row align-items-center">
+                    <div class="col-md-2">
+                        <div class="day-info">
+                            <div class="day-label">{{ log.date }}</div>
+                            <small class="text-muted">{{ log.date_obj.strftime('%a') if log.date_obj else '' }}</small>
                         </div>
                     </div>
+                    
+                    <div class="col-md-8">
+                        <div class="progress-wrapper">
+                            {% set max_seconds = 36000 %}
+                            {% set percentage = (log.seconds / max_seconds) * 100 if max_seconds > 0 else 0 %}
+                            {% set percentage_clamped = [100, percentage]|min %}
 
-                    <span class="time-value">{{ log.time_str }}</span>
+                            {% if log.status == 'T' %}
+                                {% set bar_class = 'bar-full' %}
+                                {% set status_text = 'Full Day' %}
+                                {% set status_icon = 'fas fa-check-circle' %}
+                            {% elif log.status == 'E' %}
+                                {% set bar_class = 'bar-partial' %}
+                                {% set status_text = 'Partial Day' %}
+                                {% set status_icon = 'fas fa-clock' %}
+                            {% else %}
+                                {% set bar_class = 'bar-absent' %}
+                                {% set status_text = 'Absent' %}
+                                {% set status_icon = 'fas fa-times-circle' %}
+                            {% endif %}
+
+                            <div class="hour-bar-container">
+                                <div class="hour-bar {{ bar_class }}" style="width: {{ percentage_clamped }}%;">
+                                    <span class="bar-text">{{ status_text }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-2 text-end">
+                        <div class="time-info">
+                            <div class="time-value">
+                                <i class="{{ status_icon }} me-1"></i>
+                                {{ log.time_str }}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% endfor %}
             </div>
+            {% endfor %}
         </div>
 
         {% else %}
-        <div class="no-data">
-            <h3>No Data Available</h3>
-            <p>No working hours data found for {{ selected_employee_name }} in the selected period.</p>
+        <div class="text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-calendar-times fa-3x text-muted"></i>
+            </div>
+            <h5 class="text-muted">No Data Available</h5>
+            <p class="text-muted">No working hours data found for {{ selected_employee_name }} in the selected period.</p>
         </div>
         {% endif %}
     </div>
-    {% endif %}
 </div>
+{% endif %}
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+/* Hours Tracked Modern Styling */
+
+/* Search Results Dropdown */
+.searchable-dropdown {
+    position: relative;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+}
+
+.search-result-item {
+    padding: 12px 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+    display: flex;
+    align-items: center;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover,
+.search-result-item.active {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+    color: #8B5CF6;
+    transform: translateX(5px);
+}
+
+.search-result-item::before {
+    content: '\f007';
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    margin-right: 10px;
+    color: #8B5CF6;
+}
+
+/* Employee Avatar */
+.employee-avatar {
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+/* Employee List Cards */
+.employee-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.employee-card {
+    background: white;
+    border: 2px solid rgba(139, 92, 246, 0.1);
+    border-radius: 12px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.employee-card:hover {
+    border-color: #8B5CF6;
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(139, 92, 246, 0.15);
+}
+
+/* Legend */
+.legend-box {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+.legend-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.legend-color {
+    width: 60px;
+    height: 20px;
+    border-radius: 10px;
+    margin: 0 auto;
+}
+
+.legend-color.bar-full {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.legend-color.bar-partial {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+.legend-color.bar-absent {
+    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+}
+
+/* Daily Hours Container */
+.daily-hours-container {
+    padding-right: 10px;
+}
+
+.daily-hour-item {
+    background: white;
+    border: 1px solid rgba(139, 92, 246, 0.1);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.daily-hour-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.1);
+    border-color: rgba(139, 92, 246, 0.2);
+}
+
+.day-info {
+    text-align: center;
+}
+
+.day-label {
+    font-weight: 600;
+    color: #1F2937;
+    font-size: 14px;
+    display: block;
+}
+
+/* Progress Bar */
+.progress-wrapper {
+    position: relative;
+    padding: 10px 0;
+}
+
+.hour-bar-container {
+    background: rgba(229, 231, 235, 0.5);
+    border-radius: 20px;
+    height: 30px;
+    position: relative;
+    overflow: hidden;
+}
+
+.hour-bar {
+    height: 100%;
+    border-radius: 20px;
+    position: relative;
+    transition: all 0.5s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 60px;
+}
+
+.hour-bar.bar-full {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.hour-bar.bar-partial {
+    background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+}
+
+.hour-bar.bar-absent {
+    background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+}
+
+.bar-text {
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Time Info */
+.time-info {
+    text-align: center;
+}
+
+.time-value {
+    font-weight: 600;
+    color: #1F2937;
+    font-size: 14px;
+}
+
+.time-value i {
+    color: #8B5CF6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .employee-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 14px;
+    }
+    
+    .daily-hour-item {
+        padding: 15px;
+    }
+    
+    .hour-bar-container {
+        height: 25px;
+    }
+    
+    .bar-text {
+        font-size: 10px;
+    }
+    
+    .employee-list {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
 <script>
     $(document).ready(function() {
         var searchInput = $('#search_input');
@@ -287,6 +610,12 @@
         endDateInput.on('change', function() {
             $('#hoursFilterForm').submit();
         });
+
+        // Clear filters function
+        window.clearFilters = function() {
+            // URL'den tüm parametreleri temizle ve sayfayı yenile
+            window.location.href = window.location.pathname;
+        };
 
         // Sayfa yüklendiğinde hidden input'u kontrol et
         {% if selected_person_key %}

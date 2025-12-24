@@ -1,307 +1,272 @@
 {% extends "base_page.html" %}
 
 {% block title %}Employees{% endblock %}
-
-{% block page_title %}Employee List{% endblock %}
+{% block page_title %}Employees{% endblock %}
 
 {% block content %}
-<div class="card-large">
-    <div class="header-controls">
-        <div class="header-title">
-            <h3>All Employees</h3>
-            <span class="employee-count">(<span id="employee-count">0</span> found)</span>
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3><i class="fas fa-users me-2"></i>All Employees</h3>
+            <a href="{{ url_for('export_employees') }}" class="btn btn-success">
+                <i class="fas fa-file-export me-2"></i>Export CSV
+            </a>
         </div>
-
-        <div class="search-container" style="display: flex; align-items: center; gap: 10px;">
-            <input type="text" id="employee-search" class="search-input" placeholder="Type to search employee" value="{{ request.args.get('search', '') }}">
-            <span class="material-icons search-icon">search</span>
-            <button id="search-button" class="action-button" style="padding: 8px 16px; min-width: auto;">
-                <i class="fas fa-search"></i> Search
-            </button>
-        </div>
-
-        <a href="{{ url_for('export_employees') }}" class="action-button export-button">
-            <i class="fas fa-file-export"></i> Export to CSV
-        </a>
-    </div>
-
-    <table class="employee-table" id="employees-table">
-        <thead>
-            <tr>
-                <th>Employee</th>
-                <th>Position</th>
-                <th>Email</th>
-                <th>Mobile</th>
-            </tr>
-        </thead>
-        <tbody id="employees-tbody">
-            <!-- İlk yüklemede boş tbody -->
-            <tr>
-                <td colspan="4" class="no-data">Please enter a search term to find employees.</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div id="no-results" class="no-results" style="display: none;">
-        No employees found matching your search criteria.
-    </div>
-
-    <div id="loading-spinner" class="loading-spinner" style="display: none;">
-        <div class="spinner"></div>
-        <span>Loading employees...</span>
     </div>
 </div>
 
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-8">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-search me-2"></i>Search Employees
+                        </label>
+                        <input type="text" 
+                               id="employee-search" 
+                               class="form-control" 
+                               placeholder="Search by name, position, email..."
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                    <div class="col-md-4">
+                        <button id="search-button" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>Search
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Employee List</h5>
+                <div class="badge bg-primary fs-6">
+                    <span id="employee-count">0</span> employees
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <!-- Loading Spinner -->
+                <div id="loading-spinner" class="text-center py-5" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Loading employees...</p>
+                </div>
+
+                <!-- Employee Table -->
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="employees-table">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-3">Employee</th>
+                                <th class="px-4 py-3">Position</th>
+                                <th class="px-4 py-3">Email</th>
+                                <th class="px-4 py-3">Mobile</th>
+                            </tr>
+                        </thead>
+                        <tbody id="employees-tbody">
+                            <tr>
+                                <td colspan="4" class="text-center py-5 text-muted">
+                                    <i class="fas fa-search fa-2x mb-3"></i>
+                                    <p>Please enter a search term to find employees</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- No Results -->
+                <div id="no-results" class="text-center py-5" style="display: none;">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No employees found</h5>
+                    <p class="text-muted">No employees match your search criteria</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
 <script>
-    // Global değişkenler
-    let allEmployees = [];
-    let currentSearchTerm = '';
+let allEmployees = [];
 
-    // Azerbaycan harfleri için normalize fonksiyonu
-    function normalizeAzerbaijani(text) {
-        if (!text) return '';
+function normalizeAzerbaijani(text) {
+    if (!text) return '';
+    const replacements = {
+        'ə': 'e', 'ü': 'u', 'ö': 'o', 'ğ': 'g', 'ş': 's', 'ç': 'c', 'ı': 'i',
+        'Ə': 'E', 'Ü': 'U', 'Ö': 'O', 'Ğ': 'G', 'Ş': 'S', 'Ç': 'C', 'I': 'I'
+    };
+    return text.toLowerCase().replace(/[əüöğşçıƏÜÖĞŞÇI]/g, char => replacements[char] || char);
+}
 
-        const replacements = {
-            'ə': 'e',
-            'ü': 'u',
-            'ö': 'o',
-            'ğ': 'g',
-            'ş': 's',
-            'ç': 'c',
-            'ı': 'i',
-            'Ə': 'E',
-            'Ü': 'U',
-            'Ö': 'O',
-            'Ğ': 'G',
-            'Ş': 'S',
-            'Ç': 'C',
-            'I': 'I'
-        };
+function fetchEmployees(searchTerm = '') {
+    const loadingSpinner = document.getElementById('loading-spinner');
+    const tableBody = document.getElementById('employees-tbody');
+    const noResults = document.getElementById('no-results');
 
-        return text.toLowerCase().replace(/[əüöğşçıƏÜÖĞŞÇI]/g, char => replacements[char] || char);
-    }
+    loadingSpinner.style.display = 'block';
+    tableBody.style.display = 'none';
+    noResults.style.display = 'none';
 
-    function openOutlookWeb(recipientEmail) {
-        const outlookComposeUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(recipientEmail)}`;
-        window.open(outlookComposeUrl, '_blank');
-    }
-
-    function goToEmployeeLogs(employeeName) {
-        window.location.href = "{{ url_for('employee_logs') }}?employee_search=" + encodeURIComponent(employeeName);
-    }
-
-    // Email kısaltma fonksiyonu
-    function truncateEmail(email, maxLength = 35) {
-        if (!email || email === 'N/A') return 'N/A';
-
-        if (email.length <= maxLength) return email;
-
-        return email.substring(0, maxLength) + '...';
-    }
-
-    // AJAX ile çalışanları getir
-    function fetchEmployees(searchTerm = '') {
-        const loadingSpinner = document.getElementById('loading-spinner');
-        const tableBody = document.getElementById('employees-tbody');
-        const noResults = document.getElementById('no-results');
-        const employeeCount = document.getElementById('employee-count');
-
-        loadingSpinner.style.display = 'flex';
-        tableBody.style.display = 'none';
-        noResults.style.display = 'none';
-
-        fetch(`/api/employees_list?search=${encodeURIComponent(searchTerm)}`)
-            .then(response => response.json())
-            .then(data => {
-                allEmployees = data;
-                displayEmployees(searchTerm);
-                loadingSpinner.style.display = 'none';
-            })
-            .catch(error => {
-                console.error('Error fetching employees:', error);
-                loadingSpinner.style.display = 'none';
-                tableBody.innerHTML = '<tr><td colspan="4" class="no-data">Error loading employees. Please try again.</td></tr>';
-                tableBody.style.display = '';
-                employeeCount.textContent = '0';
-            });
-    }
-
-    // Çalışanları görüntüle
-    function displayEmployees(searchTerm) {
-        const tableBody = document.getElementById('employees-tbody');
-        const noResults = document.getElementById('no-results');
-        const employeeCount = document.getElementById('employee-count');
-
-        // Arama terimini normalize et (Azerbaycan harfleri için)
-        const searchTermNormalized = normalizeAzerbaijani(searchTerm).trim();
-
-        let filteredEmployees = allEmployees;
-
-        // Eğer arama terimi varsa filtrele
-        if (searchTermNormalized) {
-            filteredEmployees = allEmployees.filter(emp => {
-                // Tüm alanları birleştir ve normalize et
-                const searchData = normalizeAzerbaijani(
-                    emp.name + ' ' +
-                    emp.last_name + ' ' +
-                    emp.position + ' ' +
-                    emp.email + ' ' +
-                    emp.mobile_phone
-                );
-                return searchData.includes(searchTermNormalized);
-            });
-        }
-
-        // Sonuçları güncelle
-        employeeCount.textContent = filteredEmployees.length;
-
-        if (filteredEmployees.length === 0) {
-            tableBody.style.display = 'none';
-            noResults.style.display = 'block';
-            return;
-        }
-
-        // Tabloyu doldur
-        tableBody.innerHTML = '';
-        filteredEmployees.forEach(employee => {
-            const row = document.createElement('tr');
-            row.className = 'employee-row clickable-row';
-            row.setAttribute('data-employee-name', `${employee.name} ${employee.last_name}`);
-
-            // Email link kontrolü ve kısaltma
-            const emailCell = (employee.email && employee.email !== 'N/A') ?
-                `<a href="#" onclick="openOutlookWeb('${employee.email}'); return false;" class="mail-link" title="Send email to ${employee.name} ${employee.last_name}">${truncateEmail(employee.email)}</a>` :
-                'N/A';
-
-            row.innerHTML = `
-                <td class="employee-name-cell">
-                    <img src="${employee.photo_path}" alt="${employee.name} Photo" class="employee-photo">
-                    ${employee.name} ${employee.last_name}
-                </td>
-                <td class="employee-position">${employee.position}</td>
-                <td>${emailCell}</td>
-                <td class="employee-mobile">${employee.mobile_phone}</td>
-            `;
-
-            // Click event listener ekle
-            row.addEventListener('click', function(e) {
-                if (e.target.tagName === 'A' || e.target.closest('a')) {
-                    return;
-                }
-                goToEmployeeLogs(`${employee.name} ${employee.last_name}`);
-            });
-
-            tableBody.appendChild(row);
-        });
-
-        tableBody.style.display = '';
-        noResults.style.display = 'none';
-    }
-
-    // Arama işlemi
-    function performSearch() {
-        const searchInput = document.getElementById('employee-search');
-        const searchTerm = searchInput.value;
-        currentSearchTerm = searchTerm;
-
-        const url = new URL(window.location);
-        if (searchTerm) {
-            url.searchParams.set('search', searchTerm);
-        } else {
-            url.searchParams.delete('search');
-        }
-        window.history.replaceState({}, '', url);
-
-        if (allEmployees.length === 0 && searchTerm) {
-            // İlk arama - verileri getir
-            fetchEmployees(searchTerm);
-        } else {
-            // Mevcut verilerle filtrele
+    fetch(`/api/employees_list?search=${encodeURIComponent(searchTerm)}`)
+        .then(response => response.json())
+        .then(data => {
+            allEmployees = data;
             displayEmployees(searchTerm);
-        }
+            loadingSpinner.style.display = 'none';
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            loadingSpinner.style.display = 'none';
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error loading employees</td></tr>';
+            tableBody.style.display = '';
+        });
+}
+
+function displayEmployees(searchTerm) {
+    const tableBody = document.getElementById('employees-tbody');
+    const noResults = document.getElementById('no-results');
+    const employeeCount = document.getElementById('employee-count');
+
+    const searchTermNormalized = normalizeAzerbaijani(searchTerm).trim();
+    let filteredEmployees = allEmployees;
+
+    if (searchTermNormalized) {
+        filteredEmployees = allEmployees.filter(emp => {
+            const searchData = normalizeAzerbaijani(
+                emp.name + ' ' + emp.last_name + ' ' + emp.position + ' ' + emp.email + ' ' + emp.mobile_phone
+            );
+            return searchData.includes(searchTermNormalized);
+        });
     }
 
-    document.addEventListener('DOMContentLoaded', function() {
-        const searchInput = document.getElementById('employee-search');
-        const searchButton = document.getElementById('search-button');
-        const tableBody = document.getElementById('employees-tbody');
+    employeeCount.textContent = filteredEmployees.length;
 
-        // URL'den search parametresini al ve otomatik arama yap
-        const urlParams = new URLSearchParams(window.location.search);
-        const searchParam = urlParams.get('search');
+    if (filteredEmployees.length === 0) {
+        tableBody.style.display = 'none';
+        noResults.style.display = 'block';
+        return;
+    }
 
-        if (searchParam && searchParam.trim() !== '') {
-            searchInput.value = searchParam;
-            // Arama yap ve sonuçları göster
-            fetchEmployees(searchParam);
-        } else {
-            // Eğer search parametresi yoksa boş göster
-            tableBody.innerHTML = '<tr><td colspan="4" class="no-data">Please enter a search term to find employees.</td></tr>';
-            tableBody.style.display = '';
-        }
+    tableBody.innerHTML = '';
+    filteredEmployees.forEach(employee => {
+        const row = document.createElement('tr');
+        row.className = 'employee-row';
+        row.style.cursor = 'pointer';
 
-        // Search butonu event listener
-        searchButton.addEventListener('click', function() {
-            performSearch();
+        const emailCell = (employee.email && employee.email !== 'N/A') ?
+            `<a href="mailto:${employee.email}" class="text-decoration-none">
+                <i class="fas fa-envelope me-1"></i>${employee.email}
+            </a>` : '<span class="text-muted">No email</span>';
+
+        const phoneCell = (employee.mobile_phone && employee.mobile_phone !== 'N/A') ?
+            `<a href="tel:${employee.mobile_phone}" class="text-decoration-none">
+                <i class="fas fa-phone me-1"></i>${employee.mobile_phone}
+            </a>` : '<span class="text-muted">No phone</span>';
+
+        row.innerHTML = `
+            <td class="px-4 py-3">
+                <div class="d-flex align-items-center">
+                    <div class="avatar-circle me-3">
+                        ${employee.name[0].toUpperCase()}
+                    </div>
+                    <strong>${employee.name} ${employee.last_name}</strong>
+                </div>
+            </td>
+            <td class="px-4 py-3">
+                <span class="badge bg-info rounded-pill">${employee.position}</span>
+            </td>
+            <td class="px-4 py-3">${emailCell}</td>
+            <td class="px-4 py-3">${phoneCell}</td>
+        `;
+
+        row.addEventListener('click', function(e) {
+            if (e.target.tagName === 'A' || e.target.closest('a')) return;
+            window.location.href = `/employee_logs?employee_search=${encodeURIComponent(employee.name + ' ' + employee.last_name)}`;
         });
 
-        // Enter tuşu için
-        searchInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                performSearch();
-            }
-        });
-
-        // Sayfa yüklendiğinde arama kutusuna odaklan
-        searchInput.focus();
+        tableBody.appendChild(row);
     });
+
+    tableBody.style.display = '';
+    noResults.style.display = 'none';
+}
+
+function performSearch() {
+    const searchInput = document.getElementById('employee-search');
+    const searchTerm = searchInput.value;
+
+    const url = new URL(window.location);
+    if (searchTerm) {
+        url.searchParams.set('search', searchTerm);
+    } else {
+        url.searchParams.delete('search');
+    }
+    window.history.replaceState({}, '', url);
+
+    if (allEmployees.length === 0 && searchTerm) {
+        fetchEmployees(searchTerm);
+    } else {
+        displayEmployees(searchTerm);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('employee-search');
+    const searchButton = document.getElementById('search-button');
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchParam = urlParams.get('search');
+
+    if (searchParam && searchParam.trim() !== '') {
+        searchInput.value = searchParam;
+        fetchEmployees(searchParam);
+    }
+
+    searchButton.addEventListener('click', performSearch);
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            performSearch();
+        }
+    });
+
+    searchInput.focus();
+});
 </script>
 
 <style>
-.loading-spinner {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    color: #666;
-}
-
-.spinner {
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #3498db;
-    border-radius: 50%;
+.avatar-circle {
     width: 40px;
     height: 40px;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.mail-link {
-    display: inline-block;
-    max-width: 250px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    vertical-align: bottom;
-}
-
-.search-container {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
 }
 
-#search-button {
-    padding: 8px 16px;
-    min-width: auto;
-    white-space: nowrap;
+.employee-row:hover {
+    background-color: #f8fafc;
+    transform: scale(1.01);
+    transition: all 0.2s ease;
+}
+
+.table th {
+    background: linear-gradient(135deg, #1f2937, #374151) !important;
+    color: white;
+    border: none;
+    font-weight: 600;
 }
 </style>
 {% endblock %}
