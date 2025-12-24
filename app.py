@@ -2258,7 +2258,20 @@ def admin_edit_user(user_id):
         success, message = update_system_user(user_id, data)
         
         if success:
-            flash(message, 'success')
+            # Eğer düzenlenen kullanıcı şu anda giriş yapmış kullanıcıysa session'ını güncelle
+            if session.get('user', {}).get('id') == user_id:
+                updated_user = get_system_user_by_id(user_id)
+                if updated_user:
+                    session['user'].update({
+                        'full_name': updated_user['full_name'],
+                        'email': updated_user['email'],
+                        'role': updated_user['user_role']
+                    })
+                    flash(f"{message} Your session has been updated with new permissions.", 'success')
+                else:
+                    flash(message, 'success')
+            else:
+                flash(f"{message} The user will need to log out and log back in to see the changes.", 'info')
             return redirect(url_for('admin_users'))
         else:
             flash(message, 'danger')
@@ -2363,6 +2376,26 @@ def admin_add_user():
 def salary():
     if (redirect_response := require_login()): return redirect_response
     return render_template('salary.html')
+
+
+@app.route('/debug/session')
+def debug_session():
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Sadece admin kullanıcılar görebilsin
+    if session.get('user', {}).get('role') != 'admin':
+        flash("Access denied.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    return f"""
+    <h2>Session Debug Info</h2>
+    <p><strong>User ID:</strong> {session.get('user', {}).get('id')}</p>
+    <p><strong>Email:</strong> {session.get('user', {}).get('email')}</p>
+    <p><strong>Full Name:</strong> {session.get('user', {}).get('full_name')}</p>
+    <p><strong>Role:</strong> {session.get('user', {}).get('role')}</p>
+    <p><strong>Full Session:</strong> {dict(session)}</p>
+    <br><a href="{url_for('dashboard')}">Back to Dashboard</a>
+    """
 
 
 @app.route('/logout')
