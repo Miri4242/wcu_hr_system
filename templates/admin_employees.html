@@ -1,0 +1,204 @@
+{% extends "base_page.html" %}
+
+{% block title %}Employee Management{% endblock %}
+{% block page_title %}Employee Management{% endblock %}
+
+{% block content %}
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3><i class="fas fa-user-tie me-2"></i>Employee Management</h3>
+            <a href="{{ url_for('admin') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Admin
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Search Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title">
+            <i class="fas fa-search me-2"></i>
+            Search Employees
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="GET">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <label for="search" class="form-label">Employee Name</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <input type="text" 
+                               id="search" 
+                               name="search" 
+                               class="form-control"
+                               placeholder="Search by name or last name..."
+                               value="{{ request.args.get('search', '') }}">
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-1"></i>Search
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <a href="{{ url_for('admin_employees') }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Employee List
+                        {% if pagination %}
+                        <span class="badge bg-primary ms-2">{{ pagination.total }} found</span>
+                        {% endif %}
+                    </h5>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if employees %}
+                <!-- Pagination Controls -->
+                {% if pagination and pagination.total_pages > 1 %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="text-muted">Total Employees: {{ pagination.total }}</span>
+                    <div class="btn-group">
+                        <a href="{{ url_for('admin_employees', search=request.args.get('search', ''), page=pagination.current_page - 1) }}"
+                           class="btn btn-outline-primary {% if pagination.current_page <= 1 %}disabled{% endif %}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                        <span class="btn btn-outline-secondary disabled">
+                            Page {{ pagination.current_page }} of {{ pagination.total_pages }}
+                        </span>
+                        <a href="{{ url_for('admin_employees', search=request.args.get('search', ''), page=pagination.current_page + 1) }}"
+                           class="btn btn-outline-primary {% if pagination.current_page >= pagination.total_pages %}disabled{% endif %}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Last Name</th>
+                                <th>Position</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for employee in employees %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="employee-avatar me-2">
+                                            {{ employee.name[0].upper() }}
+                                        </div>
+                                        <strong>{{ employee.name }}</strong>
+                                    </div>
+                                </td>
+                                <td><strong>{{ employee.last_name }}</strong></td>
+                                <td>
+                                    <span class="badge bg-info">{{ employee.position }}</span>
+                                </td>
+                                <td>
+                                    {% if employee.email and employee.email != 'N/A' %}
+                                        <a href="mailto:{{ employee.email }}" class="text-decoration-none">
+                                            {{ employee.email }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">No email</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if employee.mobile_phone and employee.mobile_phone != 'N/A' %}
+                                        <a href="tel:{{ employee.mobile_phone }}" class="text-decoration-none">
+                                            {{ employee.mobile_phone }}
+                                        </a>
+                                    {% else %}
+                                        <span class="text-muted">No phone</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('admin_edit_employee', employee_id=employee.id) }}" 
+                                       class="btn btn-sm btn-primary">
+                                        <i class="fas fa-edit me-1"></i>Edit
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Bottom Pagination -->
+                {% if pagination and pagination.total_pages > 1 %}
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                    <span class="text-muted">Total Employees: {{ pagination.total }}</span>
+                    <div class="btn-group">
+                        <a href="{{ url_for('admin_employees', search=request.args.get('search', ''), page=pagination.current_page - 1) }}"
+                           class="btn btn-outline-primary {% if pagination.current_page <= 1 %}disabled{% endif %}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                        <span class="btn btn-outline-secondary disabled">
+                            Page {{ pagination.current_page }} of {{ pagination.total_pages }}
+                        </span>
+                        <a href="{{ url_for('admin_employees', search=request.args.get('search', ''), page=pagination.current_page + 1) }}"
+                           class="btn btn-outline-primary {% if pagination.current_page >= pagination.total_pages %}disabled{% endif %}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-users fa-3x text-muted"></i>
+                    </div>
+                    <h5 class="text-muted">No employees found</h5>
+                    {% if request.args.get('search') %}
+                    <p class="text-muted">No employees found matching "{{ request.args.get('search') }}"</p>
+                    <a href="{{ url_for('admin_employees') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-times me-1"></i>Clear Search
+                    </a>
+                    {% else %}
+                    <p class="text-muted">No employee records available</p>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.employee-avatar {
+    width: 35px;
+    height: 35px;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+</style>
+{% endblock %}

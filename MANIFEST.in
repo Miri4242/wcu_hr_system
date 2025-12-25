@@ -1,0 +1,7 @@
+# Include all template files
+recursive-include templates *.html
+recursive-include static *.css *.js *.svg *.png *.jpg *.gif
+include requirements.txt
+include Procfile
+include runtime.txt
+include .env

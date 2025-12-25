@@ -1,0 +1,83 @@
+{% extends "base_page.html" %}
+
+{% block title %}Admin Panel{% endblock %}
+{% block page_title %}Admin Panel{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Admin Panel</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">Manage system users and employee information</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- User Management -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-users fa-3x text-primary mb-3"></i>
+                <h5>User Management</h5>
+                <p class="text-muted">View, edit and add new system users</p>
+                <a href="{{ url_for('admin_users') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-right me-2"></i>Manage Users
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Management -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body text-center">
+                <i class="fas fa-user-tie fa-3x text-success mb-3"></i>
+                <h5>Employee Management</h5>
+                <p class="text-muted">Edit and manage employee information</p>
+                <a href="{{ url_for('admin_employees') }}" class="btn btn-success">
+                    <i class="fas fa-users me-2"></i>Manage Employees
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('admin_add_user') }}" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-user-plus me-2"></i>Add User
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('attendance') }}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-calendar-check me-2"></i>Attendance
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('employee_logs') }}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-history me-2"></i>Logs
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('hours_tracked') }}" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-clock me-2"></i>Hours
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

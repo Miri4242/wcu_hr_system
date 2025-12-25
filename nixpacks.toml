@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["python311", "pip"]
+
+[phases.install]
+cmds = ["pip install --upgrade pip", "pip install -r requirements.txt --force-reinstall"]
+
+[phases.build]
+cmds = [
+    "echo 'Checking templates directory...'",
+    "ls -la templates/",
+    "echo 'Templates found:'",
+    "find templates/ -name '*.html'",
+    "echo 'Build completed successfully'"
+]
+
+[start]
+cmd = "gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --preload"
