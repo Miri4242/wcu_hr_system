@@ -119,8 +119,11 @@
                                 </td>
                                 <td>
                                     {% if employee.email and employee.email != 'N/A' %}
-                                        <a href="mailto:{{ employee.email }}" class="text-decoration-none">
-                                            {{ employee.email }}
+                                        <a href="https://outlook.live.com/mail/0/deeplink/compose?to={{ employee.email }}&subject=HR System - {{ employee.name }} {{ employee.last_name }}&body=Hello {{ employee.name }},%0D%0A%0D%0A" 
+                                           class="text-decoration-none text-primary" 
+                                           title="Send email to {{ employee.name }}"
+                                           target="_blank">
+                                            <i class="fas fa-envelope me-1"></i>{{ employee.email }}
                                         </a>
                                     {% else %}
                                         <span class="text-muted">No email</span>
@@ -128,8 +131,10 @@
                                 </td>
                                 <td>
                                     {% if employee.mobile_phone and employee.mobile_phone != 'N/A' %}
-                                        <a href="tel:{{ employee.mobile_phone }}" class="text-decoration-none">
-                                            {{ employee.mobile_phone }}
+                                        <a href="tel:{{ employee.mobile_phone }}" 
+                                           class="text-decoration-none text-success" 
+                                           title="Call {{ employee.name }}">
+                                            <i class="fas fa-phone me-1"></i>{{ employee.mobile_phone }}
                                         </a>
                                     {% else %}
                                         <span class="text-muted">No phone</span>
@@ -199,6 +204,31 @@
     color: white;
     font-weight: 600;
     font-size: 14px;
+}
+
+/* Email and Phone Link Styles */
+a[href^="mailto:"] {
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    padding: 4px 8px;
+    display: inline-block;
+}
+
+a[href^="mailto:"]:hover {
+    background-color: rgba(13, 110, 253, 0.1);
+    transform: scale(1.05);
+}
+
+a[href^="tel:"] {
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    padding: 4px 8px;
+    display: inline-block;
+}
+
+a[href^="tel:"]:hover {
+    background-color: rgba(25, 135, 84, 0.1);
+    transform: scale(1.05);
 }
 </style>
 {% endblock %}

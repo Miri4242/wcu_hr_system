@@ -25,7 +25,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, 
+            template_folder='templates',
+            static_folder='static')
 
 # Flask Secret Key
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-fallback-key')
