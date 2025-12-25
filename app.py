@@ -1,3 +1,16 @@
+# Werkzeug compatibility fix for Railway deployment
+import werkzeug
+if not hasattr(werkzeug, '__version__'):
+    try:
+        import importlib.metadata
+        werkzeug.__version__ = importlib.metadata.version('werkzeug')
+    except:
+        try:
+            import pkg_resources
+            werkzeug.__version__ = pkg_resources.get_distribution('werkzeug').version
+        except:
+            werkzeug.__version__ = '3.0.0'
+
 from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response, jsonify
 import psycopg2
 from datetime import datetime, date, timedelta, timezone  # timezone eklendi
