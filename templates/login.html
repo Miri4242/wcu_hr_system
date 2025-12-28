@@ -12,7 +12,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+            background: linear-gradient(135deg, #1E40AF 0%, #DC2626 50%, #059669 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -39,14 +39,22 @@
         }
         
         .logo-icon {
-            width: 70px;
-            height: 70px;
-            background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-            border-radius: 15px;
+            width: 220px;
+            height: 110px;
+            background: none;
+            border: none;
+            border-radius: 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 20px;
+            box-shadow: none;
+        }
+        
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
         }
         
         .logo-icon i {
@@ -59,6 +67,16 @@
             margin-bottom: 8px;
             font-weight: 700;
             font-size: 1.8rem;
+        }
+        
+        .logo .university-name {
+            background: linear-gradient(135deg, #1E40AF 0%, #DC2626 50%, #059669 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 800;
+            font-size: 1.4rem;
+            margin-bottom: 5px;
         }
         
         .logo p {
@@ -91,9 +109,9 @@
         }
         
         .form-control:focus {
-            border-color: #8B5CF6;
+            border-color: #1E40AF;
             outline: none;
-            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
             background: white;
         }
 
@@ -117,7 +135,7 @@
         .btn-login {
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+            background: linear-gradient(135deg, #1E40AF 0%, #DC2626 50%, #059669 100%);
             color: white;
             border: none;
             border-radius: 12px;
@@ -130,7 +148,7 @@
         
         .btn-login:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
+            box-shadow: 0 10px 25px rgba(30, 64, 175, 0.3);
         }
 
         .btn-login:active {
@@ -180,13 +198,13 @@
         }
 
         .forgot-password {
-            color: #8B5CF6;
+            color: #1E40AF;
             text-decoration: none;
             font-weight: 500;
         }
 
         .forgot-password:hover {
-            color: #7C3AED;
+            color: #1E3A8A;
             text-decoration: underline;
         }
 
@@ -232,8 +250,8 @@
             }
             
             .logo-icon {
-                width: 60px;
-                height: 60px;
+                width: 180px;
+                height: 90px;
             }
             
             .logo-icon i {
@@ -247,8 +265,9 @@
         <div class="login-card">
             <div class="logo">
                 <div class="logo-icon">
-                    <i class="fas fa-users"></i>
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Caspian University Logo">
                 </div>
+                <div class="university-name">Western Caspian University</div>
                 <h2>HR System</h2>
                 <p>Welcome back! Please sign in to your account</p>
             </div>

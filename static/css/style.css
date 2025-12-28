@@ -1,22 +1,22 @@
-/* Modern HR System CSS - Purple Theme */
+/* Modern HR System CSS - Caspian University Theme */
 :root {
-    --primary-color: #8B5CF6;
-    --primary-dark: #7C3AED;
-    --primary-light: #A78BFA;
-    --secondary-color: #EC4899;
-    --accent-color: #06B6D4;
+    --primary-color: #1E40AF;
+    --primary-dark: #1E3A8A;
+    --primary-light: #3B82F6;
+    --secondary-color: #DC2626;
+    --accent-color: #059669;
     --success-color: #10B981;
     --warning-color: #F59E0B;
     --danger-color: #EF4444;
     --info-color: #3B82F6;
     --dark-color: #1F2937;
     --light-color: #F8FAFC;
-    --purple-gradient: linear-gradient(135deg, #8B5CF6 0%, #EC4899 50%, #06B6D4 100%);
-    --purple-gradient-soft: linear-gradient(135deg, #F3E8FF 0%, #FCE7F3 50%, #E0F7FA 100%);
+    --caspian-gradient: linear-gradient(135deg, #1E40AF 0%, #DC2626 50%, #059669 100%);
+    --caspian-gradient-soft: linear-gradient(135deg, #EBF4FF 0%, #FEF2F2 50%, #ECFDF5 100%);
     --border-radius: 16px;
-    --shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.1), 0 10px 10px -5px rgba(139, 92, 246, 0.04);
-    --shadow-hover: 0 20px 25px -5px rgba(139, 92, 246, 0.15), 0 10px 10px -5px rgba(139, 92, 246, 0.08);
-    --shadow-purple: 0 10px 30px rgba(139, 92, 246, 0.3);
+    --shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.1), 0 10px 10px -5px rgba(30, 64, 175, 0.04);
+    --shadow-hover: 0 20px 25px -5px rgba(30, 64, 175, 0.15), 0 10px 10px -5px rgba(30, 64, 175, 0.08);
+    --shadow-caspian: 0 10px 30px rgba(30, 64, 175, 0.3);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -29,7 +29,7 @@
 
 body {
     font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background: var(--purple-gradient-soft);
+    background: var(--caspian-gradient-soft);
     color: var(--dark-color);
     line-height: 1.6;
     min-height: 100vh;
@@ -44,9 +44,9 @@ body::before {
     width: 100%;
     height: 100%;
     background: 
-        radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
-        radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+        radial-gradient(circle at 20% 80%, rgba(30, 64, 175, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(220, 38, 38, 0.1) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(5, 150, 105, 0.05) 0%, transparent 50%);
     pointer-events: none;
     z-index: -1;
 }
@@ -99,7 +99,7 @@ p {
 }
 
 .btn-primary {
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
     color: white;
     border: none;
     position: relative;
@@ -174,7 +174,7 @@ p {
     left: 0;
     width: 100%;
     height: 2px;
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
 }
 
 @keyframes fadeInUp {
@@ -271,7 +271,7 @@ p {
 }
 
 .table thead th {
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
     color: white;
     border: none;
     font-weight: 600;
@@ -403,13 +403,13 @@ p {
     left: 0;
     width: 100%;
     height: 3px;
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
 }
 
 .stat-card:hover {
     transform: translateY(-10px) scale(1.02);
-    box-shadow: var(--shadow-purple);
-    border-color: rgba(139, 92, 246, 0.2);
+    box-shadow: var(--shadow-caspian);
+    border-color: rgba(30, 64, 175, 0.2);
 }
 
 .stat-icon {
@@ -437,7 +437,7 @@ p {
 }
 
 .stat-icon.primary {
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
 }
 
 .stat-icon.success {
@@ -681,7 +681,7 @@ p {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
     border-radius: 4px;
 }
 
@@ -691,19 +691,19 @@ p {
 
 /* Utility Classes */
 .text-gradient {
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
     font-weight: 700;
 }
 
-.text-purple {
+.text-caspian {
     color: var(--primary-color);
 }
 
-.bg-gradient-purple {
-    background: var(--purple-gradient);
+.bg-gradient-caspian {
+    background: var(--caspian-gradient);
 }
 
 .shadow-sm {
@@ -718,8 +718,8 @@ p {
     box-shadow: var(--shadow-hover);
 }
 
-.shadow-purple {
-    box-shadow: var(--shadow-purple);
+.shadow-caspian {
+    box-shadow: var(--shadow-caspian);
 }
 
 .rounded {
@@ -770,7 +770,7 @@ p {
     position: absolute;
     inset: 0;
     padding: 2px;
-    background: var(--purple-gradient);
+    background: var(--caspian-gradient);
     border-radius: inherit;
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask-composite: exclude;
@@ -802,7 +802,7 @@ p {
 
 .interactive-card:hover {
     transform: translateY(-8px) scale(1.02);
-    box-shadow: var(--shadow-purple);
+    box-shadow: var(--shadow-caspian);
 }
 
 /* Glowing Button Effect */

@@ -15,22 +15,22 @@
     
     <style>
         :root {
-            --primary-gradient: linear-gradient(135deg, #8B5CF6 0%, #EC4899 50%, #06B6D4 100%);
-            --primary-color: #8B5CF6;
-            --primary-dark: #7C3AED;
-            --secondary-color: #EC4899;
-            --accent-color: #06B6D4;
+            --primary-gradient: linear-gradient(135deg, #1E40AF 0%, #DC2626 50%, #059669 100%);
+            --primary-color: #1E40AF;
+            --primary-dark: #1E3A8A;
+            --secondary-color: #DC2626;
+            --accent-color: #059669;
             --success-gradient: linear-gradient(135deg, #10B981 0%, #059669 100%);
             --warning-gradient: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
             --danger-gradient: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
             --info-gradient: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
             --dark-gradient: linear-gradient(135deg, #1F2937 0%, #374151 100%);
-            --purple-gradient-soft: linear-gradient(135deg, #F3E8FF 0%, #FCE7F3 50%, #E0F7FA 100%);
+            --caspian-gradient-soft: linear-gradient(135deg, #EBF4FF 0%, #FEF2F2 50%, #ECFDF5 100%);
             --sidebar-width: 280px;
             --border-radius: 16px;
-            --shadow: 0 10px 25px -5px rgba(139, 92, 246, 0.1), 0 10px 10px -5px rgba(139, 92, 246, 0.04);
-            --shadow-hover: 0 20px 25px -5px rgba(139, 92, 246, 0.15), 0 10px 10px -5px rgba(139, 92, 246, 0.08);
-            --shadow-purple: 0 10px 30px rgba(139, 92, 246, 0.3);
+            --shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.1), 0 10px 10px -5px rgba(30, 64, 175, 0.04);
+            --shadow-hover: 0 20px 25px -5p rgba(30, 64, 175, 0.15), 0 10px 10px -5px rgba(30, 64, 175, 0.08);
+            --shadow-caspian: 0 10px 30px rgba(30, 64, 175, 0.3);
         }
 
         * {
@@ -41,7 +41,7 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background: var(--purple-gradient-soft);
+            background: var(--caspian-gradient-soft);
             min-height: 100vh;
             color: #1F2937;
             position: relative;
@@ -55,9 +55,9 @@
             width: 100%;
             height: 100%;
             background: 
-                radial-gradient(circle at 20% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 20%, rgba(236, 72, 153, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 40% 40%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+                radial-gradient(circle at 20% 80%, rgba(30, 64, 175, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(220, 38, 38, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(5, 150, 105, 0.05) 0%, transparent 50%);
             pointer-events: none;
             z-index: -1;
         }
@@ -71,7 +71,7 @@
             width: var(--sidebar-width);
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
-            border-right: 1px solid rgba(139, 92, 246, 0.1);
+            border-right: 1px solid rgba(30, 64, 175, 0.1);
             z-index: 1000;
             overflow-y: auto;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -95,17 +95,18 @@
         }
 
         .sidebar-logo {
-            width: 70px;
+            width: 140px;
             height: 70px;
-            background: var(--primary-gradient);
-            border-radius: 20px;
+            background: none;
+            border: none;
+            border-radius: 0;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             margin-bottom: 15px;
             animation: float 3s ease-in-out infinite;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
 
         .sidebar-logo::before {
@@ -129,13 +130,14 @@
         }
 
         .sidebar-title {
-            font-size: 24px;
+            font-size: 16px;
             font-weight: 700;
             background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
             margin-bottom: 5px;
+            line-height: 1.2;
         }
 
         .sidebar-subtitle {
@@ -473,6 +475,7 @@
         @media (max-width: 768px) {
             .sidebar {
                 transform: translateX(-100%);
+                z-index: 1000;
             }
             
             .sidebar.show {
@@ -489,6 +492,14 @@
             
             .top-navbar {
                 padding: 15px;
+            }
+            
+            .page-title {
+                font-size: 1.5rem;
+            }
+            
+            .user-info span {
+                display: none;
             }
         }
 
@@ -533,10 +544,10 @@
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="sidebar-logo">
-                <i class="fas fa-users"></i>
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Caspian University Logo" style="width: 100%; height: 100%; object-fit: contain;">
             </div>
-            <div class="sidebar-title">HR System</div>
-            <div class="sidebar-subtitle">Management Portal</div>
+            <div class="sidebar-title">Western Caspian University</div>
+            <div class="sidebar-subtitle">HR Management System</div>
         </div>
         
         <nav class="sidebar-nav">
@@ -605,7 +616,13 @@
         <!-- Top Navbar -->
         <div class="top-navbar">
             <div class="d-flex justify-content-between align-items-center">
-                <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+                <div class="d-flex align-items-center">
+                    <!-- Mobile Menu Button -->
+                    <button class="btn btn-link d-md-none me-3" id="sidebarToggle" style="color: #1F2937; font-size: 1.5rem;">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
+                </div>
                 {% if session.user %}
                 <div class="user-info">
                     <div class="user-avatar">
@@ -656,6 +673,44 @@
             cards.forEach((card, index) => {
                 card.style.animationDelay = `${index * 0.1}s`;
             });
+        });
+
+        // Mobile Sidebar Toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                    
+                    // Add overlay for mobile
+                    if (sidebar.classList.contains('show')) {
+                        const overlay = document.createElement('div');
+                        overlay.className = 'sidebar-overlay';
+                        overlay.style.cssText = `
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            width: 100%;
+                            height: 100%;
+                            background: rgba(0,0,0,0.5);
+                            z-index: 999;
+                        `;
+                        document.body.appendChild(overlay);
+                        
+                        // Close sidebar when clicking overlay
+                        overlay.addEventListener('click', function() {
+                            sidebar.classList.remove('show');
+                            overlay.remove();
+                        });
+                    } else {
+                        const overlay = document.querySelector('.sidebar-overlay');
+                        if (overlay) overlay.remove();
+                    }
+                });
+            }
         });
     </script>
 
