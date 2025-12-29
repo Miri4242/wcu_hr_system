@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HR System - {% block title %}{% endblock %}</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
-    <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='caspian-university-logo.png') }}">
+    <link rel="alternate icon" href="{{ url_for('static', filename='caspian-university-logo.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='caspian-university-logo.png') }}">
     
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -218,6 +219,23 @@
             font-weight: 700;
             color: #1F2937;
             margin: 0;
+        }
+
+        .navbar-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .navbar-logo-img {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
+            transition: all 0.3s ease;
+        }
+
+        .navbar-logo-img:hover {
+            transform: scale(1.05);
         }
 
         .user-info {
@@ -498,6 +516,10 @@
                 font-size: 1.5rem;
             }
             
+            .navbar-logo-img {
+                height: 32px;
+            }
+            
             .user-info span {
                 display: none;
             }
@@ -621,6 +643,10 @@
                     <button class="btn btn-link d-md-none me-3" id="sidebarToggle" style="color: #1F2937; font-size: 1.5rem;">
                         <i class="fas fa-bars"></i>
                     </button>
+                    <!-- Navbar Logo -->
+                    <div class="navbar-logo me-3">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="Western Caspian University" class="navbar-logo-img">
+                    </div>
                     <h1 class="page-title">{% block page_title %}{% endblock %}</h1>
                 </div>
                 {% if session.user %}
@@ -673,7 +699,36 @@
             cards.forEach((card, index) => {
                 card.style.animationDelay = `${index * 0.1}s`;
             });
+
+            // Optimize Cloudinary images
+            optimizeCloudinaryImages();
         });
+
+        // Cloudinary image optimization
+        function optimizeCloudinaryImages() {
+            const images = document.querySelectorAll('img[src*="cloudinary.com"]');
+            images.forEach(img => {
+                const originalSrc = img.src;
+                if (originalSrc && !originalSrc.includes('/c_fill,')) {
+                    // Determine size based on image class
+                    let transformation = 'c_fill,w_200,h_200,q_auto:good,f_auto,dpr_auto';
+                    
+                    if (img.classList.contains('employee-photo')) {
+                        transformation = 'c_fill,w_80,h_80,q_auto:good,f_auto,dpr_auto';
+                    } else if (img.classList.contains('employee-photo-large')) {
+                        transformation = 'c_fill,w_160,h_160,q_auto:good,f_auto,dpr_auto';
+                    } else if (img.classList.contains('profile-photo-lg')) {
+                        transformation = 'c_fill,w_160,h_160,q_auto:good,f_auto,dpr_auto';
+                    }
+                    
+                    const optimizedSrc = originalSrc.replace(
+                        '/upload/',
+                        `/upload/${transformation}/`
+                    );
+                    img.src = optimizedSrc;
+                }
+            });
+        }
 
         // Mobile Sidebar Toggle
         document.addEventListener('DOMContentLoaded', function() {

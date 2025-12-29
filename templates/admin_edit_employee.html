@@ -63,6 +63,28 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Employee Photo</label>
+                            <div class="photo-upload-section">
+                                <div class="current-photo mb-2">
+                                    <img id="currentPhoto" src="{{ employee.photo_path or '/static/images/default_avatar.png' }}" 
+                                         alt="Current Photo" class="img-thumbnail" style="max-width: 100px; max-height: 100px;">
+                                </div>
+                                <input type="file" id="photoUpload" class="form-control" accept="image/*">
+                                <input type="hidden" name="photo_url" id="photoUrl" value="{{ employee.photo_path or '' }}">
+                                <div id="uploadProgress" class="mt-2" style="display: none;">
+                                    <div class="progress">
+                                        <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                                    </div>
+                                    <small class="text-muted">Uploading photo...</small>
+                                </div>
+                                <div id="uploadError" class="mt-2 text-danger" style="display: none;"></div>
+                                <small class="form-text text-muted">Select an image file to upload to Cloudinary</small>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
                         <strong>Info:</strong> Employee hired on {{ employee.hire_date }}, current position: {{ employee.position_name }}
@@ -81,4 +103,163 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Cloudinary Upload Widget -->
+<script src="https://upload-widget.cloudinary.com/global/all.js" type="text/javascript"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const photoUpload = document.getElementById('photoUpload');
+    const currentPhoto = document.getElementById('currentPhoto');
+    const photoUrl = document.getElementById('photoUrl');
+    const uploadProgress = document.getElementById('uploadProgress');
+    const uploadError = document.getElementById('uploadError');
+    const progressBar = uploadProgress.querySelector('.progress-bar');
+
+    // Cloudinary configuration
+    const cloudName = 'dbc6revtz';
+    const uploadPreset = 'hr_proyekti';
+
+    // Optimize existing Cloudinary URLs
+    function optimizeCloudinaryUrl(url) {
+        if (url && url.includes('cloudinary.com')) {
+            return url.replace(
+                '/upload/',
+                '/upload/c_fill,w_200,h_200,q_auto:good,f_auto,dpr_auto/'
+            );
+        }
+        return url;
+    }
+
+    // Optimize current photo if it's a Cloudinary URL
+    if (currentPhoto.src && currentPhoto.src.includes('cloudinary.com')) {
+        const optimizedSrc = optimizeCloudinaryUrl(currentPhoto.src);
+        currentPhoto.src = optimizedSrc;
+        if (photoUrl.value && photoUrl.value.includes('cloudinary.com')) {
+            photoUrl.value = optimizedSrc;
+        }
+    }
+
+    photoUpload.addEventListener('change', function(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            showError('Please select a valid image file.');
+            return;
+        }
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            showError('File size must be less than 10MB.');
+            return;
+        }
+
+        uploadToCloudinary(file);
+    });
+
+    function uploadToCloudinary(file) {
+        hideError();
+        showProgress();
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', uploadPreset);
+        formData.append('cloud_name', cloudName);
+        
+        // Add employee ID to public_id for organization
+        const employeeId = '{{ employee.id }}';
+        formData.append('public_id', `hr_system/employees/employee_${employeeId}_${Date.now()}`);
+
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', function(e) {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progressBar.style.width = percentComplete + '%';
+                progressBar.textContent = Math.round(percentComplete) + '%';
+            }
+        });
+
+        xhr.addEventListener('load', function() {
+            hideProgress();
+            
+            if (xhr.status === 200) {
+                try {
+                    const response = JSON.parse(xhr.responseText);
+                    if (response.secure_url) {
+                        // Create optimized URL with Cloudinary transformations
+                        const optimizedUrl = response.secure_url.replace(
+                            '/upload/',
+                            '/upload/c_fill,w_200,h_200,q_auto:good,f_auto,dpr_auto/'
+                        );
+                        
+                        // Update the hidden input with the optimized Cloudinary URL
+                        photoUrl.value = optimizedUrl;
+                        
+                        // Update the preview image
+                        currentPhoto.src = optimizedUrl;
+                        
+                        // Show success message
+                        showSuccess('Photo uploaded successfully!');
+                    } else {
+                        showError('Upload failed: Invalid response from Cloudinary.');
+                    }
+                } catch (e) {
+                    showError('Upload failed: Invalid response format.');
+                }
+            } else {
+                showError('Upload failed: ' + xhr.statusText);
+            }
+        });
+
+        xhr.addEventListener('error', function() {
+            hideProgress();
+            showError('Upload failed: Network error occurred.');
+        });
+
+        // Send the request to Cloudinary
+        xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`);
+        xhr.send(formData);
+    }
+
+    function showProgress() {
+        uploadProgress.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressBar.textContent = '0%';
+    }
+
+    function hideProgress() {
+        uploadProgress.style.display = 'none';
+    }
+
+    function showError(message) {
+        uploadError.textContent = message;
+        uploadError.style.display = 'block';
+        setTimeout(hideError, 5000);
+    }
+
+    function hideError() {
+        uploadError.style.display = 'none';
+    }
+
+    function showSuccess(message) {
+        // Create a temporary success message
+        const successDiv = document.createElement('div');
+        successDiv.className = 'mt-2 text-success';
+        successDiv.textContent = message;
+        uploadError.parentNode.insertBefore(successDiv, uploadError.nextSibling);
+        
+        setTimeout(() => {
+            if (successDiv.parentNode) {
+                successDiv.parentNode.removeChild(successDiv);
+            }
+        }, 3000);
+    }
+});
+</script>
 {% endblock %}

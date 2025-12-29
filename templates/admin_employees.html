@@ -107,9 +107,19 @@
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
+                                        {% if employee.photo_path %}
+                                        <img src="{{ employee.photo_path }}" 
+                                             alt="{{ employee.name }} Photo" 
+                                             class="employee-photo me-2"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                        <div class="employee-avatar me-2" style="display: none;">
+                                            {{ employee.name[0].upper() }}
+                                        </div>
+                                        {% else %}
                                         <div class="employee-avatar me-2">
                                             {{ employee.name[0].upper() }}
                                         </div>
+                                        {% endif %}
                                         <strong>{{ employee.name }}</strong>
                                     </div>
                                 </td>
@@ -121,9 +131,16 @@
                                     {% if employee.email and employee.email != 'N/A' %}
                                         <a href="https://outlook.live.com/mail/0/deeplink/compose?to={{ employee.email }}&subject=HR System - {{ employee.name }} {{ employee.last_name }}&body=Hello {{ employee.name }},%0D%0A%0D%0A" 
                                            class="text-decoration-none text-primary" 
-                                           title="Send email to {{ employee.name }}"
+                                           title="{{ employee.email }}"
                                            target="_blank">
-                                            <i class="fas fa-envelope me-1"></i>{{ employee.email }}
+                                            <i class="fas fa-envelope me-1"></i>
+                                            <span class="truncated-text">
+                                                {% if employee.email|length > 25 %}
+                                                    {{ employee.email[:25] }}...
+                                                {% else %}
+                                                    {{ employee.email }}
+                                                {% endif %}
+                                            </span>
                                         </a>
                                     {% else %}
                                         <span class="text-muted">No email</span>
@@ -133,8 +150,15 @@
                                     {% if employee.mobile_phone and employee.mobile_phone != 'N/A' %}
                                         <a href="tel:{{ employee.mobile_phone }}" 
                                            class="text-decoration-none text-success" 
-                                           title="Call {{ employee.name }}">
-                                            <i class="fas fa-phone me-1"></i>{{ employee.mobile_phone }}
+                                           title="{{ employee.mobile_phone }}">
+                                            <i class="fas fa-phone me-1"></i>
+                                            <span class="truncated-text">
+                                                {% if employee.mobile_phone|length > 10 %}
+                                                    {{ employee.mobile_phone[:10] }}...
+                                                {% else %}
+                                                    {{ employee.mobile_phone }}
+                                                {% endif %}
+                                            </span>
                                         </a>
                                     {% else %}
                                         <span class="text-muted">No phone</span>
@@ -204,6 +228,25 @@
     color: white;
     font-weight: 600;
     font-size: 14px;
+}
+
+.employee-photo {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #e5e7eb;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+.truncated-text {
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
 }
 
 /* Email and Phone Link Styles */

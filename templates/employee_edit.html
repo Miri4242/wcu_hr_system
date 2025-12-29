@@ -61,6 +61,22 @@
         object-fit: cover;
         margin-right: 20px;
         border: 3px solid #007bff;
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+    .profile-avatar-fallback {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        font-size: 24px;
+        margin-right: 20px;
+        border: 3px solid #007bff;
     }
 </style>
 
@@ -74,7 +90,17 @@
     {% endwith %}
 
     <div class="profile-header">
-        <img src="{{ employee.photo_path }}" alt="{{ employee.name }} Photo" class="profile-photo-lg">
+        {% if employee.photo_path %}
+        <img src="{{ employee.photo_path }}" alt="{{ employee.name }} Photo" class="profile-photo-lg"
+             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+        <div class="profile-avatar-fallback" style="display: none;">
+            {{ employee.name[0].upper() }}
+        </div>
+        {% else %}
+        <div class="profile-avatar-fallback">
+            {{ employee.name[0].upper() }}
+        </div>
+        {% endif %}
         <div>
             <h4>{{ employee.name }} {{ employee.last_name }}</h4>
             <p class="text-muted" style="margin: 0;">{{ employee.position_name }} (ID: {{ employee.id }})</p>

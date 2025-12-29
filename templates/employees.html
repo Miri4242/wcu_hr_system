@@ -59,26 +59,9 @@
                     <p class="mt-2 text-muted">Loading employees...</p>
                 </div>
 
-                <!-- Employee Table -->
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0" id="employees-table">
-                        <thead>
-                            <tr>
-                                <th class="px-4 py-3">Employee</th>
-                                <th class="px-4 py-3">Position</th>
-                                <th class="px-4 py-3">Email</th>
-                                <th class="px-4 py-3">Mobile</th>
-                            </tr>
-                        </thead>
-                        <tbody id="employees-tbody">
-                            <tr>
-                                <td colspan="4" class="text-center py-5 text-muted">
-                                    <i class="fas fa-search fa-2x mb-3"></i>
-                                    <p>Please enter a search term to find employees</p>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Employee Cards Grid -->
+                <div id="employees-grid" class="row g-4" style="display: none;">
+                    <!-- Employee cards will be populated here by JavaScript -->
                 </div>
 
                 <!-- No Results -->
@@ -108,11 +91,11 @@ function normalizeAzerbaijani(text) {
 
 function fetchEmployees(searchTerm = '') {
     const loadingSpinner = document.getElementById('loading-spinner');
-    const tableBody = document.getElementById('employees-tbody');
+    const employeesGrid = document.getElementById('employees-grid');
     const noResults = document.getElementById('no-results');
 
     loadingSpinner.style.display = 'block';
-    tableBody.style.display = 'none';
+    employeesGrid.style.display = 'none';
     noResults.style.display = 'none';
 
     fetch(`/api/employees_list?search=${encodeURIComponent(searchTerm)}`)
@@ -125,83 +108,97 @@ function fetchEmployees(searchTerm = '') {
         .catch(error => {
             console.error('Error:', error);
             loadingSpinner.style.display = 'none';
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-danger">Error loading employees</td></tr>';
-            tableBody.style.display = '';
+            employeesGrid.innerHTML = '<div class="col-12"><div class="alert alert-danger text-center">Error loading employees</div></div>';
+            employeesGrid.style.display = '';
         });
 }
 
 function displayEmployees(searchTerm) {
-    const tableBody = document.getElementById('employees-tbody');
+    const employeesGrid = document.getElementById('employees-grid');
     const noResults = document.getElementById('no-results');
     const employeeCount = document.getElementById('employee-count');
 
-    const searchTermNormalized = normalizeAzerbaijani(searchTerm).trim();
-    let filteredEmployees = allEmployees;
-
-    if (searchTermNormalized) {
-        filteredEmployees = allEmployees.filter(emp => {
-            const searchData = normalizeAzerbaijani(
-                emp.name + ' ' + emp.last_name + ' ' + emp.position + ' ' + emp.email + ' ' + emp.mobile_phone
-            );
-            return searchData.includes(searchTermNormalized);
-        });
-    }
+    // Backend'den gelen data zaten filtrelenmiş
+    const filteredEmployees = allEmployees;
 
     employeeCount.textContent = filteredEmployees.length;
 
     if (filteredEmployees.length === 0) {
-        tableBody.style.display = 'none';
+        employeesGrid.style.display = 'none';
         noResults.style.display = 'block';
         return;
     }
 
-    tableBody.innerHTML = '';
+    employeesGrid.innerHTML = '';
     filteredEmployees.forEach(employee => {
-        const row = document.createElement('tr');
-        row.className = 'employee-row';
-        row.style.cursor = 'pointer';
+        const card = document.createElement('div');
+        card.className = 'col-lg-4 col-md-6 col-sm-12';
 
         const emailCell = (employee.email && employee.email !== 'N/A') ?
             `<a href="https://outlook.live.com/mail/0/deeplink/compose?to=${employee.email}&subject=HR System - ${employee.name} ${employee.last_name}&body=Hello ${employee.name},%0D%0A%0D%0A" 
-                class="text-decoration-none text-primary" 
+                class="text-decoration-none text-primary employee-contact-link" 
                 title="Send email to ${employee.name}"
                 target="_blank">
                 <i class="fas fa-envelope me-1"></i>${employee.email}
-            </a>` : '<span class="text-muted">No email</span>';
+            </a>` : '<span class="text-muted"><i class="fas fa-envelope-slash me-1"></i>No email</span>';
 
         const phoneCell = (employee.mobile_phone && employee.mobile_phone !== 'N/A') ?
             `<a href="tel:${employee.mobile_phone}" 
-                class="text-decoration-none text-success" 
+                class="text-decoration-none text-success employee-contact-link" 
                 title="Call ${employee.name}">
                 <i class="fas fa-phone me-1"></i>${employee.mobile_phone}
-            </a>` : '<span class="text-muted">No phone</span>';
+            </a>` : '<span class="text-muted"><i class="fas fa-phone-slash me-1"></i>No phone</span>';
 
-        row.innerHTML = `
-            <td class="px-4 py-3">
-                <div class="d-flex align-items-center">
-                    <div class="avatar-circle me-3">
-                        ${employee.name[0].toUpperCase()}
+        card.innerHTML = `
+            <div class="employee-card" onclick="navigateToEmployee('${employee.name} ${employee.last_name}')">
+                <div class="employee-card-header">
+                    <div class="employee-photo-container">
+                        ${employee.photo_path ? 
+                            `<img src="${employee.photo_path}" 
+                                 alt="${employee.name} Photo" 
+                                 class="employee-photo-large"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                             <div class="employee-avatar-large" style="display: none;">
+                                 ${employee.name[0].toUpperCase()}
+                             </div>` :
+                            `<div class="employee-avatar-large">
+                                 ${employee.name[0].toUpperCase()}
+                             </div>`
+                        }
                     </div>
-                    <strong>${employee.name} ${employee.last_name}</strong>
+                    <div class="employee-status">
+                        <span class="badge bg-info position-badge">${employee.position}</span>
+                    </div>
                 </div>
-            </td>
-            <td class="px-4 py-3">
-                <span class="badge bg-info rounded-pill">${employee.position}</span>
-            </td>
-            <td class="px-4 py-3">${emailCell}</td>
-            <td class="px-4 py-3">${phoneCell}</td>
+                <div class="employee-card-body">
+                    <h5 class="employee-name">${employee.name} ${employee.last_name}</h5>
+                    <div class="employee-contacts">
+                        <div class="contact-item">
+                            ${emailCell}
+                        </div>
+                        <div class="contact-item">
+                            ${phoneCell}
+                        </div>
+                    </div>
+                </div>
+                <div class="employee-card-footer">
+                    <small class="text-muted">
+                        <i class="fas fa-calendar-plus me-1"></i>
+                        Joined ${employee.hire_date}
+                    </small>
+                </div>
+            </div>
         `;
 
-        row.addEventListener('click', function(e) {
-            if (e.target.tagName === 'A' || e.target.closest('a')) return;
-            window.location.href = `/employee_logs?employee_search=${encodeURIComponent(employee.name + ' ' + employee.last_name)}`;
-        });
-
-        tableBody.appendChild(row);
+        employeesGrid.appendChild(card);
     });
 
-    tableBody.style.display = '';
+    employeesGrid.style.display = '';
     noResults.style.display = 'none';
+}
+
+function navigateToEmployee(employeeName) {
+    window.location.href = `/employee_logs?employee_search=${encodeURIComponent(employeeName)}`;
 }
 
 function performSearch() {
@@ -216,11 +213,8 @@ function performSearch() {
     }
     window.history.replaceState({}, '', url);
 
-    if (allEmployees.length === 0 && searchTerm) {
-        fetchEmployees(searchTerm);
-    } else {
-        displayEmployees(searchTerm);
-    }
+    // Her arama için API'ye git (backend filtreleme için)
+    fetchEmployees(searchTerm);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -230,11 +224,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const urlParams = new URLSearchParams(window.location.search);
     const searchParam = urlParams.get('search');
 
+    // Her zaman API'den veri çek
     if (searchParam && searchParam.trim() !== '') {
         searchInput.value = searchParam;
         fetchEmployees(searchParam);
+    } else {
+        fetchEmployees(''); // Boş arama = tüm employees
     }
 
+    // SADECE Enter veya Search butonuna basınca arama yap
     searchButton.addEventListener('click', performSearch);
     searchInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
@@ -248,55 +246,239 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-.avatar-circle {
-    width: 40px;
-    height: 40px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
+/* Modern Employee Cards */
+.employee-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.employee-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    border-color: rgba(139, 92, 246, 0.3);
+}
+
+.employee-card-header {
+    position: relative;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 25px 20px 20px;
+    text-align: center;
+}
+
+.employee-photo-container {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 15px;
+}
+
+.employee-photo-large {
+    width: 80px;
+    height: 80px;
     border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+.employee-avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
     display: flex;
     align-items: center;
     justify-content: center;
     color: white;
+    font-weight: 700;
+    font-size: 28px;
+    border: 4px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.employee-status {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+}
+
+.position-badge {
+    background: rgba(255, 255, 255, 0.9) !important;
+    color: #1F2937 !important;
     font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.employee-card-body {
+    padding: 20px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.employee-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1F2937;
+    margin-bottom: 15px;
+    text-align: center;
+    line-height: 1.3;
+}
+
+.employee-contacts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: rgba(139, 92, 246, 0.05);
+    border-radius: 10px;
+    transition: all 0.2s ease;
     font-size: 14px;
 }
 
-.employee-row:hover {
-    background-color: #f8fafc;
-    transform: scale(1.01);
-    transition: all 0.2s ease;
+.contact-item:hover {
+    background: rgba(139, 92, 246, 0.1);
+    transform: translateX(5px);
 }
 
-.table th {
-    background: linear-gradient(135deg, #1f2937, #374151) !important;
-    color: white;
-    border: none;
-    font-weight: 600;
+.employee-contact-link {
+    color: inherit !important;
+    text-decoration: none !important;
+    display: flex;
+    align-items: center;
+    width: 100%;
 }
 
-/* Email and Phone Link Styles */
-a[href^="mailto:"] {
-    transition: all 0.3s ease;
-    border-radius: 6px;
-    padding: 4px 8px;
-    display: inline-block;
+.employee-contact-link:hover {
+    color: #8B5CF6 !important;
 }
 
-a[href^="mailto:"]:hover {
-    background-color: rgba(13, 110, 253, 0.1);
-    transform: scale(1.05);
+.employee-card-footer {
+    padding: 15px 20px;
+    background: rgba(139, 92, 246, 0.03);
+    border-top: 1px solid rgba(139, 92, 246, 0.1);
+    text-align: center;
 }
 
-a[href^="tel:"] {
-    transition: all 0.3s ease;
-    border-radius: 6px;
-    padding: 4px 8px;
-    display: inline-block;
+/* Loading and No Results */
+#loading-spinner {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-a[href^="tel:"]:hover {
-    background-color: rgba(25, 135, 84, 0.1);
-    transform: scale(1.05);
+#no-results {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 60px 40px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
+
+/* Search and Filter Cards */
+.card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .employee-card-header {
+        padding: 20px 15px 15px;
+    }
+    
+    .employee-photo-large,
+    .employee-avatar-large {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .employee-avatar-large {
+        font-size: 20px;
+    }
+    
+    .employee-name {
+        font-size: 1.1rem;
+    }
+    
+    .employee-card-body {
+        padding: 15px;
+    }
+    
+    .contact-item {
+        font-size: 13px;
+        padding: 6px 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .employee-photo-large,
+    .employee-avatar-large {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .employee-avatar-large {
+        font-size: 18px;
+    }
+    
+    .employee-name {
+        font-size: 1rem;
+    }
+}
+
+/* Animation */
+.employee-card {
+    animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Staggered animation for cards */
+.employee-card:nth-child(1) { animation-delay: 0.1s; }
+.employee-card:nth-child(2) { animation-delay: 0.2s; }
+.employee-card:nth-child(3) { animation-delay: 0.3s; }
+.employee-card:nth-child(4) { animation-delay: 0.4s; }
+.employee-card:nth-child(5) { animation-delay: 0.5s; }
+.employee-card:nth-child(6) { animation-delay: 0.6s; }
 </style>
 {% endblock %}

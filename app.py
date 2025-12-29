@@ -350,7 +350,8 @@ def get_employee_list():
                            p.email,
                            p.birthday,
                            pp.name       AS position_name,
-                           p.create_time AS hire_date
+                           p.create_time AS hire_date,
+                           p.photo_path
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE (pp.name IS NULL
@@ -372,7 +373,8 @@ def get_employee_list():
                 'email': row[4] or 'N/A',
                 'birthday': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
                 'position': row[6] or 'Undefined',
-                'hire_date': row[7].strftime('%d.%m.%Y') if row[7] else 'N/A'
+                'hire_date': row[7].strftime('%d.%m.%Y') if row[7] else 'N/A',
+                'photo_path': row[8] or ''
             })
         return employees
     except psycopg2.Error as e:
@@ -399,7 +401,8 @@ def get_employee_details(employee_id):
                            p.birthday,
                            pp.name       AS position_name,
                            p.position_id,
-                           p.create_time AS hire_date
+                           p.create_time AS hire_date,
+                           p.photo_path
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE (pp.name IS NULL 
@@ -423,7 +426,8 @@ def get_employee_details(employee_id):
                 'birthday_display': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
                 'position_name': row[6] or 'Undefined',
                 'position_id': row[7],
-                'hire_date': row[8].strftime('%d.%m.%Y') if row[8] else 'N/A'
+                'hire_date': row[8].strftime('%d.%m.%Y') if row[8] else 'N/A',
+                'photo_path': row[9] or ''
             }
         return None
     except psycopg2.Error as e:
@@ -462,24 +466,47 @@ def update_employee_details(employee_id, data):
     birthday_value = birthday_str if birthday_str else None
 
     try:
-        cur.execute("""
-                    UPDATE public.pers_person
-                    SET name         = %s,
-                        last_name    = %s,
-                        mobile_phone = %s,
-                        email        = %s,
-                        birthday     = %s,
-                        position_id  = %s
-                    WHERE id = %s;
-                    """, (
-            data.get('name'),
-            data.get('last_name'),
-            data.get('mobile_phone'),
-            data.get('email'),
-            birthday_value,
-            data.get('position_id'),
-            employee_id
-        ))
+        # Check if photo_url is provided and update accordingly
+        if data.get('photo_url'):
+            cur.execute("""
+                        UPDATE public.pers_person
+                        SET name         = %s,
+                            last_name    = %s,
+                            mobile_phone = %s,
+                            email        = %s,
+                            birthday     = %s,
+                            position_id  = %s,
+                            photo_path   = %s
+                        WHERE id = %s;
+                        """, (
+                data.get('name'),
+                data.get('last_name'),
+                data.get('mobile_phone'),
+                data.get('email'),
+                birthday_value,
+                data.get('position_id'),
+                data.get('photo_url'),
+                employee_id
+            ))
+        else:
+            cur.execute("""
+                        UPDATE public.pers_person
+                        SET name         = %s,
+                            last_name    = %s,
+                            mobile_phone = %s,
+                            email        = %s,
+                            birthday     = %s,
+                            position_id  = %s
+                        WHERE id = %s;
+                        """, (
+                data.get('name'),
+                data.get('last_name'),
+                data.get('mobile_phone'),
+                data.get('email'),
+                birthday_value,
+                data.get('position_id'),
+                employee_id
+            ))
         conn.commit()
         return True, "Employee details successfully updated."
     except psycopg2.Error as e:
@@ -1460,62 +1487,54 @@ def get_dashboard_data():
         # BAKU TIME FIX: date.today() -> get_current_baku_time().date()
         today_date = get_current_baku_time().date()
 
-        # 1. Total Employees
-        cur.execute("""SELECT COUNT(*)
-                       FROM public.pers_person p
-                                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                       WHERE pp.name IS NULL
-                          OR (pp.name NOT ILIKE 'STUDENT' 
-                              AND pp.name NOT ILIKE 'VISITOR'
-                              AND pp.name NOT ILIKE 'MÜƏLLİM')""")
-        data['total_employees'] = cur.fetchone()[0]
-
-        # 2. Total Departments
-        cur.execute("SELECT COUNT(*) FROM public.auth_department")
-        data['total_departments'] = cur.fetchone()[0]
-
-        # 3. Today's Total Transactions
-        cur.execute("""SELECT COUNT(t.*)
-                       FROM public.acc_transaction t
-                                INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
-                                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                       WHERE DATE (t.create_time) = %s 
-                         AND (pp.name IS NULL 
-                              OR (pp.name NOT ILIKE 'student' 
-                                  AND pp.name NOT ILIKE 'visitor'
-                                  AND pp.name NOT ILIKE 'müəllim'))""",
-                    (today_date,))
-        data['total_transactions'] = cur.fetchone()[0]
-
-        # 4. New Employees This Month
-        cur.execute("""SELECT COUNT(p.*)
-                       FROM public.pers_person p
-                                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                       WHERE date_trunc('month', p.create_time) = date_trunc('month', NOW())
-                         AND (pp.name IS NULL 
-                              OR (pp.name NOT ILIKE 'student' 
-                                  AND pp.name NOT ILIKE 'visitor'
-                                  AND pp.name NOT ILIKE 'müəllim'))""")
-        data['new_employees_this_month'] = cur.fetchone()[0]
-
-        # 5. Employees Present Today
+        # OPTIMIZED: Single query for basic stats
         cur.execute("""
-                    SELECT COUNT(DISTINCT (t.name, t.last_name))
-                    FROM public.acc_transaction t
-                             INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
-                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE DATE (t.create_time) = %s
-                      AND t.reader_name ILIKE '%%-in%%'
-                      AND (pp.name IS NULL
-                       OR (pp.name NOT ILIKE 'student' 
-                           AND pp.name NOT ILIKE 'visitor'
-                           AND pp.name NOT ILIKE 'müəllim'))
-                    """, (today_date,))
-        data['present_employees_count'] = cur.fetchone()[0]
+            WITH employee_stats AS (
+                SELECT 
+                    COUNT(*) as total_employees,
+                    COUNT(CASE WHEN date_trunc('month', p.create_time) = date_trunc('month', NOW()) THEN 1 END) as new_this_month
+                FROM public.pers_person p
+                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                WHERE pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR' AND pp.name NOT ILIKE 'MÜƏLLİM')
+            ),
+            transaction_stats AS (
+                SELECT 
+                    COUNT(*) as total_transactions,
+                    COUNT(DISTINCT CASE WHEN t.reader_name ILIKE '%%-in%%' THEN (t.name, t.last_name) END) as present_count
+                FROM public.acc_transaction t
+                INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                WHERE DATE(t.create_time) = %s 
+                AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor' AND pp.name NOT ILIKE 'müəllim'))
+            ),
+            department_stats AS (
+                SELECT COUNT(*) as total_departments FROM public.auth_department
+            )
+            SELECT 
+                es.total_employees,
+                es.new_this_month,
+                ts.total_transactions,
+                ts.present_count,
+                ds.total_departments
+            FROM employee_stats es, transaction_stats ts, department_stats ds
+        """, (today_date,))
+        
+        stats = cur.fetchone()
+        if stats:
+            data['total_employees'] = stats[0] or 0
+            data['new_employees_this_month'] = stats[1] or 0
+            data['total_transactions'] = stats[2] or 0
+            data['present_employees_count'] = stats[3] or 0
+            data['total_departments'] = stats[4] or 0
+            
+            # Calculate attendance percentage
+            if data['total_employees'] > 0:
+                percentage = (data['present_employees_count'] / data['total_employees']) * 100
+                data['attendance_percentage'] = round(percentage, 2)
 
-        # 6. ABSENT EMPLOYEES
+        # OPTIMIZED: Load absent employees with LIMIT for performance
         cur.execute("""
-                    SELECT p.name, p.last_name, pp.name as position_name
+                    SELECT p.name, p.last_name, pp.name as position_name, p.photo_path
                     FROM public.pers_person p
                     LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE (pp.name IS NULL 
@@ -1530,104 +1549,83 @@ def get_dashboard_data():
                         AND DATE(t.create_time) = %s
                     )
                     ORDER BY p.last_name, p.name
+                    LIMIT 50
                     """, (today_date,))
 
         absent_employees_raw = cur.fetchall()
         absent_list = []
-        for name, last_name, position in absent_employees_raw:
+        for name, last_name, position, photo_path in absent_employees_raw:
             absent_list.append({
                 'full_name': f"{name} {last_name}",
-                'position': position or 'Undefined'
+                'position': position or 'Undefined',
+                'photo_path': photo_path or ''
             })
         data['absent_employees'] = absent_list
 
-        # 7. LATE EMPLOYEES
+        # BASIT LATE EMPLOYEES: First IN 09:30'dan geç olanlar
         cur.execute("""
             SELECT 
-                p.name,
-                p.last_name,
+                p.name, 
+                p.last_name, 
                 p.id as person_id,
                 MIN(t.create_time) as first_in_time,
-                pae.attr_value4 as expected_time
+                p.photo_path
             FROM public.pers_person p
-            LEFT JOIN public.pers_attribute_ext pae ON p.id = pae.person_id
             INNER JOIN public.acc_transaction t ON t.name = p.name AND t.last_name = p.last_name
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
             WHERE DATE(t.create_time) = %s
-              AND pae.attr_value4 IS NOT NULL
-              AND t.reader_name ILIKE '%%-in%%'
-              AND (pp.name IS NULL 
-                   OR (pp.name NOT ILIKE 'student' 
-                       AND pp.name NOT ILIKE 'visitor'
-                       AND pp.name NOT ILIKE 'müəllim'))
-            GROUP BY p.name, p.last_name, p.id, pae.attr_value4
-            HAVING MIN(t.create_time) IS NOT NULL
-            ORDER BY p.last_name, p.name
-        """, (today_date,))
+              AND (t.reader_name ILIKE '%%1%%' OR t.reader_name ILIKE '%%2%%')
+              AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor' AND pp.name NOT ILIKE 'müəllim'))
+            GROUP BY p.name, p.last_name, p.id, p.photo_path
+            HAVING MIN(t.create_time) > %s
+            ORDER BY MIN(t.create_time) DESC
+            LIMIT 30
+        """, (today_date, datetime.combine(today_date, datetime.min.time()).replace(hour=9, minute=30)))
 
         late_employees_raw = cur.fetchall()
         late_list = []
 
-        for name, last_name, person_id, first_in_time, expected_time_str in late_employees_raw:
-            if expected_time_str:
-                try:
-                    time_parts = expected_time_str.strip().split()
-                    if len(time_parts) >= 2:
-                        expected_hour = int(time_parts[0])
-                        expected_minute = int(time_parts[1])
-
-                        expected_datetime = datetime.combine(today_date, datetime.min.time()).replace(
-                            hour=expected_hour, minute=expected_minute
-                        )
-
-                        late_minutes = (first_in_time - expected_datetime).total_seconds() / 60
-
-                        if late_minutes > 30:
-                            expected_time_display = f"{expected_hour:02d}:{expected_minute:02d}"
-                            late_list.append({
-                                'full_name': f"{name} {last_name}",
-                                'person_id': person_id,
-                                'expected_time': expected_time_display,
-                                'arrival_time': first_in_time.strftime('%H:%M'),
-                                'late_minutes': int(late_minutes)
-                            })
-                except (ValueError, IndexError) as e:
-                    print(f"⚠ Beklenen zaman format hatası: {expected_time_str} - {e}")
-                    continue
+        try:
+            for name, last_name, person_id, first_in_time, photo_path in late_employees_raw:
+                # 09:30'dan ne kadar geç
+                expected_time = datetime.combine(today_date, datetime.min.time()).replace(hour=9, minute=30)
+                late_minutes = (first_in_time - expected_time).total_seconds() / 60
+                
+                late_list.append({
+                    'full_name': f"{name} {last_name}",
+                    'person_id': person_id,
+                    'expected_time': "09:30",
+                    'arrival_time': first_in_time.strftime('%H:%M'),
+                    'late_minutes': int(late_minutes),
+                    'photo_path': photo_path or ''
+                })
+        except Exception as e:
+            print(f"🚨 Late employees processing error: {e}")
+            late_list = []
 
         data['late_employees'] = late_list
 
-        # Attendance Percentage
-        total = data['total_employees']
-        present = data['present_employees_count']
-
-        if total > 0:
-            percentage = (present / total) * 100
-            data['attendance_percentage'] = round(percentage, 2)
-
-        # 8. Birthdays Today
-        # BAKU TIME FIX: datetime.now().strftime -> get_current_baku_time().strftime
+        # OPTIMIZED: Load birthdays with LIMIT
         today_m_d = get_current_baku_time().strftime('%m-%d')
         cur.execute("""
-                    SELECT p.id, p.name, p.last_name, p.birthday, pp.name as position_name
+                    SELECT p.id, p.name, p.last_name, p.birthday, pp.name as position_name, p.photo_path
                     FROM public.pers_person p
-                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                    LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE TO_CHAR(p.birthday, 'MM-DD') = %s
-                      AND (pp.name IS NULL 
-                           OR (pp.name NOT ILIKE 'student' 
-                               AND pp.name NOT ILIKE 'visitor'
-                               AND pp.name NOT ILIKE 'müəllim'))
-                    ORDER BY p.last_name, p.name;
+                      AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor' AND pp.name NOT ILIKE 'müəllim'))
+                    ORDER BY p.last_name, p.name
+                    LIMIT 20
                     """, (today_m_d,))
 
         today_birthdays_raw = cur.fetchall()
         birthday_list = []
-        for id_val, name, last_name_val, birthday_date, position_name in today_birthdays_raw:
-            birth_date_str = birthday_date.strftime('%d.%m.%Y') if isinstance(birthday_date,
-                                                                              (datetime, date)) else 'N/A'
-            birthday_list.append(
-                {'person_id': id_val, 'name': name, 'surname': last_name_val, 'position': position_name,
-                 'birth_date_str': birth_date_str})
+        for id_val, name, last_name_val, birthday_date, position_name, photo_path in today_birthdays_raw:
+            birth_date_str = birthday_date.strftime('%d.%m.%Y') if isinstance(birthday_date, (datetime, date)) else 'N/A'
+            birthday_list.append({
+                'person_id': id_val, 'name': name, 'surname': last_name_val, 
+                'position': position_name, 'birth_date_str': birth_date_str, 
+                'photo_path': photo_path or ''
+            })
         data['today_birthdays'] = birthday_list
 
     except psycopg2.Error as e:
@@ -2337,7 +2335,8 @@ def admin_edit_employee(employee_id):
             'mobile_phone': request.form.get('mobile_phone'),
             'email': request.form.get('email'),
             'birthday': request.form.get('birthday'),
-            'position_id': request.form.get('position_id')
+            'position_id': request.form.get('position_id'),
+            'photo_url': request.form.get('photo_url')
         }
         
         success, message = update_employee_details(employee_id, data)

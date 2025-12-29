@@ -76,9 +76,19 @@
                                 style="cursor: pointer;">
                                 <td>
                                     <div class="d-flex align-items-center">
+                                        {% if employee.photo_path %}
+                                        <img src="{{ employee.photo_path }}" 
+                                             alt="{{ employee.full_name }} Photo" 
+                                             class="employee-photo bg-danger me-2"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <div class="employee-avatar bg-danger me-2" style="display: none;">
+                                            {{ employee.full_name[0].upper() }}
+                                        </div>
+                                        {% else %}
                                         <div class="employee-avatar bg-danger me-2">
                                             {{ employee.full_name[0].upper() }}
                                         </div>
+                                        {% endif %}
                                         <strong>{{ employee.full_name }}</strong>
                                     </div>
                                 </td>
@@ -129,9 +139,19 @@
                                 style="cursor: pointer;">
                                 <td>
                                     <div class="d-flex align-items-center">
+                                        {% if employee.photo_path %}
+                                        <img src="{{ employee.photo_path }}" 
+                                             alt="{{ employee.full_name }} Photo" 
+                                             class="employee-photo bg-warning me-2"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                        <div class="employee-avatar bg-warning me-2" style="display: none;">
+                                            {{ employee.full_name[0].upper() }}
+                                        </div>
+                                        {% else %}
                                         <div class="employee-avatar bg-warning me-2">
                                             {{ employee.full_name[0].upper() }}
                                         </div>
+                                        {% endif %}
                                         <div class="employee-name-compact">{{ employee.full_name }}</div>
                                     </div>
                                 </td>
@@ -225,9 +245,19 @@
                     {% for employee in data.today_birthdays %}
                     <div class="birthday-item">
                         <div class="d-flex align-items-center">
+                            {% if employee.photo_path %}
+                            <img src="{{ employee.photo_path }}" 
+                                 alt="{{ employee.name }} Photo" 
+                                 class="employee-photo bg-info me-3"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <div class="employee-avatar bg-info me-3" style="display: none;">
+                                {{ employee.name[0].upper() }}
+                            </div>
+                            {% else %}
                             <div class="employee-avatar bg-info me-3">
                                 {{ employee.name[0].upper() }}
                             </div>
+                            {% endif %}
                             <div>
                                 <div class="fw-bold">{{ employee.name }} {{ employee.surname }}</div>
                                 <small class="text-muted">{{ employee.position or 'Employee' }}</small>
@@ -353,6 +383,16 @@ document.addEventListener('DOMContentLoaded', function() {
     color: white;
     font-weight: 600;
     font-size: 12px;
+}
+
+.employee-photo {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid white;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
 }
 
 /* Stat card height consistency */

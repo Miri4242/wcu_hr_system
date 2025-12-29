@@ -400,13 +400,11 @@
     max-width: 110px;
 }
 
-/* Table Container */
+/* Table Container - Scroll kaldırıldı */
 .table-responsive {
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-height: 75vh;
-    overflow-y: auto;
-    overflow-x: hidden !important;
+    overflow: visible !important;
     position: relative;
     width: 100% !important;
     max-width: 100% !important;
@@ -430,27 +428,7 @@
     border-left: 2px solid rgba(139, 92, 246, 0.4);
 }
 
-/* Scrollbar */
-.table-responsive::-webkit-scrollbar {
-    width: 6px;
-    height: 0 !important;
-}
-
-.table-responsive::-webkit-scrollbar-track {
-    background: rgba(139, 92, 246, 0.1);
-    border-radius: 3px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-    border-radius: 3px;
-}
-
-/* Force no horizontal scroll */
-.table-responsive {
-    scrollbar-width: thin;
-    scrollbar-color: #8B5CF6 rgba(139, 92, 246, 0.1);
-}
+/* Scrollbar ayarları kaldırıldı */
 
 .attendance-table {
     width: 100% !important;
@@ -881,22 +859,20 @@
     max-width: 100px;
 }
 
-/* Container optimizations - Yatay kaydırma tamamen kapalı */
+/* Container optimizations - Scroll kaldırıldı */
 .table-responsive {
     border-radius: 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-height: 75vh;
-    overflow-y: auto;
-    overflow-x: hidden !important;
+    overflow: visible !important;
     position: relative;
     width: 100%;
     max-width: 100vw;
     box-sizing: border-box;
 }
 
-/* Tablo wrapper için ek güvenlik */
+/* Tablo wrapper için normal akış */
 .card-body {
-    overflow-x: hidden !important;
+    overflow: visible !important;
     padding: 15px 10px;
 }
 
@@ -1074,40 +1050,12 @@
         max-width: 70px;
     }
 }
-        height: 8px;
-        font-size: 4px;
-    }
-    
-    .name-cell {
-        width: 80px;
-        min-width: 80px;
-        max-width: 80px;
-    }
-    
-    .employee-avatar {
-        width: 16px;
-        height: 16px;
-        font-size: 6px;
-    }
-    
-    .day-header {
-        font-size: 6px;
-    }
-    
-    .day-header strong {
-        font-size: 7px;
-    }
-    
-    .attendance-table {
-        font-size: 7px;
-    }
-}
 
-@media (max-width: 768px) {
+@media (max-width: 480px) {
     .status-cell {
-        width: calc((100vw - 300px) / 31);
+        width: calc((100vw - 150px) / 31);
         min-width: 8px;
-        max-width: 14px;
+        max-width: 12px;
     }
     
     .status-indicator {
@@ -1141,38 +1089,7 @@
     }
 }
 
-/* Custom scrollbar - sadece dikey */
-.table-responsive::-webkit-scrollbar {
-    width: 4px;
-    height: 0 !important; /* Yatay scrollbar tamamen kapalı */
-}
-
-.table-responsive::-webkit-scrollbar-track {
-    background: rgba(139, 92, 246, 0.05);
-    border-radius: 2px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-    border-radius: 2px;
-}
-
-.table-responsive::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #7C3AED 0%, #DB2777 100%);
-}
-
-/* Yatay scrollbar tamamen kaldırıldı */
-.table-responsive::-webkit-scrollbar:horizontal {
-    display: none !important;
-}
-
-/* Firefox için yatay scrollbar kaldırma */
-.table-responsive {
-    scrollbar-width: thin;
-    scrollbar-color: #8B5CF6 rgba(139, 92, 246, 0.05);
-    overflow-x: hidden !important;
-    overflow-y: auto;
-}
+/* Scrollbar ayarları kaldırıldı - artık ayrı scroll yok */
 
 /* Tablo genişliği sabit tutma */
 .attendance-table {
