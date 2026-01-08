@@ -130,9 +130,19 @@
                             <a href="{{ url_for('employees') }}?search={{ log.name | urlencode }}"
                                class="employee-name-link text-decoration-none">
                                 <div class="d-flex align-items-center">
-                                    <div class="employee-avatar me-2">
-                                        {{ log.name[0].upper() }}
-                                    </div>
+                                    {% if log.photo_path %}
+                                        <img src="{{ log.photo_path }}" 
+                                             alt="{{ log.name }} Photo" 
+                                             class="employee-photo me-2"
+                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';">
+                                        <div class="employee-avatar me-2" style="display: none;">
+                                            {{ log.name[0].upper() }}
+                                        </div>
+                                    {% else %}
+                                        <div class="employee-avatar me-2">
+                                            {{ log.name[0].upper() }}
+                                        </div>
+                                    {% endif %}
                                     <strong>{{ log.name }}</strong>
                                 </div>
                             </a>
@@ -377,6 +387,15 @@
     font-size: 10px;
     flex-shrink: 0;
     margin-right: 6px;
+}
+
+.employee-photo {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid rgba(139, 92, 246, 0.2);
 }
 
 .employee-name-link {
@@ -930,6 +949,11 @@
         font-size: 9px;
     }
     
+    .employee-photo {
+        width: 20px;
+        height: 20px;
+    }
+    
     .attendance-table {
         font-size: 11px;
     }
@@ -993,6 +1017,11 @@
         font-size: 8px;
     }
     
+    .employee-photo {
+        width: 18px;
+        height: 18px;
+    }
+    
     .day-header {
         font-size: 8px;
         height: 40px;
@@ -1031,6 +1060,11 @@
         width: 16px;
         height: 16px;
         font-size: 7px;
+    }
+    
+    .employee-photo {
+        width: 16px;
+        height: 16px;
     }
     
     .day-header {
@@ -1074,6 +1108,11 @@
         width: 14px;
         height: 14px;
         font-size: 5px;
+    }
+    
+    .employee-photo {
+        width: 14px;
+        height: 14px;
     }
     
     .day-header {

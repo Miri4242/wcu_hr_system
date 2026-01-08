@@ -26,22 +26,30 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">First Name *</label>
-                            <input type="text" name="name" class="form-control" value="{{ employee.name }}" required>
+                            <input type="text" name="name" class="form-control" value="{{ employee.name }}" 
+                                   required maxlength="200">
+                            <div class="form-text">Maximum 200 characters</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Last Name *</label>
-                            <input type="text" name="last_name" class="form-control" value="{{ employee.last_name }}" required>
+                            <input type="text" name="last_name" class="form-control" value="{{ employee.last_name }}" 
+                                   required maxlength="200">
+                            <div class="form-text">Maximum 200 characters</div>
                         </div>
                     </div>
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" value="{{ employee.email }}">
+                            <input type="email" name="email" class="form-control" value="{{ employee.email }}" 
+                                   maxlength="500">
+                            <div class="form-text">Maximum 500 characters</div>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Mobile Phone</label>
-                            <input type="tel" name="mobile_phone" class="form-control" value="{{ employee.mobile_phone }}">
+                            <input type="tel" name="mobile_phone" class="form-control" value="{{ employee.mobile_phone }}" 
+                                   maxlength="100">
+                            <div class="form-text">Maximum 100 characters</div>
                         </div>
                     </div>
 
@@ -117,6 +125,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const uploadProgress = document.getElementById('uploadProgress');
     const uploadError = document.getElementById('uploadError');
     const progressBar = uploadProgress.querySelector('.progress-bar');
+
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const name = document.querySelector('input[name="name"]').value;
+        const lastName = document.querySelector('input[name="last_name"]').value;
+        const email = document.querySelector('input[name="email"]').value;
+        const phone = document.querySelector('input[name="mobile_phone"]').value;
+        
+        let errors = [];
+        
+        if (name.length > 255) errors.push('First name cannot exceed 255 characters.');
+        if (lastName.length > 255) errors.push('Last name cannot exceed 255 characters.');
+        if (email.length > 500) errors.push('Email cannot exceed 500 characters.');
+        if (phone.length > 100) errors.push('Mobile phone cannot exceed 100 characters.');
+        
+        if (errors.length > 0) {
+            e.preventDefault();
+            alert('Validation errors:\n' + errors.join('\n'));
+            return false;
+        }
+    });
 
     // Cloudinary configuration
     const cloudName = 'dbc6revtz';

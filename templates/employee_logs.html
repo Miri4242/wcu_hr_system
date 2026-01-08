@@ -132,7 +132,8 @@
                 <tr class="clickable-row">
                     <td>{{ log.date }}</td>
                     <td class="employee-name-cell"
-                        data-employee-name="{{ log.name }} {{ log.last_name }}">
+                        data-employee-name="{{ log.name }} {{ log.last_name }}"
+                        data-log-date="{{ log.date }}">
                         <span class="employee-name-link">{{ log.name }} {{ log.last_name }}</span>
                     </td>
                     <td>{{ log.first_in }}</td>
@@ -195,6 +196,59 @@
     </div>
 </div>
 
+<!-- Employee Action Modal -->
+<div class="modal fade" id="employeeActionModal" tabindex="-1" aria-labelledby="employeeActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-primary text-white">
+                <h5 class="modal-title" id="employeeActionModalLabel">
+                    <i class="fas fa-user me-2"></i>
+                    <span id="modalEmployeeName">Employee Options</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <p class="mb-3">
+                        What would you like to do for <strong id="modalEmployeeNameText">Employee</strong> on 
+                        <strong id="modalDateText">date</strong>?
+                    </p>
+                </div>
+                
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="action-card" id="viewDetailsCard">
+                            <div class="action-icon bg-primary">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div class="action-content">
+                                <h6>Detailed Entry/Exit</h6>
+                                <p>View all entry/exit times for this day</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="action-card" id="viewEmployeeCard">
+                            <div class="action-icon bg-success">
+                                <i class="fas fa-user-edit"></i>
+                            </div>
+                            <div class="action-content">
+                                <h6>Employee Profile</h6>
+                                <p>View and edit employee information</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     // Global değişkenler
     let searchInput, personKeyInput, searchResults, exportLink, startDateInput, endDateInput;
@@ -204,6 +258,35 @@
     function goToEmployees(employeeName) {
         // Employees sayfasına git ve arama kutusunda bu ismi ara
         window.location.href = "{{ url_for('employees') }}?search=" + encodeURIComponent(employeeName);
+    }
+
+    function goToEmployeeDetails(employeeName, logDate) {
+        // Employee daily details sayfasına git
+        window.location.href = "{{ url_for('employee_daily_details', employee_name='EMPLOYEE_NAME', log_date='LOG_DATE') }}"
+            .replace('EMPLOYEE_NAME', encodeURIComponent(employeeName))
+            .replace('LOG_DATE', encodeURIComponent(logDate));
+    }
+
+    function showEmployeeActionModal(employeeName, logDate) {
+        // Modal içeriğini güncelle
+        document.getElementById('modalEmployeeName').textContent = employeeName;
+        document.getElementById('modalEmployeeNameText').textContent = employeeName;
+        document.getElementById('modalDateText').textContent = logDate;
+        
+        // Modal'ı göster
+        const modal = new bootstrap.Modal(document.getElementById('employeeActionModal'));
+        modal.show();
+        
+        // Action card click handlers
+        document.getElementById('viewDetailsCard').onclick = function() {
+            modal.hide();
+            goToEmployeeDetails(employeeName, logDate);
+        };
+        
+        document.getElementById('viewEmployeeCard').onclick = function() {
+            modal.hide();
+            goToEmployees(employeeName);
+        };
     }
 
     function performSearch(query) {
@@ -348,7 +431,8 @@
             link.addEventListener('click', function(e) {
                 e.stopPropagation();
                 const employeeName = this.textContent.trim();
-                goToEmployees(employeeName);
+                const logDate = this.closest('.employee-name-cell').getAttribute('data-log-date');
+                showEmployeeActionModal(employeeName, logDate);
             });
         });
 
@@ -356,10 +440,11 @@
         document.querySelectorAll('.clickable-row').forEach(row => {
             row.addEventListener('click', function(e) {
                 if (!e.target.classList.contains('employee-name-link') && !e.target.closest('.employee-name-link')) {
-                    const employeeNameCell = this.querySelector('.employee-name-link');
+                    const employeeNameCell = this.querySelector('.employee-name-cell');
                     if (employeeNameCell) {
-                        const employeeName = employeeNameCell.textContent.trim();
-                        goToEmployees(employeeName);
+                        const employeeName = employeeNameCell.getAttribute('data-employee-name');
+                        const logDate = employeeNameCell.getAttribute('data-log-date');
+                        showEmployeeActionModal(employeeName, logDate);
                     }
                 }
             });
@@ -515,6 +600,72 @@
 .search-result-item.active {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
     color: #8B5CF6;
+}
+
+/* Modal Styles */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+}
+
+.action-card {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: white;
+    border: 2px solid rgba(139, 92, 246, 0.1);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.action-card:hover {
+    border-color: #8B5CF6;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
+}
+
+.action-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: white;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.action-content h6 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.action-content p {
+    margin: 0;
+    font-size: 14px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+.modal-content {
+    border: none;
+    border-radius: 16px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px 16px 0 0;
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(139, 92, 246, 0.1);
+    border-radius: 0 0 16px 16px;
 }
 </style>
 {% endblock %}

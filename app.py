@@ -460,14 +460,60 @@ def update_employee_details(employee_id, data):
     if conn is None:
         return False, "Database connection error."
 
+    # Veri doğrulaması ve kısıtlamaları - daha esnek limitler
+    validation_errors = []
+    
+    # Debug: Hangi alanların ne kadar uzun olduğunu göster
+    field_lengths = {}
+    for key, value in data.items():
+        if value and isinstance(value, str):
+            field_lengths[key] = len(value)
+    
+    print(f"🔍 Field lengths: {field_lengths}")
+    
+    # Alan uzunluk kontrolleri (veritabanı VARCHAR(200) sınırına göre)
+    if data.get('name') and len(data.get('name')) > 200:
+        validation_errors.append(f"Name is too long ({len(data.get('name'))} chars, max 200).")
+    
+    if data.get('last_name') and len(data.get('last_name')) > 200:
+        validation_errors.append(f"Last name is too long ({len(data.get('last_name'))} chars, max 200).")
+    
+    if data.get('mobile_phone') and len(data.get('mobile_phone')) > 200:
+        validation_errors.append(f"Mobile phone is too long ({len(data.get('mobile_phone'))} chars, max 200).")
+    
+    if data.get('email') and len(data.get('email')) > 200:
+        validation_errors.append(f"Email is too long ({len(data.get('email'))} chars, max 200).")
+    
+    if data.get('photo_url') and len(data.get('photo_url')) > 1000:
+        validation_errors.append(f"Photo URL is too long ({len(data.get('photo_url'))} chars, max 1000).")
+    
+    # Eğer doğrulama hataları varsa
+    if validation_errors:
+        return False, "Validation errors: " + "; ".join(validation_errors)
+
     cur = conn.cursor()
 
     birthday_str = data.get('birthday')
     birthday_value = birthday_str if birthday_str else None
 
     try:
+        # Veritabanı sütun sınırlarına göre verileri kısalt
+        name = data.get('name', '')[:200] if data.get('name') else None
+        last_name = data.get('last_name', '')[:200] if data.get('last_name') else None
+        mobile_phone = data.get('mobile_phone', '')[:200] if data.get('mobile_phone') else None
+        email = data.get('email', '')[:200] if data.get('email') else None
+        photo_url = data.get('photo_url', '')[:1000] if data.get('photo_url') else None
+        
+        print(f"🔧 Processing update for employee {employee_id}")
+        print(f"📝 Data lengths after truncation:")
+        print(f"   name: {len(name) if name else 0}")
+        print(f"   last_name: {len(last_name) if last_name else 0}")
+        print(f"   email: {len(email) if email else 0}")
+        print(f"   mobile_phone: {len(mobile_phone) if mobile_phone else 0}")
+        print(f"   photo_url: {len(photo_url) if photo_url else 0}")
+        
         # Check if photo_url is provided and update accordingly
-        if data.get('photo_url'):
+        if photo_url:
             cur.execute("""
                         UPDATE public.pers_person
                         SET name         = %s,
@@ -479,13 +525,13 @@ def update_employee_details(employee_id, data):
                             photo_path   = %s
                         WHERE id = %s;
                         """, (
-                data.get('name'),
-                data.get('last_name'),
-                data.get('mobile_phone'),
-                data.get('email'),
+                name,
+                last_name,
+                mobile_phone,
+                email,
                 birthday_value,
                 data.get('position_id'),
-                data.get('photo_url'),
+                photo_url,
                 employee_id
             ))
         else:
@@ -499,20 +545,31 @@ def update_employee_details(employee_id, data):
                             position_id  = %s
                         WHERE id = %s;
                         """, (
-                data.get('name'),
-                data.get('last_name'),
-                data.get('mobile_phone'),
-                data.get('email'),
+                name,
+                last_name,
+                mobile_phone,
+                email,
                 birthday_value,
                 data.get('position_id'),
                 employee_id
             ))
         conn.commit()
+        print(f"✅ Employee {employee_id} updated successfully")
         return True, "Employee details successfully updated."
     except psycopg2.Error as e:
         conn.rollback()
         print(f"🚨 Employee Update Error: {e}")
-        return False, f"Update error: {e}"
+        error_msg = str(e)
+        
+        # Kullanıcı dostu hata mesajları
+        if "value too long" in error_msg:
+            return False, f"Database field limit exceeded. Error: {error_msg}"
+        elif "duplicate key" in error_msg:
+            return False, "Email address already exists. Please use a different email."
+        elif "invalid input syntax" in error_msg:
+            return False, "Invalid data format. Please check your input."
+        else:
+            return False, f"Update error: {error_msg}"
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -1304,7 +1361,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
         # 1. Fetch all employees (FILTERED)
         if search_term:
             cur.execute("""
-                        SELECT p.id, p.name, p.last_name, pp.name AS position_name
+                        SELECT p.id, p.name, p.last_name, pp.name AS position_name, p.photo_path
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                         WHERE (pp.name IS NULL 
@@ -1317,7 +1374,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
                         """, (f'%{search_term.lower()}%', f'%{search_term.lower()}%', f'%{search_term.lower()}%'))
         else:
             cur.execute("""
-                        SELECT p.id, p.name, p.last_name, pp.name AS position_name
+                        SELECT p.id, p.name, p.last_name, pp.name AS position_name, p.photo_path
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                         WHERE pp.name IS NULL
@@ -1329,11 +1386,11 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
 
         person_data = cur.fetchall()
 
-        for id_val, name, last_name, position_name in person_data:
+        for id_val, name, last_name, position_name, photo_path in person_data:
             key = normalize_name(name) + normalize_name(last_name)
             full_name = f"{name} {last_name}"
             employee_list.append(
-                {'key': key, 'id': id_val, 'name': name, 'last_name': last_name, 'full_name': full_name})
+                {'key': key, 'id': id_val, 'name': name, 'last_name': last_name, 'full_name': full_name, 'photo_path': photo_path})
 
         # 2. Fetch all movements within the date range
         cur.execute("""
@@ -1418,6 +1475,7 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             row = {
                 'id': emp['id'],
                 'name': emp['full_name'],
+                'photo_path': emp.get('photo_path', ''),
                 'days': []
             }
             current_day = start_date
@@ -1694,22 +1752,18 @@ def dashboard():
 @app.route('/employees')
 def employees():
     if (redirect_response := require_login()): return redirect_response
-
-    employees_list = get_employee_list()
-
-    return render_template(
-        'employees.html',
-        employees=employees_list
-    )
+    return render_template('employees.html')
 
 
 @app.route('/api/employees_list')
 def api_employees_list():
-    """AJAX endpoint for employees list with search"""
+    """AJAX endpoint for employees list with search and pagination"""
     if (redirect_response := require_login()):
-        return jsonify([])
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}})
 
     search_term = request.args.get('search', '').strip().lower()
+    page = int(request.args.get('page', 1))
+    per_page = 12  # 12 çalışan per sayfa
 
     # Azerbaycan harfleri için normalize etme
     def normalize_az(text):
@@ -1725,24 +1779,97 @@ def api_employees_list():
             text = text.replace(az_char, en_char)
         return text
 
-    employees_list = get_employee_list()
+    conn = get_db_connection()
+    if conn is None: 
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}})
 
-    if search_term:
-        normalized_search = normalize_az(search_term)
-        filtered_employees = []
-        for emp in employees_list:
-            search_data = normalize_az(
-                emp['name'] + ' ' +
-                emp['last_name'] + ' ' +
-                emp['position'] + ' ' +
-                emp['email'] + ' ' +
-                emp['mobile_phone']
-            ).lower()
-            if normalized_search in search_data:
-                filtered_employees.append(emp)
-        return jsonify(filtered_employees)
-
-    return jsonify(employees_list)
+    cur = conn.cursor()
+    try:
+        # Base query
+        base_query = """
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            WHERE pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR' AND pp.name NOT ILIKE 'MÜƏLLİM')
+        """
+        
+        # Search filter
+        search_filter = ""
+        search_params = []
+        if search_term:
+            normalized_search = normalize_az(search_term)
+            search_filter = """
+                AND (LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.name, 'ə', 'e'), 'ü', 'u'), 'ö', 'o'), 'ğ', 'g'), 'ş', 's'), 'ç', 'c'), 'ı', 'i')) LIKE %s 
+                     OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.last_name, 'ə', 'e'), 'ü', 'u'), 'ö', 'o'), 'ğ', 'g'), 'ş', 's'), 'ç', 'c'), 'ı', 'i')) LIKE %s 
+                     OR LOWER(p.email) LIKE %s 
+                     OR LOWER(pp.name) LIKE %s
+                     OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.name || ' ' || p.last_name, 'ə', 'e'), 'ü', 'u'), 'ö', 'o'), 'ğ', 'g'), 'ş', 's'), 'ç', 'c'), 'ı', 'i')) LIKE %s
+                     OR LOWER(p.mobile_phone) LIKE %s)
+            """
+            search_pattern = f'%{normalized_search}%'
+            search_params = [search_pattern] * 6
+        
+        # Count total items
+        count_query = f"SELECT COUNT(*) {base_query} {search_filter}"
+        cur.execute(count_query, search_params)
+        total_items = cur.fetchone()[0]
+        
+        # Calculate pagination
+        total_pages = (total_items + per_page - 1) // per_page
+        if page < 1: page = 1
+        if page > total_pages and total_pages > 0: page = total_pages
+        
+        offset = (page - 1) * per_page
+        
+        # Fetch employees with pagination
+        employees_query = f"""
+            SELECT p.id,
+                   p.name,
+                   p.last_name,
+                   p.mobile_phone,
+                   p.email,
+                   p.birthday,
+                   pp.name AS position_name,
+                   p.create_time AS hire_date,
+                   p.photo_path
+            {base_query} {search_filter}
+            ORDER BY p.last_name, p.name
+            LIMIT %s OFFSET %s
+        """
+        
+        params = search_params + [per_page, offset]
+        cur.execute(employees_query, params)
+        employees_raw = cur.fetchall()
+        
+        employees = []
+        for row in employees_raw:
+            employees.append({
+                'id': row[0],
+                'name': row[1],
+                'last_name': row[2],
+                'mobile_phone': row[3] or 'N/A',
+                'email': row[4] or 'N/A',
+                'birthday': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
+                'position': row[6] or 'Undefined',
+                'hire_date': row[7].strftime('%d.%m.%Y') if row[7] else 'N/A',
+                'photo_path': row[8] or ''
+            })
+        
+        return jsonify({
+            'employees': employees,
+            'pagination': {
+                'current_page': page,
+                'total_pages': total_pages,
+                'total_items': total_items,
+                'per_page': per_page
+            }
+        })
+        
+    except Exception as e:
+        print(f"🚨 Employees API Error: {e}")
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}})
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
 
 
 @app.route('/employees/edit/<employee_id>', methods=['GET', 'POST'])
@@ -2410,6 +2537,117 @@ def debug_session():
     <p><strong>Full Session:</strong> {dict(session)}</p>
     <br><a href="{url_for('dashboard')}">Back to Dashboard</a>
     """
+
+
+@app.route('/employee_daily_details/<employee_name>/<log_date>')
+def employee_daily_details(employee_name, log_date):
+    """Shows detailed daily transactions for a specific employee on a specific date"""
+    if (redirect_response := require_login()): return redirect_response
+    
+    try:
+        # Parse employee name
+        name_parts = employee_name.split(' ')
+        if len(name_parts) < 2:
+            flash("Invalid employee name format.", 'danger')
+            return redirect(url_for('employee_logs'))
+        
+        first_name = name_parts[0]
+        last_name = ' '.join(name_parts[1:])
+        
+        # Parse date
+        target_date = datetime.strptime(log_date, '%d.%m.%Y').date()
+        
+        # Get detailed transactions for this employee on this date
+        conn = get_db_connection()
+        if conn is None:
+            flash("Database connection error.", 'danger')
+            return redirect(url_for('employee_logs'))
+        
+        cur = conn.cursor()
+        
+        # Get all transactions for this employee on this date
+        cur.execute("""
+            SELECT t.create_time, t.reader_name, t.name, t.last_name
+            FROM public.acc_transaction t
+            INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            WHERE t.name = %s 
+            AND t.last_name = %s
+            AND DATE(t.create_time) = %s
+            AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor' AND pp.name NOT ILIKE 'müəllim'))
+            ORDER BY t.create_time
+        """, (first_name, last_name, target_date))
+        
+        raw_transactions = cur.fetchall()
+        
+        # Process transactions
+        transactions = []
+        for create_time, reader_name, t_name, t_last_name in raw_transactions:
+            # Determine direction based on reader number
+            direction_type = None
+            if reader_name:
+                import re
+                numbers = re.findall(r'\d+', reader_name)
+                if numbers:
+                    reader_number = int(numbers[0])
+                    if reader_number in [1, 2]:
+                        direction_type = 'in'
+                        direction_display = 'Entry'
+                        direction_icon = 'fa-sign-in-alt'
+                        direction_color = '#28a745'
+                    elif reader_number in [3, 4]:
+                        direction_type = 'out'
+                        direction_display = 'Exit'
+                        direction_icon = 'fa-sign-out-alt'
+                        direction_color = '#dc3545'
+            
+            if direction_type:
+                transactions.append({
+                    'time': create_time,
+                    'time_display': create_time.strftime('%H:%M:%S'),
+                    'reader_name': reader_name,
+                    'direction': direction_type,
+                    'direction_display': direction_display,
+                    'direction_icon': direction_icon,
+                    'direction_color': direction_color
+                })
+        
+        # Calculate summary using existing function
+        if transactions:
+            times = calculate_times_from_transactions(transactions)
+            
+            summary = {
+                'first_in': times['first_in'].strftime('%H:%M:%S') if times['first_in'] else 'N/A',
+                'last_out': times['last_out'].strftime('%H:%M:%S') if times['last_out'] else 'N/A',
+                'total_inside': format_seconds(times['total_inside_seconds']) if times['total_inside_seconds'] else '00:00:00',
+                'total_outside': format_seconds(times['total_outside_seconds']) if times['total_outside_seconds'] else '00:00:00',
+                'is_currently_inside': times['is_currently_inside'],
+                'is_invalid_day': times['is_invalid_day']
+            }
+        else:
+            summary = {
+                'first_in': 'N/A',
+                'last_out': 'N/A', 
+                'total_inside': '00:00:00',
+                'total_outside': '00:00:00',
+                'is_currently_inside': False,
+                'is_invalid_day': False
+            }
+        
+        cur.close()
+        conn.close()
+        
+        return render_template('employee_daily_details.html',
+                             employee_name=employee_name,
+                             log_date=log_date,
+                             target_date=target_date,
+                             transactions=transactions,
+                             summary=summary)
+        
+    except Exception as e:
+        print(f"🚨 Employee Daily Details Error: {e}")
+        flash("Error loading employee details.", 'danger')
+        return redirect(url_for('employee_logs'))
 
 
 @app.route('/logout')
