@@ -1281,7 +1281,7 @@ def get_employee_daily_note(employee_id, note_date):
                     FROM public.employee_daily_notes
                     WHERE employee_id = %s
                       AND note_date = %s
-                    """, (str(employee_id), note_date))
+                    """, (employee_id, note_date))
 
         result = cur.fetchone()
         return result[0] if result else ""
@@ -1308,7 +1308,7 @@ def save_employee_daily_note(employee_id, note_date, note_text, created_by='admi
                     UPDATE SET
                         note_text = EXCLUDED.note_text,
                         updated_at = CURRENT_TIMESTAMP
-                    """, (str(employee_id), note_date, note_text, created_by))
+                    """, (employee_id, note_date, note_text, created_by))
 
         conn.commit()
         return True, "Note saved successfully."
@@ -1757,59 +1757,68 @@ def employees():
 
 @app.route('/api/employees_list')
 def api_employees_list():
-    """AJAX endpoint for employees list with search and pagination"""
-    if (redirect_response := require_login()):
-        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}})
+    """AJAX endpoint for employees list with search, pagination and categories"""
+    # Login kontrolü - JSON API için
+    if 'user' not in session:
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'error': 'Login required'})
 
     search_term = request.args.get('search', '').strip().lower()
     page = int(request.args.get('page', 1))
+    category = request.args.get('category', 'active')  # active, school, teachers
     per_page = 12  # 12 çalışan per sayfa
 
-    # Azerbaycan harfleri için normalize etme
-    def normalize_az(text):
-        if not text:
-            return ''
-        replacements = {
-            'ə': 'e', 'ü': 'u', 'ö': 'o', 'ğ': 'g',
-            'ş': 's', 'ç': 'c', 'ı': 'i',
-            'Ə': 'E', 'Ü': 'U', 'Ö': 'O', 'Ğ': 'G',
-            'Ş': 'S', 'Ç': 'C', 'I': 'I'
-        }
-        for az_char, en_char in replacements.items():
-            text = text.replace(az_char, en_char)
-        return text
+    print(f"🔍 Employee search API called - category: '{category}', term: '{search_term}', page: {page}")
 
     conn = get_db_connection()
     if conn is None: 
-        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}})
+        print("❌ Database connection failed")
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'error': 'Database error'})
 
     cur = conn.cursor()
     try:
-        # Base query
-        base_query = """
-            FROM public.pers_person p
-            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-            WHERE pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR' AND pp.name NOT ILIKE 'MÜƏLLİM')
-        """
+        # Basit ve net WHERE conditions
+        if category == 'teachers' or category == 'teacher':
+            # Müəllim pozisyonundakiler - tam eşleşme
+            where_clause = "WHERE pp.name = 'Müəllim'"
+        elif category == 'school':
+            # Sadece School departmanındakiler - başka filtre yok
+            where_clause = "WHERE ad.name = 'School'"
+        else:  # active
+            # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç
+            where_clause = "WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR' AND pp.name NOT ILIKE 'MÜƏLLİM'))"
         
         # Search filter
         search_filter = ""
         search_params = []
         if search_term:
-            normalized_search = normalize_az(search_term)
             search_filter = """
-                AND (LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.name, 'ə', 'e'), 'ü', 'u'), 'ö', 'o'), 'ğ', 'g'), 'ş', 's'), 'ç', 'c'), 'ı', 'i')) LIKE %s 
-                     OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.last_name, 'ə', 'e'), 'ü', 'u'), 'ö', 'o'), 'ğ', 'g'), 'ş', 's'), 'ç', 'c'), 'ı', 'i')) LIKE %s 
+                AND (LOWER(p.name) LIKE %s 
+                     OR LOWER(p.last_name) LIKE %s 
                      OR LOWER(p.email) LIKE %s 
                      OR LOWER(pp.name) LIKE %s
-                     OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(p.name || ' ' || p.last_name, 'ə', 'e'), 'ü', 'u'), 'ö', 'o'), 'ğ', 'g'), 'ş', 's'), 'ç', 'c'), 'ı', 'i')) LIKE %s
-                     OR LOWER(p.mobile_phone) LIKE %s)
+                     OR LOWER(p.name || ' ' || p.last_name) LIKE %s
+                     OR LOWER(p.mobile_phone) LIKE %s
+                     OR LOWER(ad.name) LIKE %s)
             """
-            search_pattern = f'%{normalized_search}%'
-            search_params = [search_pattern] * 6
+            search_pattern = f'%{search_term}%'
+            search_params = [search_pattern] * 7
         
-        # Count total items
-        count_query = f"SELECT COUNT(*) {base_query} {search_filter}"
+        # Count query
+        count_query = f"""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            {where_clause} {search_filter}
+        """
+        # Count query
+        count_query = f"""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            {where_clause} {search_filter}
+        """
         cur.execute(count_query, search_params)
         total_items = cur.fetchone()[0]
         
@@ -1820,7 +1829,7 @@ def api_employees_list():
         
         offset = (page - 1) * per_page
         
-        # Fetch employees with pagination
+        # Main query
         employees_query = f"""
             SELECT p.id,
                    p.name,
@@ -1830,15 +1839,22 @@ def api_employees_list():
                    p.birthday,
                    pp.name AS position_name,
                    p.create_time AS hire_date,
-                   p.photo_path
-            {base_query} {search_filter}
+                   p.photo_path,
+                   ad.name AS department_name
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            {where_clause} {search_filter}
             ORDER BY p.last_name, p.name
             LIMIT %s OFFSET %s
         """
         
+        print(f"🔍 EMPLOYEES QUERY: {employees_query}")
         params = search_params + [per_page, offset]
+        print(f"🔍 ALL PARAMS: {params}")
         cur.execute(employees_query, params)
         employees_raw = cur.fetchall()
+        print(f"🔍 RAW EMPLOYEES FOUND: {len(employees_raw)}")
         
         employees = []
         for row in employees_raw:
@@ -1851,8 +1867,41 @@ def api_employees_list():
                 'birthday': row[5].strftime('%d.%m.%Y') if row[5] else 'N/A',
                 'position': row[6] or 'Undefined',
                 'hire_date': row[7].strftime('%d.%m.%Y') if row[7] else 'N/A',
-                'photo_path': row[8] or ''
+                'photo_path': row[8] or '',
+                'department': row[9] or 'N/A'
             })
+        
+        # Category counts
+        category_counts = {}
+        
+        # Active count
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            WHERE pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR' AND pp.name NOT ILIKE 'MÜƏLLİM')
+        """)
+        category_counts['active'] = cur.fetchone()[0]
+        
+        # School count - sadece School departmanındakiler
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE ad.name = 'School'
+        """)
+        category_counts['school'] = cur.fetchone()[0]
+        
+        # Teachers count
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE pp.name = 'Müəllim'
+        """)
+        category_counts['teachers'] = cur.fetchone()[0]
         
         return jsonify({
             'employees': employees,
@@ -1861,7 +1910,8 @@ def api_employees_list():
                 'total_pages': total_pages,
                 'total_items': total_items,
                 'per_page': per_page
-            }
+            },
+            'category_counts': category_counts
         })
         
     except Exception as e:
@@ -1962,8 +2012,16 @@ def api_save_daily_note():
         note_date = data.get('note_date')
         note_text = data.get('note_text', '').strip()
 
+        # Debug: employee_id'nin tipini kontrol et
+        print(f"🔍 Debug - Raw data: {data}")
+        print(f"🔍 Debug - employee_id: {employee_id}, type: {type(employee_id)}")
+        print(f"🔍 Debug - note_date: {note_date}, note_text: '{note_text}'")
+
         if not employee_id or not note_date:
             return jsonify({'success': False, 'message': 'Missing required fields'})
+
+        # employee_id'yi string'e çevir (integer veya string olabilir)
+        employee_id = str(employee_id)
 
         try:
             note_date = datetime.strptime(note_date, '%Y-%m-%d').date()

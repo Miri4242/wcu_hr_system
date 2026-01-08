@@ -496,36 +496,63 @@
 
     // Note modal functions
     function openNoteModal(employeeId, employeeName, date) {
+        console.log('🔍 openNoteModal called:', employeeId, employeeName, date);
+        
         currentEmployeeId = employeeId;
         currentNoteDate = date;
 
-        // Fetch existing note
-        fetch(`/api/get_daily_note?employee_id=${employeeId}&note_date=${date}`)
-            .then(response => response.json())
-            .then(data => {
-                // Update modal title
-                document.getElementById('noteModalTitle').innerHTML = 
-                    `<i class="fas fa-sticky-note me-2"></i>Note for ${employeeName} - ${date}`;
+        // Test modal açılması
+        try {
+            const modalElement = document.getElementById('noteModal');
+            if (!modalElement) {
+                console.error('❌ Modal element not found!');
+                return;
+            }
+            
+            console.log('✅ Modal element found, trying to open...');
+            
+            // Update modal title
+            document.getElementById('noteModalTitle').innerHTML = 
+                `<i class="fas fa-sticky-note me-2"></i>Note for ${employeeName} - ${date}`;
 
-                // Update textarea
-                document.getElementById('noteTextarea').value = data.note || '';
+            // Clear textarea first
+            document.getElementById('noteTextarea').value = '';
 
-                // Show modal using Bootstrap
-                const modal = new bootstrap.Modal(document.getElementById('noteModal'));
-                modal.show();
-            })
-            .catch(error => {
-                console.error('Error fetching note:', error);
-                // Show modal anyway
-                const modal = new bootstrap.Modal(document.getElementById('noteModal'));
-                modal.show();
-            });
+            // Show modal immediately
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+            
+            console.log('✅ Modal should be visible now');
+
+            // Fetch existing note after modal is shown
+            fetch(`/api/get_daily_note?employee_id=${employeeId}&note_date=${date}`)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('📝 Note data received:', data);
+                    // Update textarea with existing note
+                    document.getElementById('noteTextarea').value = data.note || '';
+                })
+                .catch(error => {
+                    console.error('❌ Error fetching note:', error);
+                });
+                
+        } catch (error) {
+            console.error('❌ Error opening modal:', error);
+        }
     }
 
     function saveNote() {
+        console.log('💾 saveNote function called!');
+        console.log('📋 Current data:', {
+            employeeId: currentEmployeeId,
+            noteDate: currentNoteDate
+        });
+        
         const noteText = document.getElementById('noteTextarea').value;
+        console.log('📝 Note text:', noteText);
 
         if (!currentEmployeeId || !currentNoteDate) {
+            console.error('❌ Missing employee or date information');
             showNotification('Error: Missing employee or date information', 'danger');
             return;
         }
@@ -533,8 +560,15 @@
         // Show loading state
         const saveBtn = document.getElementById('saveNoteBtn');
         const originalText = saveBtn.innerHTML;
-        saveBtn.innerHTML = '<div class="loading-spinner me-2"></div>Saving...';
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
         saveBtn.disabled = true;
+
+        console.log('🚀 Sending API request...');
+        console.log('📦 Payload:', {
+            employee_id: String(currentEmployeeId),
+            note_date: currentNoteDate,
+            note_text: noteText
+        });
 
         // Send to API
         fetch('/api/save_daily_note', {
@@ -543,30 +577,37 @@
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                employee_id: currentEmployeeId,
+                employee_id: String(currentEmployeeId),  // Force string conversion
                 note_date: currentNoteDate,
                 note_text: noteText
             })
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('📡 API response received:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('📊 API data:', data);
             if (data.success) {
                 // Update note indicator
                 updateNoteIndicator(currentEmployeeId, currentNoteDate, noteText);
                 
                 // Hide modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('noteModal'));
-                modal.hide();
+                if (modal) {
+                    modal.hide();
+                }
 
                 // Show success notification
                 showNotification('Note saved successfully!', 'success');
             } else {
+                console.error('❌ API error:', data.message);
                 showNotification('Error saving note: ' + data.message, 'danger');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showNotification('Error saving note', 'danger');
+            console.error('❌ Network error:', error);
+            showNotification('Error saving note: Network error', 'danger');
         })
         .finally(() => {
             // Reset button state
@@ -614,8 +655,19 @@
 
     // Document ready
     document.addEventListener('DOMContentLoaded', function() {
-        // Save note button event
-        document.getElementById('saveNoteBtn').addEventListener('click', saveNote);
+        console.log('🚀 DOM loaded, setting up note functionality...');
+        
+        // Save note button event - CRITICAL FIX
+        const saveBtn = document.getElementById('saveNoteBtn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', function() {
+                console.log('💾 Save button clicked!');
+                saveNote();
+            });
+            console.log('✅ Save button event listener added');
+        } else {
+            console.error('❌ Save button not found!');
+        }
 
         // Form management
         const searchInput = document.getElementById('search-input');

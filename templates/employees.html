@@ -7,7 +7,7 @@
 <div class="row mb-3">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center">
-            <h3><i class="fas fa-users me-2"></i>All Employees</h3>
+            <h3><i class="fas fa-users me-2"></i>Employee Categories</h3>
             <a href="{{ url_for('export_employees') }}" class="btn btn-success">
                 <i class="fas fa-file-export me-2"></i>Export CSV
             </a>
@@ -15,6 +15,43 @@
     </div>
 </div>
 
+<!-- Category Tabs -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <ul class="nav nav-pills nav-fill category-tabs" id="categoryTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="active-tab" data-bs-toggle="pill" 
+                                data-bs-target="#active-employees" type="button" role="tab" 
+                                aria-controls="active-employees" aria-selected="true">
+                            <i class="fas fa-clock me-2"></i>Administrative
+                            <span class="badge bg-primary ms-2" id="active-count">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="school-tab" data-bs-toggle="pill" 
+                                data-bs-target="#school-employees" type="button" role="tab" 
+                                aria-controls="school-employees" aria-selected="false">
+                            <i class="fas fa-school me-2"></i>School Department
+                            <span class="badge bg-info ms-2" id="school-count">0</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="teachers-tab" data-bs-toggle="pill" 
+                                data-bs-target="#teacher-employees" type="button" role="tab" 
+                                aria-controls="teacher-employees" aria-selected="false">
+                            <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
+                            <span class="badge bg-success ms-2" id="teachers-count">0</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Section -->
 <div class="row mb-3">
     <div class="col-12">
         <div class="card">
@@ -41,43 +78,141 @@
     </div>
 </div>
 
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-list me-2"></i>Employee List</h5>
-                <div class="badge bg-primary fs-6">
-                    Total: <span id="employee-count">0</span> employees
+<!-- Tab Content -->
+<div class="tab-content" id="categoryTabContent">
+    <!-- Currently Active Employees -->
+    <div class="tab-pane fade show active" id="active-employees" role="tabpanel" aria-labelledby="active-tab">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Administrative</h5>
+                        <div class="badge bg-primary fs-6">
+                            Total: <span id="active-employee-count">0</span> employees
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <!-- Loading Spinner -->
+                        <div id="active-loading-spinner" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading active employees...</p>
+                        </div>
+
+                        <!-- Employee Cards Grid -->
+                        <div id="active-employees-grid" class="row g-4" style="display: none;">
+                            <!-- Employee cards will be populated here by JavaScript -->
+                        </div>
+
+                        <!-- Pagination -->
+                        <div id="active-pagination-container" class="d-flex justify-content-center mt-4" style="display: none;">
+                            <nav aria-label="Active employee pagination">
+                                <ul class="pagination pagination-lg" id="active-pagination-list">
+                                    <!-- Pagination buttons will be populated here -->
+                                </ul>
+                            </nav>
+                        </div>
+
+                        <!-- No Results -->
+                        <div id="active-no-results" class="text-center py-5" style="display: none;">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No active employees found</h5>
+                            <p class="text-muted">No active employees match your search criteria</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body p-0">
-                <!-- Loading Spinner -->
-                <div id="loading-spinner" class="text-center py-5" style="display: none;">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- School Department Employees -->
+    <div class="tab-pane fade" id="school-employees" role="tabpanel" aria-labelledby="school-tab">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-school me-2"></i>School Department Employees</h5>
+                        <div class="badge bg-info fs-6">
+                            Total: <span id="school-employee-count">0</span> employees
+                        </div>
                     </div>
-                    <p class="mt-2 text-muted">Loading employees...</p>
-                </div>
+                    <div class="card-body p-0">
+                        <!-- Loading Spinner -->
+                        <div id="school-loading-spinner" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-info" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading school employees...</p>
+                        </div>
 
-                <!-- Employee Cards Grid -->
-                <div id="employees-grid" class="row g-4" style="display: none;">
-                    <!-- Employee cards will be populated here by JavaScript -->
-                </div>
+                        <!-- Employee Cards Grid -->
+                        <div id="school-employees-grid" class="row g-4" style="display: none;">
+                            <!-- Employee cards will be populated here by JavaScript -->
+                        </div>
 
-                <!-- Pagination -->
-                <div id="pagination-container" class="d-flex justify-content-center mt-4" style="display: none;">
-                    <nav aria-label="Employee pagination">
-                        <ul class="pagination pagination-lg" id="pagination-list">
-                            <!-- Pagination buttons will be populated here -->
-                        </ul>
-                    </nav>
-                </div>
+                        <!-- Pagination -->
+                        <div id="school-pagination-container" class="d-flex justify-content-center mt-4" style="display: none;">
+                            <nav aria-label="School employee pagination">
+                                <ul class="pagination pagination-lg" id="school-pagination-list">
+                                    <!-- Pagination buttons will be populated here -->
+                                </ul>
+                            </nav>
+                        </div>
 
-                <!-- No Results -->
-                <div id="no-results" class="text-center py-5" style="display: none;">
-                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
-                    <h5 class="text-muted">No employees found</h5>
-                    <p class="text-muted">No employees match your search criteria</p>
+                        <!-- No Results -->
+                        <div id="school-no-results" class="text-center py-5" style="display: none;">
+                            <i class="fas fa-school fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No school employees found</h5>
+                            <p class="text-muted">No school department employees match your search criteria</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Teacher Employees -->
+    <div class="tab-pane fade" id="teacher-employees" role="tabpanel" aria-labelledby="teachers-tab">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-chalkboard-teacher me-2"></i>Teacher Employees</h5>
+                        <div class="badge bg-success fs-6">
+                            Total: <span id="teacher-employee-count">0</span> employees
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <!-- Loading Spinner -->
+                        <div id="teacher-loading-spinner" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-success" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2 text-muted">Loading teachers...</p>
+                        </div>
+
+                        <!-- Employee Cards Grid -->
+                        <div id="teacher-employees-grid" class="row g-4" style="display: none;">
+                            <!-- Employee cards will be populated here by JavaScript -->
+                        </div>
+
+                        <!-- Pagination -->
+                        <div id="teacher-pagination-container" class="d-flex justify-content-center mt-4" style="display: none;">
+                            <nav aria-label="Teacher employee pagination">
+                                <ul class="pagination pagination-lg" id="teacher-pagination-list">
+                                    <!-- Pagination buttons will be populated here -->
+                                </ul>
+                            </nav>
+                        </div>
+
+                        <!-- No Results -->
+                        <div id="teacher-no-results" class="text-center py-5" style="display: none;">
+                            <i class="fas fa-chalkboard-teacher fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No teachers found</h5>
+                            <p class="text-muted">No teachers match your search criteria</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -91,6 +226,7 @@ let allEmployees = [];
 let currentPage = 1;
 let totalPages = 1;
 let currentSearchTerm = '';
+let currentCategory = 'active'; // active, school, teachers
 
 function normalizeAzerbaijani(text) {
     if (!text) return '';
@@ -101,11 +237,11 @@ function normalizeAzerbaijani(text) {
     return text.toLowerCase().replace(/[əüöğşçıƏÜÖĞŞÇI]/g, char => replacements[char] || char);
 }
 
-function fetchEmployees(searchTerm = '', page = 1) {
-    const loadingSpinner = document.getElementById('loading-spinner');
-    const employeesGrid = document.getElementById('employees-grid');
-    const noResults = document.getElementById('no-results');
-    const paginationContainer = document.getElementById('pagination-container');
+function fetchEmployees(category = 'active', searchTerm = '', page = 1) {
+    const loadingSpinner = document.getElementById(`${category}-loading-spinner`);
+    const employeesGrid = document.getElementById(`${category}-employees-grid`);
+    const noResults = document.getElementById(`${category}-no-results`);
+    const paginationContainer = document.getElementById(`${category}-pagination-container`);
 
     loadingSpinner.style.display = 'block';
     employeesGrid.style.display = 'none';
@@ -114,8 +250,11 @@ function fetchEmployees(searchTerm = '', page = 1) {
 
     currentSearchTerm = searchTerm;
     currentPage = page;
+    currentCategory = category;
 
-    fetch(`/api/employees_list?search=${encodeURIComponent(searchTerm)}&page=${page}`)
+    console.log(`🔍 Fetching ${category} employees - term: '${searchTerm}', page: ${page}`);
+
+    fetch(`/api/employees_list?category=${category}&search=${encodeURIComponent(searchTerm)}&page=${page}`)
         .then(response => response.json())
         .then(data => {
             allEmployees = data.employees || [];
@@ -125,9 +264,12 @@ function fetchEmployees(searchTerm = '', page = 1) {
             // Pagination bilgisini global olarak sakla
             window.currentPaginationData = data.pagination;
             
-            displayEmployees();
-            displayPagination(data.pagination);
+            displayEmployees(category);
+            displayPagination(category, data.pagination);
             loadingSpinner.style.display = 'none';
+            
+            // Update category badge counts
+            updateCategoryBadges(data.category_counts || {});
         })
         .catch(error => {
             console.error('Error:', error);
@@ -137,10 +279,16 @@ function fetchEmployees(searchTerm = '', page = 1) {
         });
 }
 
-function displayEmployees() {
-    const employeesGrid = document.getElementById('employees-grid');
-    const noResults = document.getElementById('no-results');
-    const employeeCount = document.getElementById('employee-count');
+function updateCategoryBadges(counts) {
+    document.getElementById('active-count').textContent = counts.active || 0;
+    document.getElementById('school-count').textContent = counts.school || 0;
+    document.getElementById('teachers-count').textContent = counts.teachers || 0;
+}
+
+function displayEmployees(category) {
+    const employeesGrid = document.getElementById(`${category}-employees-grid`);
+    const noResults = document.getElementById(`${category}-no-results`);
+    const employeeCount = document.getElementById(`${category}-employee-count`);
 
     // Toplam çalışan sayısını göster (pagination bilgisinden)
     const totalEmployees = window.currentPaginationData?.total_items || allEmployees.length;
@@ -179,6 +327,13 @@ function displayEmployees() {
                 <span class="text-muted">No phone</span>
             </div>`;
 
+        // Department info for display
+        const departmentInfo = employee.department ? 
+            `<div class="contact-item">
+                <i class="fas fa-building me-1 text-info"></i>
+                <span class="text-info">${employee.department}</span>
+            </div>` : '';
+
         card.innerHTML = `
             <div class="employee-card" onclick="navigateToEmployee('${employee.name} ${employee.last_name}')">
                 <div class="employee-card-header">
@@ -203,6 +358,7 @@ function displayEmployees() {
                 <div class="employee-card-body">
                     <h5 class="employee-name">${employee.name} ${employee.last_name}</h5>
                     <div class="employee-contacts">
+                        ${departmentInfo}
                         ${emailCell}
                         ${phoneCell}
                     </div>
@@ -223,9 +379,9 @@ function displayEmployees() {
     noResults.style.display = 'none';
 }
 
-function displayPagination(pagination) {
-    const paginationContainer = document.getElementById('pagination-container');
-    const paginationList = document.getElementById('pagination-list');
+function displayPagination(category, pagination) {
+    const paginationContainer = document.getElementById(`${category}-pagination-container`);
+    const paginationList = document.getElementById(`${category}-pagination-list`);
     
     if (!pagination || pagination.total_pages <= 1) {
         paginationContainer.style.display = 'none';
@@ -241,7 +397,7 @@ function displayPagination(pagination) {
     const prevLi = document.createElement('li');
     prevLi.className = `page-item ${currentPage <= 1 ? 'disabled' : ''}`;
     prevLi.innerHTML = `
-        <a class="page-link" href="#" onclick="changePage(${currentPage - 1}); return false;">
+        <a class="page-link" href="#" onclick="changePage('${category}', ${currentPage - 1}); return false;">
             <i class="fas fa-chevron-left"></i> Previous
         </a>
     `;
@@ -254,7 +410,7 @@ function displayPagination(pagination) {
     if (startPage > 1) {
         const firstLi = document.createElement('li');
         firstLi.className = 'page-item';
-        firstLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(1); return false;">1</a>`;
+        firstLi.innerHTML = `<a class="page-link" href="#" onclick="changePage('${category}', 1); return false;">1</a>`;
         paginationList.appendChild(firstLi);
         
         if (startPage > 2) {
@@ -268,7 +424,7 @@ function displayPagination(pagination) {
     for (let i = startPage; i <= endPage; i++) {
         const pageLi = document.createElement('li');
         pageLi.className = `page-item ${i === currentPage ? 'active' : ''}`;
-        pageLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${i}); return false;">${i}</a>`;
+        pageLi.innerHTML = `<a class="page-link" href="#" onclick="changePage('${category}', ${i}); return false;">${i}</a>`;
         paginationList.appendChild(pageLi);
     }
     
@@ -282,7 +438,7 @@ function displayPagination(pagination) {
         
         const lastLi = document.createElement('li');
         lastLi.className = 'page-item';
-        lastLi.innerHTML = `<a class="page-link" href="#" onclick="changePage(${totalPages}); return false;">${totalPages}</a>`;
+        lastLi.innerHTML = `<a class="page-link" href="#" onclick="changePage('${category}', ${totalPages}); return false;">${totalPages}</a>`;
         paginationList.appendChild(lastLi);
     }
     
@@ -290,7 +446,7 @@ function displayPagination(pagination) {
     const nextLi = document.createElement('li');
     nextLi.className = `page-item ${currentPage >= totalPages ? 'disabled' : ''}`;
     nextLi.innerHTML = `
-        <a class="page-link" href="#" onclick="changePage(${currentPage + 1}); return false;">
+        <a class="page-link" href="#" onclick="changePage('${category}', ${currentPage + 1}); return false;">
             Next <i class="fas fa-chevron-right"></i>
         </a>
     `;
@@ -299,9 +455,9 @@ function displayPagination(pagination) {
     paginationContainer.style.display = 'flex';
 }
 
-function changePage(page) {
+function changePage(category, page) {
     if (page < 1 || page > totalPages) return;
-    fetchEmployees(currentSearchTerm, page);
+    fetchEmployees(category, currentSearchTerm, page);
     
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -352,8 +508,15 @@ function performSearch() {
     url.searchParams.delete('page'); // Reset page when searching
     window.history.replaceState({}, '', url);
 
-    // Her arama için API'ye git (backend filtreleme için)
-    fetchEmployees(searchTerm, 1); // Always start from page 1 when searching
+    // Current active category'de arama yap
+    fetchEmployees(currentCategory, searchTerm, 1);
+}
+
+// Tab change handler
+function handleTabChange(category) {
+    currentCategory = category;
+    const searchInput = document.getElementById('employee-search');
+    fetchEmployees(category, searchInput.value, 1);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -364,15 +527,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchParam = urlParams.get('search');
     const pageParam = parseInt(urlParams.get('page')) || 1;
 
-    // Her zaman API'den veri çek
+    // Initialize with active employees
     if (searchParam && searchParam.trim() !== '') {
         searchInput.value = searchParam;
-        fetchEmployees(searchParam, pageParam);
+        fetchEmployees('active', searchParam, pageParam);
     } else {
-        fetchEmployees('', pageParam); // Boş arama = tüm employees
+        fetchEmployees('active', '', pageParam);
     }
 
-    // SADECE Enter veya Search butonuna basınca arama yap
+    // Search event handlers
     searchButton.addEventListener('click', performSearch);
     searchInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
@@ -381,11 +544,59 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Tab change event handlers
+    document.getElementById('active-tab').addEventListener('click', () => handleTabChange('active'));
+    document.getElementById('school-tab').addEventListener('click', () => handleTabChange('school'));
+    document.getElementById('teachers-tab').addEventListener('click', () => handleTabChange('teacher'));
+
     searchInput.focus();
 });
 </script>
 
 <style>
+/* Category Tabs */
+.category-tabs .nav-link {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(139, 92, 246, 0.1);
+    color: #6B7280;
+    font-weight: 600;
+    padding: 15px 20px;
+    border-radius: 15px;
+    margin: 0 5px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+}
+
+.category-tabs .nav-link:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+    border-color: rgba(139, 92, 246, 0.3);
+    color: #8B5CF6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.category-tabs .nav-link.active {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-color: #8B5CF6;
+    color: white;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.category-tabs .nav-link .badge {
+    margin-left: 8px;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.category-tabs .nav-link.active .badge {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+}
+
 /* Modern Employee Cards */
 .employee-card {
     background: rgba(255, 255, 255, 0.95);
@@ -525,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 /* Loading and No Results */
-#loading-spinner {
+[id$="-loading-spinner"] {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20px);
     border-radius: 20px;
@@ -534,7 +745,7 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-#no-results {
+[id$="-no-results"] {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20px);
     border-radius: 20px;
@@ -558,6 +769,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 /* Responsive Design */
 @media (max-width: 768px) {
+    .category-tabs .nav-link {
+        padding: 12px 15px;
+        margin: 0 2px;
+        font-size: 14px;
+        min-height: 50px;
+    }
+    
     .employee-card-header {
         padding: 20px 15px 15px;
     }
@@ -587,6 +805,16 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 @media (max-width: 576px) {
+    .category-tabs .nav-link {
+        padding: 10px 12px;
+        font-size: 12px;
+        min-height: 45px;
+    }
+    
+    .category-tabs .nav-link i {
+        display: none;
+    }
+    
     .employee-photo-large,
     .employee-avatar-large {
         width: 50px;
@@ -671,7 +899,7 @@ document.addEventListener('DOMContentLoaded', function() {
     box-shadow: none;
 }
 
-#pagination-container {
+[id$="-pagination-container"] {
     margin-top: 30px;
     padding: 20px;
     background: rgba(255, 255, 255, 0.5);
