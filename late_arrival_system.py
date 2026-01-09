@@ -195,7 +195,7 @@ def save_late_arrival_record(late_data):
             conn.close()
 
 def get_employee_email(employee_id):
-    """Çalışanın email adresini getir"""
+    """Çalışanın email adresini getir - sadece geçerli email adresleri"""
     conn = get_db_connection()
     if not conn:
         return None
@@ -210,12 +210,23 @@ def get_employee_email(employee_id):
         
         result = cur.fetchone()
         if result:
-            return {
-                'name': result[0],
-                'last_name': result[1],
-                'email': result[2],
-                'full_name': f"{result[0]} {result[1]}"
-            }
+            email = result[2]
+            
+            # Email geçerli mi kontrol et
+            if email and is_valid_email(email):
+                return {
+                    'name': result[0],
+                    'last_name': result[1],
+                    'email': email,
+                    'full_name': f"{result[0]} {result[1]}"
+                }
+            else:
+                # Geçersiz email varsa log at ama sessizce geç
+                if email:
+                    logger.info(f"Skipping invalid email for employee {employee_id}: {email[:20]}...")
+                else:
+                    logger.info(f"No email address for employee {employee_id}")
+                return None
         return None
         
     except psycopg2.Error as e:
@@ -224,6 +235,14 @@ def get_employee_email(employee_id):
     finally:
         if conn:
             conn.close()
+
+def is_valid_email(email):
+    """Email formatını kontrol et"""
+    import re
+    if not email:
+        return False
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
 def send_late_arrival_email(late_data, employee_info):
     """Gecikme bildirimi emaili gönder"""
@@ -236,6 +255,8 @@ def send_late_arrival_email(late_data, employee_info):
     if not employee_info.get('email'):
         logger.warning(f"No email address for employee {late_data['employee_id']}")
         return False
+    
+    # Artık email validation'a gerek yok çünkü get_employee_email zaten geçerli emailleri döndürüyor
     
     try:
         # Email içeriği hazırla
