@@ -227,10 +227,18 @@ class BackgroundScheduler:
                 if self.should_check_now():
                     print("🔍 Running background late arrival check...")
                     try:
+                        # Import'u burada yap (Railway için)
+                        import sys
+                        import os
+                        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+                        
                         from late_arrival_system import check_all_employees_late_arrivals
                         check_all_employees_late_arrivals()
                         self.last_check = datetime.now()
                         print("✅ Background check completed")
+                    except ImportError as e:
+                        print(f"❌ Import error: {e}")
+                        print("⚠️  late_arrival_system module not found, skipping...")
                     except Exception as e:
                         print(f"❌ Late arrival check error: {e}")
                 
@@ -242,6 +250,8 @@ class BackgroundScheduler:
                         update_monthly_statistics()
                         self.last_stats_update = datetime.now()
                         print("✅ Statistics updated")
+                    except ImportError as e:
+                        print(f"❌ Import error for stats: {e}")
                     except Exception as e:
                         print(f"❌ Statistics update error: {e}")
                 
@@ -2849,6 +2859,25 @@ def api_scheduler_status():
         return jsonify(status)
     except Exception as e:
         return jsonify({'error': str(e)})
+
+
+@app.route('/api/restart_scheduler', methods=['POST'])
+def api_restart_scheduler():
+    """Background scheduler'ı yeniden başlat"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        # Önce durdur
+        background_scheduler.stop()
+        time.sleep(2)
+        
+        # Sonra başlat
+        background_scheduler.start()
+        
+        return jsonify({'success': True, 'message': 'Scheduler restarted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 
 @app.route('/api/manual_late_check', methods=['POST'])
