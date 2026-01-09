@@ -1,0 +1,318 @@
+{% extends "base_page.html" %}
+
+{% block title %}{{ employee_name }} - {{ log_date }} Details{% endblock %}
+
+{% block page_title %}{{ employee_name }} - {{ log_date }} Entry/Exit Details{% endblock %}
+
+{% block content %}
+<!-- Back Button -->
+<div class="mb-3">
+    <a href="{{ url_for('employee_logs') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-2"></i>Back
+    </a>
+</div>
+
+<!-- Employee Info Card -->
+<div class="card mb-4">
+    <div class="card-header bg-gradient-primary text-white">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-user me-2"></i>
+            {{ employee_name }}
+            <span class="badge bg-light text-dark ms-2">{{ target_date.strftime('%A, %d %B %Y') }}</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-success">
+                        <i class="fas fa-sign-in-alt"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6>First Entry</h6>
+                        <p class="stat-value">{{ summary.first_in }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-danger">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6>Last Exit</h6>
+                        <p class="stat-value">
+                            {% if summary.is_currently_inside %}
+                                <span class="text-warning">Still Inside</span>
+                            {% else %}
+                                {{ summary.last_out }}
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-primary">
+                        <i class="fas fa-clock"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6>Total Inside</h6>
+                        <p class="stat-value">{{ summary.total_inside }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="stat-card">
+                    <div class="stat-icon bg-warning">
+                        <i class="fas fa-pause"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h6>Total Outside</h6>
+                        <p class="stat-value">{{ summary.total_outside }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transactions Timeline -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-list-alt me-2"></i>
+            Entry/Exit Timeline
+            <span class="badge bg-secondary ms-2">{{ transactions|length }} Movements</span>
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if transactions %}
+        <div class="timeline">
+            {% for transaction in transactions %}
+            <div class="timeline-item">
+                <div class="timeline-marker" style="background-color: {{ transaction.direction_color }};">
+                    <i class="fas {{ transaction.direction_icon }}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <h6 class="timeline-title" style="color: {{ transaction.direction_color }};">
+                            {{ transaction.direction_display }}
+                        </h6>
+                        <span class="timeline-time">{{ transaction.time_display }}</span>
+                    </div>
+                    <div class="timeline-body">
+                        <p class="mb-1">
+                            <i class="fas fa-door-open me-2"></i>
+                            <strong>Door:</strong> {{ transaction.reader_name }}
+                        </p>
+                        <p class="mb-0 text-muted">
+                            <i class="fas fa-calendar me-2"></i>
+                            {{ transaction.time.strftime('%d.%m.%Y %H:%M:%S') }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-exclamation-circle fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No movement records found for this date</h5>
+            <p class="text-muted">No entry/exit records found for {{ employee_name }} on {{ log_date }}.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+/* Gradient Background */
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+}
+
+/* Stat Cards */
+.stat-card {
+    display: flex;
+    align-items: center;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: white;
+    font-size: 20px;
+}
+
+.stat-content h6 {
+    margin: 0;
+    font-size: 14px;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.stat-value {
+    margin: 5px 0 0 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #2d3748;
+    font-family: 'Courier New', monospace;
+}
+
+/* Timeline Styles */
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 20px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, #8B5CF6, #EC4899);
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+    padding-left: 40px;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -30px;
+    top: 5px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    border: 3px solid white;
+}
+
+.timeline-content {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border-left: 4px solid #e9ecef;
+    transition: all 0.2s;
+}
+
+.timeline-content:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    transform: translateX(5px);
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.timeline-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.timeline-time {
+    font-size: 24px;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: #2d3748;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 2px solid rgba(139, 92, 246, 0.2);
+}
+
+.timeline-body p {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .timeline {
+        padding-left: 20px;
+    }
+    
+    .timeline::before {
+        left: 15px;
+    }
+    
+    .timeline-marker {
+        left: -25px;
+        width: 30px;
+        height: 30px;
+        font-size: 14px;
+    }
+    
+    .timeline-item {
+        padding-left: 30px;
+    }
+    
+    .timeline-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .timeline-time {
+        font-size: 20px;
+        margin-top: 5px;
+    }
+    
+    .stat-card {
+        padding: 15px;
+    }
+    
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+        margin-right: 10px;
+    }
+    
+    .stat-value {
+        font-size: 16px;
+    }
+}
+
+/* Card hover effects */
+.card {
+    transition: all 0.2s;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+</style>
+{% endblock %}
