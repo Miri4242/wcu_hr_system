@@ -2877,6 +2877,110 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/admin_late_system')
+def admin_late_system():
+    """Late Arrival System admin sayfası"""
+    if (redirect_response := require_login()): return redirect_response
+    return render_template('admin_late_system.html')
+
+
+@app.route('/api/todays_emails')
+def api_todays_emails():
+    """Bugün gönderilen emailleri getir"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        from late_arrival_system import get_db_connection
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'})
+        
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT employee_name, employee_email, email_status, sent_at, error_message
+            FROM public.late_arrival_emails
+            WHERE DATE(sent_at) = CURRENT_DATE
+            ORDER BY sent_at DESC
+        """)
+        
+        emails = []
+        for row in cur.fetchall():
+            emails.append({
+                'employee_name': row[0],
+                'employee_email': row[1],
+                'email_status': row[2],
+                'sent_at': row[3].isoformat() if row[3] else None,
+                'error_message': row[4]
+            })
+        
+        return jsonify(emails)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route('/api/todays_late_arrivals')
+def api_todays_late_arrivals():
+    """Bugün geç gelen çalışanları getir"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        from late_arrival_system import get_db_connection
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'error': 'Database connection failed'})
+        
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT la.employee_id, p.name || ' ' || p.last_name as employee_name, 
+                   p.email as employee_email, la.expected_arrival_time, 
+                   la.actual_arrival_time, la.late_minutes, la.email_sent
+            FROM public.employee_late_arrivals la
+            JOIN public.pers_person p ON la.employee_id = p.id
+            WHERE la.late_date = CURRENT_DATE
+            ORDER BY la.late_minutes DESC
+        """)
+        
+        arrivals = []
+        for row in cur.fetchall():
+            arrivals.append({
+                'employee_id': row[0],
+                'employee_name': row[1],
+                'employee_email': row[2],
+                'expected_time': row[3].strftime('%H:%M') if row[3] else None,
+                'actual_time': row[4].strftime('%H:%M') if row[4] else None,
+                'late_minutes': row[5],
+                'email_sent': row[6]
+            })
+        
+        return jsonify(arrivals)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route('/api/update_statistics', methods=['POST'])
+def api_update_statistics():
+    """Aylık istatistikleri güncelle"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        from late_arrival_system import update_monthly_statistics
+        update_monthly_statistics()
+        return jsonify({'success': True, 'message': 'Statistics updated successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/test_scheduler')
 def test_scheduler():
     """Scheduler test sayfası"""
