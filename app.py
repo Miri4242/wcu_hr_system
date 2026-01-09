@@ -36,6 +36,22 @@ app = Flask(__name__,
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-fallback-key')
 app.secret_key = app.config['SECRET_KEY']
 
+# Background scheduler'ı başlat (Flask app oluşturulduktan sonra)
+def start_background_scheduler():
+    """Background scheduler'ı başlat"""
+    print("🚀 Starting background scheduler...")
+    try:
+        if not background_scheduler.running:
+            background_scheduler.start()
+            print("✅ Background scheduler started successfully")
+        else:
+            print("⚠️  Background scheduler already running")
+    except Exception as e:
+        print(f"❌ Failed to start background scheduler: {e}")
+
+# Scheduler'ı hemen başlat
+start_background_scheduler()
+
 # PostgreSQL Connection Settings
 DB_CONFIG = {
     'dbname': os.environ.get('DB_NAME'),
@@ -268,10 +284,23 @@ class BackgroundScheduler:
             print("⚠️  Background scheduler already running")
             return
         
-        self.running = True
-        self.thread = threading.Thread(target=self.background_worker, daemon=True)
-        self.thread.start()
-        print("🚀 Background scheduler started successfully")
+        try:
+            self.running = True
+            self.thread = threading.Thread(target=self.background_worker, daemon=True)
+            self.thread.start()
+            print("🚀 Background scheduler started successfully")
+            
+            # Thread'in gerçekten başladığını kontrol et
+            time.sleep(1)
+            if self.thread.is_alive():
+                print("✅ Background scheduler thread is alive")
+            else:
+                print("❌ Background scheduler thread failed to start")
+                self.running = False
+                
+        except Exception as e:
+            print(f"❌ Failed to start background scheduler: {e}")
+            self.running = False
     
     def stop(self):
         """Background scheduler'ı durdur"""
@@ -2897,7 +2926,18 @@ def api_manual_late_check():
 if __name__ == '__main__':
     # Background scheduler'ı başlat
     print("🚀 Starting background late arrival scheduler...")
-    background_scheduler.start()
-    print("✅ Background scheduler started")
+    try:
+        background_scheduler.start()
+        print("✅ Background scheduler started")
+    except Exception as e:
+        print(f"❌ Failed to start background scheduler: {e}")
     
     app.run(debug=True)
+else:
+    # Production mode (Railway/Gunicorn)
+    print("🚀 Production mode: Starting background scheduler...")
+    try:
+        background_scheduler.start()
+        print("✅ Background scheduler started in production")
+    except Exception as e:
+        print(f"❌ Failed to start background scheduler in production: {e}")
