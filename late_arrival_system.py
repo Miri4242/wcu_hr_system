@@ -445,19 +445,29 @@ def check_all_employees_late_arrivals(check_date=None, limit=None):
         limit_clause = f"LIMIT {limit}" if limit else ""
         
         cur.execute(f"""
-            SELECT p.id
+            SELECT p.id, pp.name as position_name
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-            WHERE (pp.name IS NULL 
-                   OR (pp.name NOT ILIKE 'STUDENT' 
-                       AND pp.name NOT ILIKE 'VISITOR'
-                       AND pp.name NOT ILIKE 'MÜƏLLİM'))
+            WHERE pp.name IS NOT NULL 
+            AND pp.name NOT ILIKE '%STUDENT%' 
+            AND pp.name NOT ILIKE '%ÖĞRENCİ%'
+            AND pp.name NOT ILIKE '%VISITOR%' 
+            AND pp.name NOT ILIKE '%ZİYARETÇİ%'
+            AND pp.name NOT ILIKE '%MÜƏLLİM%'
+            AND pp.name NOT ILIKE '%TEACHER%'
+            AND pp.name NOT ILIKE '%GUEST%'
+            AND pp.name NOT ILIKE '%KONUK%'
             ORDER BY p.last_name, p.name
             {limit_clause}
         """)
         
-        employees = [row[0] for row in cur.fetchall()]
-        logger.info(f"Found {len(employees)} employees to check")
+        employees = []
+        for row in cur.fetchall():
+            employee_id = row[0]
+            position_name = row[1] if len(row) > 1 else "Unknown"
+            employees.append(employee_id)
+            
+        logger.info(f"Found {len(employees)} employees to check (excluding students/teachers/visitors)")
         
         late_count = 0
         email_sent_count = 0

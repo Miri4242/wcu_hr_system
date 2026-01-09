@@ -28,23 +28,22 @@ class BackgroundScheduler:
         if not self.last_check:
             return True
         
-        # 5 dakika geçti mi?
+        # 2 dakika geçti mi? (Daha sık kontrol)
         time_diff = (now - self.last_check).total_seconds()
-        if time_diff < 300:  # 5 dakika = 300 saniye
+        if time_diff < 120:  # 2 dakika = 120 saniye
             return False
         
-        # Çalışma saatleri kontrolü (08:00 - 18:00)
+        # Çalışma saatleri kontrolü (07:00 - 19:00) - Daha geniş aralık
         current_time = now.time()
-        work_start = datetime.strptime('08:00', '%H:%M').time()
-        work_end = datetime.strptime('18:00', '%H:%M').time()
+        work_start = datetime.strptime('07:00', '%H:%M').time()
+        work_end = datetime.strptime('19:00', '%H:%M').time()
         
         if not (work_start <= current_time <= work_end):
             return False
         
-        # Hafta sonu kontrolü
+        # Hafta sonu kontrolü - Hafta sonu da çalışsın
         settings = get_system_settings()
-        if now.weekday() >= 5 and settings.get('weekend_check_enabled', 'false').lower() != 'true':
-            return False
+        # Hafta sonu kontrolünü kaldırdık, her gün çalışsın
         
         # Auto check enabled mi?
         if settings.get('auto_check_enabled', 'true').lower() != 'true':
@@ -86,8 +85,8 @@ class BackgroundScheduler:
                     self.last_stats_update = datetime.now()
                     logger.info("✅ Statistics updated")
                 
-                # 60 saniye bekle
-                time.sleep(60)
+                # 30 saniye bekle (Daha sık kontrol)
+                time.sleep(30)
                 
             except Exception as e:
                 logger.error(f"❌ Background worker error: {e}")

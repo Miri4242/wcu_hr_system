@@ -196,31 +196,35 @@ class BackgroundScheduler:
         self.last_stats_update = None
         
     def should_check_now(self):
-        """Şimdi kontrol yapılmalı mı?"""
+        """Şimdi kontrol yapılmalı mı? - Akıllı kontrol"""
         now = datetime.now()
+        current_time = now.time()
         
         # İlk çalıştırma
         if not self.last_check:
             return True
         
-        # 5 dakika geçti mi?
-        time_diff = (now - self.last_check).total_seconds()
-        if time_diff < 300:  # 5 dakika = 300 saniye
-            return False
-        
-        # Çalışma saatleri kontrolü (08:00 - 18:00)
-        current_time = now.time()
-        work_start = datetime.strptime('08:00', '%H:%M').time()
-        work_end = datetime.strptime('18:00', '%H:%M').time()
+        # Çalışma saatleri kontrolü (07:00 - 20:00) - Genişletildi
+        work_start = datetime.strptime('07:00', '%H:%M').time()
+        work_end = datetime.strptime('20:00', '%H:%M').time()
         
         if not (work_start <= current_time <= work_end):
             return False
         
-        # Hafta sonu kontrolü
-        if now.weekday() >= 5:  # Hafta sonu
-            return False
+        # Dinamik kontrol aralığı
+        time_diff = (now - self.last_check).total_seconds()
         
-        return True
+        # Sabah yoğun saatler (07:00 - 10:00) - Her 1 dakika
+        if datetime.strptime('07:00', '%H:%M').time() <= current_time <= datetime.strptime('10:00', '%H:%M').time():
+            return time_diff >= 60  # 1 dakika
+        
+        # Öğle saatleri (12:00 - 14:00) - Her 2 dakika
+        elif datetime.strptime('12:00', '%H:%M').time() <= current_time <= datetime.strptime('14:00', '%H:%M').time():
+            return time_diff >= 120  # 2 dakika
+        
+        # Normal saatler - Her 3 dakika
+        else:
+            return time_diff >= 180  # 3 dakika
     
     def should_update_stats(self):
         """İstatistikleri güncelle mi?"""
@@ -268,8 +272,19 @@ class BackgroundScheduler:
                     except Exception as e:
                         print(f"❌ Statistics update error: {e}")
                 
-                # 60 saniye bekle
-                time.sleep(60)
+                # Dinamik bekleme süresi
+                now = datetime.now()
+                current_time = now.time()
+                
+                # Sabah yoğun saatler - 30 saniye bekle
+                if datetime.strptime('07:00', '%H:%M').time() <= current_time <= datetime.strptime('10:00', '%H:%M').time():
+                    time.sleep(30)
+                # Öğle saatleri - 60 saniye bekle
+                elif datetime.strptime('12:00', '%H:%M').time() <= current_time <= datetime.strptime('14:00', '%H:%M').time():
+                    time.sleep(60)
+                # Normal saatler - 120 saniye bekle
+                else:
+                    time.sleep(120)
                 
             except Exception as e:
                 print(f"❌ Background worker error: {e}")
