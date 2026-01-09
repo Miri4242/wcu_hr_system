@@ -2877,6 +2877,12 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/test_scheduler')
+def test_scheduler():
+    """Scheduler test sayfası"""
+    return render_template('test_scheduler.html')
+
+
 @app.route('/api/scheduler_status')
 def api_scheduler_status():
     """Background scheduler durumunu kontrol et"""
