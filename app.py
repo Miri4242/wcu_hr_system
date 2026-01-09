@@ -23,6 +23,9 @@ import secrets
 import os
 from dotenv import load_dotenv
 
+# Background scheduler import
+from background_scheduler import background_scheduler
+
 load_dotenv()
 
 app = Flask(__name__, 
@@ -2715,5 +2718,37 @@ def logout():
     return redirect(url_for('login'))
 
 
+@app.route('/api/scheduler_status')
+def api_scheduler_status():
+    """Background scheduler durumunu kontrol et"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        status = background_scheduler.status()
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+
+@app.route('/api/manual_late_check', methods=['POST'])
+def api_manual_late_check():
+    """Manuel gecikme kontrolü"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        from late_arrival_system import check_all_employees_late_arrivals
+        check_all_employees_late_arrivals()
+        return jsonify({'success': True, 'message': 'Late arrival check completed'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 if __name__ == '__main__':
+    # Background scheduler'ı başlat
+    print("🚀 Starting background late arrival scheduler...")
+    background_scheduler.start()
+    print("✅ Background scheduler started")
+    
     app.run(debug=True)

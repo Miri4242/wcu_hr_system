@@ -12,3 +12,5 @@ Flask-WTF==1.1.1
 Flask-Limiter==3.5.0
 # Caching
 Flask-Caching==2.1.0
+# Scheduler
+schedule==1.2.0
