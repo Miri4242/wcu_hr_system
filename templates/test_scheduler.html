@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scheduler Test</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ccc; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Late Arrival System Test</h1>
+    
+    <button onclick="checkStatus()">📊 Check Scheduler Status</button>
+    <button onclick="manualCheck()">🔍 Manual Late Check</button>
+    <button onclick="restartScheduler()">🔄 Restart Scheduler</button>
+    
+    <div id="result" class="result">
+        Click a button to test...
+    </div>
+
+    <script>
+        function showResult(title, data) {
+            document.getElementById('result').innerHTML = 
+                '<h3>' + title + '</h3><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+        }
+
+        function checkStatus() {
+            fetch('/api/scheduler_status')
+                .then(r => r.json())
+                .then(data => showResult('📊 Scheduler Status', data))
+                .catch(e => showResult('❌ Error', e.toString()));
+        }
+
+        function manualCheck() {
+            showResult('⏳ Running...', 'Please wait...');
+            fetch('/api/manual_late_check', {method: 'POST'})
+                .then(r => r.json())
+                .then(data => showResult('🔍 Manual Check Result', data))
+                .catch(e => showResult('❌ Error', e.toString()));
+        }
+
+        function restartScheduler() {
+            fetch('/api/restart_scheduler', {method: 'POST'})
+                .then(r => r.json())
+                .then(data => showResult('🔄 Restart Result', data))
+                .catch(e => showResult('❌ Error', e.toString()));
+        }
+    </script>
+</body>
+</html>

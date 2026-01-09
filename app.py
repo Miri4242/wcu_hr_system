@@ -26,6 +26,23 @@ import threading
 import time
 import logging
 
+# Late arrival system import - with error handling for Railway
+try:
+    from late_arrival_system import check_all_employees_late_arrivals, update_monthly_statistics
+    LATE_ARRIVAL_SYSTEM_AVAILABLE = True
+    print("✅ Late arrival system imported successfully")
+except ImportError as e:
+    print(f"⚠️  Late arrival system not available: {e}")
+    LATE_ARRIVAL_SYSTEM_AVAILABLE = False
+    # Create dummy functions to prevent errors
+    def check_all_employees_late_arrivals():
+        print("⚠️  Late arrival system not available")
+        return False
+    
+    def update_monthly_statistics():
+        print("⚠️  Late arrival system not available")
+        return False
+
 load_dotenv()
 
 app = Flask(__name__, 
@@ -36,21 +53,7 @@ app = Flask(__name__,
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-fallback-key')
 app.secret_key = app.config['SECRET_KEY']
 
-# Background scheduler'ı başlat (Flask app oluşturulduktan sonra)
-def start_background_scheduler():
-    """Background scheduler'ı başlat"""
-    print("🚀 Starting background scheduler...")
-    try:
-        if not background_scheduler.running:
-            background_scheduler.start()
-            print("✅ Background scheduler started successfully")
-        else:
-            print("⚠️  Background scheduler already running")
-    except Exception as e:
-        print(f"❌ Failed to start background scheduler: {e}")
-
-# Scheduler'ı hemen başlat
-start_background_scheduler()
+# Background scheduler will be initialized after the class definition
 
 # PostgreSQL Connection Settings
 DB_CONFIG = {
@@ -243,18 +246,12 @@ class BackgroundScheduler:
                 if self.should_check_now():
                     print("🔍 Running background late arrival check...")
                     try:
-                        # Import'u burada yap (Railway için)
-                        import sys
-                        import os
-                        sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-                        
-                        from late_arrival_system import check_all_employees_late_arrivals
-                        check_all_employees_late_arrivals()
-                        self.last_check = datetime.now()
-                        print("✅ Background check completed")
-                    except ImportError as e:
-                        print(f"❌ Import error: {e}")
-                        print("⚠️  late_arrival_system module not found, skipping...")
+                        if LATE_ARRIVAL_SYSTEM_AVAILABLE:
+                            check_all_employees_late_arrivals()
+                            self.last_check = datetime.now()
+                            print("✅ Background check completed")
+                        else:
+                            print("⚠️  Late arrival system not available, skipping check")
                     except Exception as e:
                         print(f"❌ Late arrival check error: {e}")
                 
@@ -262,12 +259,12 @@ class BackgroundScheduler:
                 if self.should_update_stats():
                     print("📊 Updating monthly statistics...")
                     try:
-                        from late_arrival_system import update_monthly_statistics
-                        update_monthly_statistics()
-                        self.last_stats_update = datetime.now()
-                        print("✅ Statistics updated")
-                    except ImportError as e:
-                        print(f"❌ Import error for stats: {e}")
+                        if LATE_ARRIVAL_SYSTEM_AVAILABLE:
+                            update_monthly_statistics()
+                            self.last_stats_update = datetime.now()
+                            print("✅ Statistics updated")
+                        else:
+                            print("⚠️  Late arrival system not available, skipping stats update")
                     except Exception as e:
                         print(f"❌ Statistics update error: {e}")
                 
@@ -322,6 +319,27 @@ class BackgroundScheduler:
 
 # Global scheduler instance
 background_scheduler = BackgroundScheduler()
+
+# Background scheduler'ı başlat (Flask app oluşturulduktan sonra)
+def start_background_scheduler():
+    """Background scheduler'ı başlat"""
+    print("🚀 Starting background scheduler...")
+    try:
+        if not background_scheduler.running:
+            background_scheduler.start()
+            print("✅ Background scheduler started successfully")
+        else:
+            print("⚠️  Background scheduler already running")
+    except Exception as e:
+        print(f"❌ Failed to start background scheduler: {e}")
+
+# Scheduler'ı Flask app başlatıldıktan sonra başlat
+def init_scheduler():
+    """Initialize scheduler after Flask app is ready"""
+    try:
+        start_background_scheduler()
+    except Exception as e:
+        print(f"❌ Scheduler initialization failed: {e}")
 
 
 # --------------------------------------------------------------------------------------
@@ -2891,7 +2909,6 @@ def api_todays_emails():
         return jsonify({'error': 'Login required'})
     
     try:
-        from late_arrival_system import get_db_connection
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'Database connection failed'})
@@ -2919,7 +2936,7 @@ def api_todays_emails():
     except Exception as e:
         return jsonify({'error': str(e)})
     finally:
-        if conn:
+        if 'conn' in locals() and conn:
             conn.close()
 
 
@@ -2930,7 +2947,6 @@ def api_todays_late_arrivals():
         return jsonify({'error': 'Login required'})
     
     try:
-        from late_arrival_system import get_db_connection
         conn = get_db_connection()
         if not conn:
             return jsonify({'error': 'Database connection failed'})
@@ -2963,7 +2979,7 @@ def api_todays_late_arrivals():
     except Exception as e:
         return jsonify({'error': str(e)})
     finally:
-        if conn:
+        if 'conn' in locals() and conn:
             conn.close()
 
 
@@ -2974,11 +2990,46 @@ def api_update_statistics():
         return jsonify({'error': 'Login required'})
     
     try:
-        from late_arrival_system import update_monthly_statistics
-        update_monthly_statistics()
-        return jsonify({'success': True, 'message': 'Statistics updated successfully'})
+        if LATE_ARRIVAL_SYSTEM_AVAILABLE:
+            update_monthly_statistics()
+            return jsonify({'success': True, 'message': 'Statistics updated successfully'})
+        else:
+            return jsonify({'success': False, 'error': 'Late arrival system not available'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Railway"""
+    try:
+        # Test database connection
+        conn = get_db_connection()
+        if conn:
+            conn.close()
+            db_status = "OK"
+        else:
+            db_status = "FAILED"
+        
+        # Test late arrival system
+        late_system_status = "OK" if LATE_ARRIVAL_SYSTEM_AVAILABLE else "NOT_AVAILABLE"
+        
+        # Test scheduler
+        scheduler_status = background_scheduler.status()
+        
+        return jsonify({
+            'status': 'OK',
+            'database': db_status,
+            'late_arrival_system': late_system_status,
+            'scheduler': scheduler_status,
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'ERROR',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 
 @app.route('/test_scheduler')
@@ -3026,18 +3077,20 @@ def api_manual_late_check():
         return jsonify({'error': 'Login required'})
     
     try:
-        from late_arrival_system import check_all_employees_late_arrivals
-        check_all_employees_late_arrivals()
-        return jsonify({'success': True, 'message': 'Late arrival check completed'})
+        if LATE_ARRIVAL_SYSTEM_AVAILABLE:
+            check_all_employees_late_arrivals()
+            return jsonify({'success': True, 'message': 'Late arrival check completed'})
+        else:
+            return jsonify({'success': False, 'error': 'Late arrival system not available'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
 
 if __name__ == '__main__':
-    # Background scheduler'ı başlat
-    print("🚀 Starting background late arrival scheduler...")
+    # Development mode
+    print("🚀 Development mode: Starting background scheduler...")
     try:
-        background_scheduler.start()
+        init_scheduler()
         print("✅ Background scheduler started")
     except Exception as e:
         print(f"❌ Failed to start background scheduler: {e}")
@@ -3045,9 +3098,19 @@ if __name__ == '__main__':
     app.run(debug=True)
 else:
     # Production mode (Railway/Gunicorn)
-    print("🚀 Production mode: Starting background scheduler...")
-    try:
-        background_scheduler.start()
-        print("✅ Background scheduler started in production")
-    except Exception as e:
-        print(f"❌ Failed to start background scheduler in production: {e}")
+    print("🚀 Production mode detected")
+    
+    # Use app context to initialize scheduler
+    with app.app_context():
+        try:
+            # Start scheduler in a separate thread with delay
+            import threading
+            def delayed_scheduler_start():
+                time.sleep(3)  # Wait 3 seconds for app to be ready
+                init_scheduler()
+                print("✅ Background scheduler started in production")
+            
+            threading.Thread(target=delayed_scheduler_start, daemon=True).start()
+            print("✅ Production initialization configured")
+        except Exception as e:
+            print(f"❌ Failed to initialize background services: {e}")
