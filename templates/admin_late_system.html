@@ -45,7 +45,10 @@
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <button class="btn btn-success" onclick="runManualCheck()">
-                        <i class="fas fa-search me-2"></i>Run Manual Late Check
+                        <i class="fas fa-search me-2"></i>Run Manual Late Check (Background)
+                    </button>
+                    <button class="btn btn-warning" onclick="runQuickTest()">
+                        <i class="fas fa-bolt me-2"></i>Quick Test (5 employees)
                     </button>
                     <button class="btn btn-info" onclick="checkTodaysEmails()">
                         <i class="fas fa-envelope me-2"></i>Check Today's Emails
@@ -175,6 +178,23 @@ function restartScheduler() {
         })
         .catch(error => {
             showResult('❌ Restart Error', error.toString(), 'error');
+        });
+}
+
+function runQuickTest() {
+    showLoading('Running quick test (5 employees)...');
+    
+    fetch('/api/quick_late_test', {method: 'POST'})
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showResult('⚡ Quick Test Results', data, 'success');
+            } else {
+                showResult('❌ Quick Test Failed', data, 'error');
+            }
+        })
+        .catch(error => {
+            showResult('❌ Quick Test Error', error.toString(), 'error');
         });
 }
 

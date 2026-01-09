@@ -2999,6 +2999,62 @@ def api_update_statistics():
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/quick_late_test', methods=['POST'])
+def api_quick_late_test():
+    """Hızlı gecikme testi - sadece birkaç çalışan"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        if not LATE_ARRIVAL_SYSTEM_AVAILABLE:
+            return jsonify({'success': False, 'error': 'Late arrival system not available'})
+        
+        from late_arrival_system import get_employee_first_entry_today, check_employee_late_arrival
+        from datetime import date
+        
+        # Sadece ilk 5 çalışanı test et
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({'success': False, 'error': 'Database connection failed'})
+        
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT p.id, p.name, p.last_name
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            WHERE (pp.name IS NULL 
+                   OR (pp.name NOT ILIKE 'STUDENT' 
+                       AND pp.name NOT ILIKE 'VISITOR'
+                       AND pp.name NOT ILIKE 'MÜƏLLİM'))
+            ORDER BY p.last_name, p.name
+            LIMIT 5
+        """)
+        
+        employees = cur.fetchall()
+        results = []
+        
+        for emp_id, name, last_name in employees:
+            try:
+                late_result = check_employee_late_arrival(emp_id, date.today())
+                if late_result:
+                    results.append({
+                        'employee': f"{name} {last_name}",
+                        'is_late': late_result.get('is_late', False),
+                        'late_minutes': late_result.get('late_minutes', 0)
+                    })
+            except Exception as e:
+                results.append({
+                    'employee': f"{name} {last_name}",
+                    'error': str(e)
+                })
+        
+        conn.close()
+        return jsonify({'success': True, 'results': results})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @app.route('/health')
 def health_check():
     """Health check endpoint for Railway"""
@@ -3045,8 +3101,14 @@ def api_scheduler_status():
         return jsonify({'error': 'Login required'})
     
     try:
-        status = background_scheduler.status()
-        return jsonify(status)
+        # Production'da scheduler disabled
+        return jsonify({
+            'status': 'disabled_in_production',
+            'message': 'Background scheduler is disabled in production to prevent worker timeouts',
+            'manual_control': 'Use admin panel for manual checks',
+            'last_check': None,
+            'last_stats_update': None
+        })
     except Exception as e:
         return jsonify({'error': str(e)})
 
@@ -3078,8 +3140,24 @@ def api_manual_late_check():
     
     try:
         if LATE_ARRIVAL_SYSTEM_AVAILABLE:
-            check_all_employees_late_arrivals()
-            return jsonify({'success': True, 'message': 'Late arrival check completed'})
+            # Background thread'de çalıştır - timeout'u önlemek için
+            import threading
+            
+            def run_check():
+                try:
+                    # Production'da sadece ilk 50 çalışanı kontrol et
+                    check_all_employees_late_arrivals(limit=50)
+                    print("✅ Manual late check completed in background (50 employees)")
+                except Exception as e:
+                    print(f"❌ Background late check error: {e}")
+            
+            # Thread'de başlat
+            threading.Thread(target=run_check, daemon=True).start()
+            
+            return jsonify({
+                'success': True, 
+                'message': 'Late arrival check started in background (checking first 50 employees). Check logs for results.'
+            })
         else:
             return jsonify({'success': False, 'error': 'Late arrival system not available'})
     except Exception as e:
@@ -3099,18 +3177,5 @@ if __name__ == '__main__':
 else:
     # Production mode (Railway/Gunicorn)
     print("🚀 Production mode detected")
-    
-    # Use app context to initialize scheduler
-    with app.app_context():
-        try:
-            # Start scheduler in a separate thread with delay
-            import threading
-            def delayed_scheduler_start():
-                time.sleep(3)  # Wait 3 seconds for app to be ready
-                init_scheduler()
-                print("✅ Background scheduler started in production")
-            
-            threading.Thread(target=delayed_scheduler_start, daemon=True).start()
-            print("✅ Production initialization configured")
-        except Exception as e:
-            print(f"❌ Failed to initialize background services: {e}")
+    print("⚠️  Background scheduler disabled in production to prevent worker timeouts")
+    print("💡 Use manual controls via admin panel instead")

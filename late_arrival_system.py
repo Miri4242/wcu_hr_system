@@ -399,7 +399,7 @@ def is_email_already_sent_today(employee_id, check_date):
             conn.close()
 
 
-def check_all_employees_late_arrivals(check_date=None):
+def check_all_employees_late_arrivals(check_date=None, limit=None):
     """Tüm çalışanların gecikme durumunu kontrol et"""
     if not check_date:
         check_date = date.today()
@@ -419,7 +419,11 @@ def check_all_employees_late_arrivals(check_date=None):
     
     try:
         cur = conn.cursor()
-        cur.execute("""
+        
+        # Limit ekle - production'da sadece ilk 50 çalışanı kontrol et
+        limit_clause = f"LIMIT {limit}" if limit else ""
+        
+        cur.execute(f"""
             SELECT p.id
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
@@ -427,6 +431,8 @@ def check_all_employees_late_arrivals(check_date=None):
                    OR (pp.name NOT ILIKE 'STUDENT' 
                        AND pp.name NOT ILIKE 'VISITOR'
                        AND pp.name NOT ILIKE 'MÜƏLLİM'))
+            ORDER BY p.last_name, p.name
+            {limit_clause}
         """)
         
         employees = [row[0] for row in cur.fetchall()]
@@ -437,8 +443,12 @@ def check_all_employees_late_arrivals(check_date=None):
         email_failed_count = 0
         already_sent_count = 0
         
-        for employee_id in employees:
+        for i, employee_id in enumerate(employees):
             try:
+                # Her 10 çalışanda bir progress log
+                if i % 10 == 0:
+                    logger.info(f"Processing employee {i+1}/{len(employees)}")
+                
                 # ÖNCE: Bu çalışana bugün email gönderildi mi kontrol et (çift güvenlik)
                 if is_email_already_sent_today(employee_id, check_date):
                     already_sent_count += 1
