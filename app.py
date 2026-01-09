@@ -3179,6 +3179,83 @@ def api_manual_late_check():
         return jsonify({'success': False, 'error': str(e)})
 
 
+@app.route('/api/send_test_email', methods=['POST'])
+def api_send_test_email():
+    """Test emaili gönder"""
+    if (redirect_response := require_login()):
+        return jsonify({'error': 'Login required'})
+    
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        from datetime import datetime
+        
+        # SMTP ayarları
+        smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+        smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        smtp_username = os.getenv('SMTP_USERNAME')
+        smtp_password = os.getenv('SMTP_PASSWORD')
+        from_email = os.getenv('FROM_EMAIL')
+        
+        # Test email adresi
+        test_email = "miryusifbabayev42@gmail.com"
+        
+        if not all([smtp_server, smtp_username, smtp_password, from_email]):
+            return jsonify({
+                'success': False, 
+                'error': 'SMTP settings incomplete. Check environment variables.'
+            })
+        
+        # Email oluştur
+        msg = MIMEMultipart()
+        msg['From'] = from_email
+        msg['To'] = test_email
+        msg['Subject'] = "🧪 Railway Test Email - Late Arrival System"
+        
+        body = f"""
+Merhaba! 👋
+
+Bu email Railway'deki Late Arrival System'den gönderilen bir test emailidir.
+
+📧 Test Detayları:
+- Gönderim Zamanı: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}
+- SMTP Server: {smtp_server}:{smtp_port}
+- From Email: {from_email}
+- To Email: {test_email}
+
+✅ Eğer bu emaili alıyorsanız, SMTP bağlantısı çalışıyor demektir!
+
+🚀 Sistem artık geç kalan çalışanlara otomatik email gönderebilir.
+
+Test başarılı! 🎉
+
+---
+Late Arrival System
+Railway Deployment
+        """
+        
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        # SMTP ile gönder
+        server = smtplib.SMTP(smtp_server, smtp_port)
+        server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.send_message(msg)
+        server.quit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'Test email sent successfully to {test_email}! Check the inbox.'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False, 
+            'error': f'Failed to send test email: {str(e)}'
+        })
+
+
 if __name__ == '__main__':
     # Development mode
     print("🚀 Development mode: Starting background scheduler...")

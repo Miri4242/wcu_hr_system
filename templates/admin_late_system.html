@@ -44,6 +44,9 @@
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="sendTestEmail()">
+                        <i class="fas fa-paper-plane me-2"></i>Send Test Email
+                    </button>
                     <button class="btn btn-success" onclick="runManualCheck()">
                         <i class="fas fa-search me-2"></i>Run Manual Late Check (Background)
                     </button>
@@ -120,6 +123,41 @@ function showResult(title, data, type = 'info') {
             <pre class="mb-0" style="white-space: pre-wrap; font-size: 12px;">${JSON.stringify(data, null, 2)}</pre>
         </div>
     `;
+}
+
+// Test Email Function
+function sendTestEmail() {
+    showLoading('Sending test email to miryusifbabayev42@gmail.com...');
+    
+    fetch('/api/send_test_email', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showResult('✅ Test Email Sent!', {
+                message: data.message,
+                recipient: 'miryusifbabayev42@gmail.com',
+                status: 'SUCCESS'
+            }, 'success');
+        } else {
+            showResult('❌ Test Email Failed', {
+                error: data.error,
+                recipient: 'miryusifbabayev42@gmail.com',
+                status: 'FAILED'
+            }, 'error');
+        }
+    })
+    .catch(error => {
+        showResult('❌ Test Email Error', {
+            error: error.toString(),
+            recipient: 'miryusifbabayev42@gmail.com',
+            status: 'ERROR'
+        }, 'error');
+    });
 }
 
 function showLoading(message) {
