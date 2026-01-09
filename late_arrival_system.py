@@ -245,7 +245,7 @@ def is_valid_email(email):
     return re.match(pattern, email) is not None
 
 def send_late_arrival_email(late_data, employee_info):
-    """Gecikme bildirimi emaili gönder"""
+    """Gecikme bildirimi emaili gönder - SMTP ve API alternatifleri"""
     settings = get_system_settings()
     
     if settings.get('email_enabled', 'false').lower() != 'true':
@@ -258,65 +258,201 @@ def send_late_arrival_email(late_data, employee_info):
     
     # Artık email validation'a gerek yok çünkü get_employee_email zaten geçerli emailleri döndürüyor
     
+    # Email içeriği hazırla
+    subject_template = settings.get('email_template_subject', 'Late Arrival Notification - {date}')
+    body_template = settings.get('email_template_body', 
+        'Dear {name},\n\nYou were {late_minutes} minutes late on {date}.\n'
+        'Expected arrival time: {expected_time}\nYour arrival time: {actual_time}\n\n'
+        'Please ensure punctuality in the future.\n\nBest regards,\nHR Department')
+    
+    # Template değişkenlerini değiştir
+    email_vars = {
+        'name': employee_info['full_name'],
+        'date': late_data['late_date'].strftime('%d.%m.%Y'),
+        'late_minutes': late_data['late_minutes'],
+        'expected_time': late_data['expected_time'].strftime('%H:%M'),
+        'actual_time': late_data['actual_time'].strftime('%H:%M')
+    }
+    
+    subject = subject_template.format(**email_vars)
+    body = body_template.format(**email_vars)
+    
+    # Önce SMTP dene
+    smtp_success = try_smtp_send(employee_info['email'], subject, body)
+    if smtp_success:
+        logger.info(f"Late arrival email sent via SMTP to {employee_info['email']}")
+        save_email_record(late_data['employee_id'], employee_info, subject, body, 'sent')
+        return True
+    
+    # SMTP başarısızsa API dene
+    api_success = try_api_send(employee_info['email'], subject, body)
+    if api_success:
+        logger.info(f"Late arrival email sent via API to {employee_info['email']}")
+        save_email_record(late_data['employee_id'], employee_info, subject, body, 'sent')
+        return True
+    
+    # Her ikisi de başarısızsa
+    logger.error(f"Failed to send email to {employee_info['email']} via both SMTP and API")
+    save_email_record(late_data['employee_id'], employee_info, subject, body, 'failed', 'Both SMTP and API failed')
+    return False
+
+def try_smtp_send(to_email, subject, body):
+    """SMTP ile email göndermeyi dene - Railway için optimize edilmiş"""
     try:
-        # Email içeriği hazırla
-        subject_template = settings.get('email_template_subject', 'Late Arrival Notification - {date}')
-        body_template = settings.get('email_template_body', 
-            'Dear {name},\n\nYou were {late_minutes} minutes late on {date}.\n'
-            'Expected arrival time: {expected_time}\nYour arrival time: {actual_time}\n\n'
-            'Please ensure punctuality in the future.\n\nBest regards,\nHR Department')
-        
-        # Template değişkenlerini değiştir
-        email_vars = {
-            'name': employee_info['full_name'],
-            'date': late_data['late_date'].strftime('%d.%m.%Y'),
-            'late_minutes': late_data['late_minutes'],
-            'expected_time': late_data['expected_time'].strftime('%H:%M'),
-            'actual_time': late_data['actual_time'].strftime('%H:%M')
-        }
-        
-        subject = subject_template.format(**email_vars)
-        body = body_template.format(**email_vars)
-        
         # SMTP ayarları - önce .env'den, sonra database'den
+        settings = get_system_settings()
         smtp_server = os.getenv('SMTP_SERVER') or settings.get('smtp_server', '')
         smtp_port = int(os.getenv('SMTP_PORT', '587') or settings.get('smtp_port', '587'))
         smtp_username = os.getenv('SMTP_USERNAME') or settings.get('smtp_username', '')
         smtp_password = os.getenv('SMTP_PASSWORD') or settings.get('smtp_password', '')
         from_email = os.getenv('FROM_EMAIL') or settings.get('from_email', 'hr@company.com')
         
+        # SSL/TLS ayarları
+        use_ssl = os.getenv('SMTP_USE_SSL', 'false').lower() == 'true'
+        use_tls = os.getenv('SMTP_USE_TLS', 'true').lower() == 'true'
+        
         if not all([smtp_server, smtp_username, smtp_password]):
-            logger.error("SMTP settings incomplete")
+            logger.warning("SMTP settings incomplete, skipping SMTP")
             return False
         
         # Email oluştur
         msg = MIMEMultipart()
         msg['From'] = from_email
-        msg['To'] = employee_info['email']
+        msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
-        # SMTP ile gönder
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
+        # Railway için farklı SMTP yöntemlerini dene
+        smtp_methods = [
+            {'port': 587, 'use_ssl': False, 'use_tls': True},   # Standard
+            {'port': 465, 'use_ssl': True, 'use_tls': False},   # SSL
+            {'port': 25, 'use_ssl': False, 'use_tls': True},    # Alternative
+        ]
         
-        logger.info(f"Late arrival email sent to {employee_info['email']}")
+        for method in smtp_methods:
+            try:
+                logger.info(f"Trying SMTP {smtp_server}:{method['port']} (SSL:{method['use_ssl']}, TLS:{method['use_tls']})")
+                
+                # SMTP bağlantısı
+                if method['use_ssl']:
+                    server = smtplib.SMTP_SSL(smtp_server, method['port'])
+                else:
+                    server = smtplib.SMTP(smtp_server, method['port'])
+                    if method['use_tls']:
+                        server.starttls()
+                
+                server.login(smtp_username, smtp_password)
+                server.send_message(msg)
+                server.quit()
+                
+                logger.info(f"SMTP success with {smtp_server}:{method['port']}")
+                return True
+                
+            except Exception as e:
+                logger.warning(f"SMTP method {method['port']} failed: {e}")
+                continue
         
-        # Email kaydını veritabanına kaydet (MUTLAKA)
-        save_email_record(late_data['employee_id'], employee_info, subject, body, 'sent')
-        
-        return True
+        logger.warning("All SMTP methods failed")
+        return False
         
     except Exception as e:
-        logger.error(f"Email send error: {e}")
-        # Hata durumunda da kaydet
-        try:
-            save_email_record(late_data['employee_id'], employee_info, subject, body, 'failed', str(e))
-        except:
-            pass  # Kayıt hatası olursa da devam et
+        logger.warning(f"SMTP send failed: {e}")
+        return False
+
+def try_api_send(to_email, subject, body):
+    """API ile email göndermeyi dene (Mailgun + SendGrid)"""
+    
+    # Önce Mailgun dene
+    if try_mailgun_send(to_email, subject, body):
+        return True
+    
+    # Mailgun başarısızsa SendGrid dene
+    if try_sendgrid_send(to_email, subject, body):
+        return True
+    
+    return False
+
+def try_mailgun_send(to_email, subject, body):
+    """Mailgun API ile email gönder"""
+    try:
+        import requests
+        
+        api_key = os.getenv('MAILGUN_API_KEY')
+        domain = os.getenv('MAILGUN_DOMAIN', 'sandbox-123.mailgun.org')
+        
+        if not api_key:
+            logger.warning("MAILGUN_API_KEY not found, skipping Mailgun")
+            return False
+        
+        url = f"https://api.mailgun.net/v3/{domain}/messages"
+        
+        auth = ("api", api_key)
+        
+        data = {
+            "from": f"WCU HR System <mailgun@{domain}>",
+            "to": [to_email],
+            "subject": subject,
+            "text": body
+        }
+        
+        response = requests.post(url, auth=auth, data=data)
+        
+        if response.status_code == 200:
+            logger.info(f"Mailgun API email sent to {to_email}")
+            return True
+        else:
+            logger.warning(f"Mailgun API failed: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.warning(f"Mailgun API send failed: {e}")
+        return False
+
+def try_sendgrid_send(to_email, subject, body):
+    """SendGrid API ile email gönder"""
+    try:
+        import requests
+        
+        api_key = os.getenv('SENDGRID_API_KEY')
+        
+        if not api_key:
+            logger.warning("SENDGRID_API_KEY not found, skipping SendGrid")
+            return False
+        
+        url = "https://api.sendgrid.com/v3/mail/send"
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "personalizations": [
+                {
+                    "to": [{"email": to_email}],
+                    "subject": subject
+                }
+            ],
+            "from": {"email": "wcuhrsystem@gmail.com", "name": "WCU HR System"},
+            "content": [
+                {
+                    "type": "text/plain",
+                    "value": body
+                }
+            ]
+        }
+        
+        response = requests.post(url, headers=headers, json=data)
+        
+        if response.status_code == 202:
+            logger.info(f"SendGrid API email sent to {to_email}")
+            return True
+        else:
+            logger.warning(f"SendGrid API failed: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        logger.warning(f"SendGrid API send failed: {e}")
         return False
 
 def save_email_record(employee_id, employee_info, subject, body, status, error_msg=None):

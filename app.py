@@ -3181,79 +3181,349 @@ def api_manual_late_check():
 
 @app.route('/api/send_test_email', methods=['POST'])
 def api_send_test_email():
-    """Test emaili gönder"""
+    """Test emaili gönder - SMTP ve API alternatifleri"""
     if (redirect_response := require_login()):
         return jsonify({'error': 'Login required'})
     
+    test_email = "miryusifbabayev42@gmail.com"
+    
+    # Önce SMTP dene
+    smtp_result = try_smtp_email(test_email)
+    if smtp_result['success']:
+        return jsonify(smtp_result)
+    
+    # SMTP başarısızsa API dene
+    api_result = try_api_email(test_email)
+    if api_result['success']:
+        return jsonify(api_result)
+    
+    # Her ikisi de başarısızsa detaylı hata döndür
+    return jsonify({
+        'success': False,
+        'error': 'Both SMTP and API email methods failed',
+        'smtp_error': smtp_result.get('error'),
+        'api_error': api_result.get('error'),
+        'solutions': [
+            'Check Railway environment variables',
+            'Try SendGrid API (SENDGRID_API_KEY)',
+            'Check if SMTP ports are blocked',
+            'Verify Gmail app password'
+        ]
+    })
+
+def try_smtp_email(test_email):
+    """SMTP ile email göndermeyi dene - Railway Gmail SMTP Force"""
     try:
         import smtplib
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart
         from datetime import datetime
+        import ssl
         
         # SMTP ayarları
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.getenv('SMTP_PORT', '587'))
         smtp_username = os.getenv('SMTP_USERNAME')
         smtp_password = os.getenv('SMTP_PASSWORD')
         from_email = os.getenv('FROM_EMAIL')
         
-        # Test email adresi
-        test_email = "miryusifbabayev42@gmail.com"
+        # SMTP ayarlarını kontrol et
+        missing_settings = []
+        if not smtp_server: missing_settings.append('SMTP_SERVER')
+        if not smtp_username: missing_settings.append('SMTP_USERNAME')
+        if not smtp_password: missing_settings.append('SMTP_PASSWORD')
+        if not from_email: missing_settings.append('FROM_EMAIL')
         
-        if not all([smtp_server, smtp_username, smtp_password, from_email]):
-            return jsonify({
+        if missing_settings:
+            return {
                 'success': False, 
-                'error': 'SMTP settings incomplete. Check environment variables.'
-            })
+                'error': f'Missing SMTP settings: {", ".join(missing_settings)}',
+                'method': 'SMTP'
+            }
         
         # Email oluştur
         msg = MIMEMultipart()
         msg['From'] = from_email
         msg['To'] = test_email
-        msg['Subject'] = "🧪 Railway Test Email - Late Arrival System"
+        msg['Subject'] = "🚀 Railway Gmail SMTP Force Test"
         
         body = f"""
-Merhaba! 👋
+BAŞARILI! 🎉
 
-Bu email Railway'deki Late Arrival System'den gönderilen bir test emailidir.
+Railway'de Gmail SMTP çalışıyor!
 
-📧 Test Detayları:
+📧 SMTP Test Detayları:
 - Gönderim Zamanı: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}
-- SMTP Server: {smtp_server}:{smtp_port}
+- SMTP Server: {smtp_server}
 - From Email: {from_email}
-- To Email: {test_email}
+- Method: Gmail SMTP Force
 
-✅ Eğer bu emaili alıyorsanız, SMTP bağlantısı çalışıyor demektir!
-
-🚀 Sistem artık geç kalan çalışanlara otomatik email gönderebilir.
-
-Test başarılı! 🎉
+✅ Gmail SMTP bağlantısı Railway'de çalışıyor!
 
 ---
-Late Arrival System
-Railway Deployment
+Late Arrival System - Gmail SMTP Force Test
         """
         
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
-        # SMTP ile gönder
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(smtp_username, smtp_password)
-        server.send_message(msg)
-        server.quit()
+        # Railway için Gmail SMTP force yöntemleri
+        smtp_methods = [
+            {
+                'name': 'Gmail Standard (587)',
+                'server': 'smtp.gmail.com',
+                'port': 587,
+                'ssl_method': 'starttls'
+            },
+            {
+                'name': 'Gmail SSL (465)',
+                'server': 'smtp.gmail.com', 
+                'port': 465,
+                'ssl_method': 'ssl'
+            },
+            {
+                'name': 'Gmail Direct IP (587)',
+                'server': '74.125.133.108',
+                'port': 587,
+                'ssl_method': 'starttls'
+            },
+            {
+                'name': 'Gmail Direct IP (465)',
+                'server': '74.125.133.108',
+                'port': 465,
+                'ssl_method': 'ssl'
+            },
+            {
+                'name': 'Gmail Force TLS',
+                'server': 'smtp.gmail.com',
+                'port': 587,
+                'ssl_method': 'force_tls'
+            }
+        ]
         
-        return jsonify({
-            'success': True, 
-            'message': f'Test email sent successfully to {test_email}! Check the inbox.'
-        })
+        last_error = None
+        
+        for method in smtp_methods:
+            try:
+                print(f"🔌 Trying {method['name']} ({method['server']}:{method['port']})")
+                
+                # SMTP bağlantısı - farklı SSL yöntemleri
+                if method['ssl_method'] == 'ssl':
+                    server = smtplib.SMTP_SSL(method['server'], method['port'])
+                elif method['ssl_method'] == 'force_tls':
+                    server = smtplib.SMTP(method['server'], method['port'])
+                    context = ssl.create_default_context()
+                    context.check_hostname = False
+                    context.verify_mode = ssl.CERT_NONE
+                    server.starttls(context=context)
+                else:  # starttls
+                    server = smtplib.SMTP(method['server'], method['port'])
+                    server.starttls()
+                
+                print(f"🔑 Logging in...")
+                server.login(smtp_username, smtp_password)
+                
+                print(f"📤 Sending email...")
+                server.send_message(msg)
+                server.quit()
+                
+                print(f"✅ Gmail SMTP success with {method['name']}!")
+                
+                return {
+                    'success': True, 
+                    'message': f'Gmail SMTP email sent successfully to {test_email} using {method["name"]}!',
+                    'method': f'Gmail SMTP ({method["name"]})',
+                    'server': f'{method["server"]}:{method["port"]}'
+                }
+                
+            except Exception as e:
+                last_error = str(e)
+                print(f"❌ {method['name']} failed: {e}")
+                continue
+        
+        # Tüm yöntemler başarısız
+        print(f"❌ All Gmail SMTP methods failed on Railway")
+        return {
+            'success': False,
+            'error': f'All Gmail SMTP methods failed on Railway. Last error: {last_error}',
+            'method': 'Gmail SMTP',
+            'railway_issue': 'Railway might be blocking SMTP ports or Gmail is rejecting Railway IPs',
+            'tried_methods': [m['name'] for m in smtp_methods]
+        }
         
     except Exception as e:
-        return jsonify({
-            'success': False, 
-            'error': f'Failed to send test email: {str(e)}'
-        })
+        print(f"❌ Gmail SMTP general error: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'method': 'Gmail SMTP'
+        }
+
+def try_api_email(test_email):
+    """API ile email göndermeyi dene (Mailgun + SendGrid)"""
+    
+    # Önce Mailgun dene (daha güvenilir)
+    mailgun_result = try_mailgun_api(test_email)
+    if mailgun_result['success']:
+        return mailgun_result
+    
+    # Mailgun başarısızsa SendGrid dene
+    sendgrid_result = try_sendgrid_api(test_email)
+    if sendgrid_result['success']:
+        return sendgrid_result
+    
+    # Her ikisi de başarısız
+    return {
+        'success': False,
+        'error': 'Both Mailgun and SendGrid failed',
+        'mailgun_error': mailgun_result.get('error'),
+        'sendgrid_error': sendgrid_result.get('error'),
+        'method': 'API'
+    }
+
+def try_mailgun_api(test_email):
+    """Mailgun API ile email gönder"""
+    try:
+        import requests
+        
+        api_key = os.getenv('MAILGUN_API_KEY')
+        domain = os.getenv('MAILGUN_DOMAIN', 'sandbox-123.mailgun.org')
+        
+        if not api_key:
+            return {
+                'success': False,
+                'error': 'MAILGUN_API_KEY not found',
+                'method': 'Mailgun API'
+            }
+        
+        url = f"https://api.mailgun.net/v3/{domain}/messages"
+        
+        auth = ("api", api_key)
+        
+        data = {
+            "from": f"WCU HR System <mailgun@{domain}>",
+            "to": [test_email],
+            "subject": "🚀 Railway Mailgun Test - Late Arrival System",
+            "text": f"""
+Merhaba! 👋
+
+Bu email Railway'deki Late Arrival System'den Mailgun API ile gönderildi.
+
+📧 Mailgun Test Detayları:
+- Method: Mailgun API
+- Domain: {domain}
+- To: {test_email}
+
+✅ Mailgun API sistemi çalışıyor!
+
+Gmail SMTP yerine HTTP API kullanıyoruz çünkü Railway'de SMTP portları bloklanmış.
+
+Ücretsiz 5000 email/ay! 🎉
+
+---
+Late Arrival System - Mailgun Test
+            """
+        }
+        
+        print("🌐 Trying Mailgun API...")
+        response = requests.post(url, auth=auth, data=data)
+        
+        if response.status_code == 200:
+            print("✅ Mailgun API email sent successfully!")
+            return {
+                'success': True,
+                'message': f'Mailgun API email sent successfully to {test_email}!',
+                'method': 'Mailgun API',
+                'domain': domain
+            }
+        else:
+            return {
+                'success': False,
+                'error': f'Mailgun API error: {response.status_code} - {response.text}',
+                'method': 'Mailgun API'
+            }
+            
+    except Exception as e:
+        print(f"❌ Mailgun API failed: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'method': 'Mailgun API'
+        }
+
+def try_sendgrid_api(test_email):
+    """SendGrid API ile email gönder"""
+    try:
+        import requests
+        
+        api_key = os.getenv('SENDGRID_API_KEY')
+        
+        if not api_key:
+            return {
+                'success': False,
+                'error': 'SENDGRID_API_KEY not found',
+                'method': 'SendGrid API'
+            }
+        
+        url = "https://api.sendgrid.com/v3/mail/send"
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        data = {
+            "personalizations": [
+                {
+                    "to": [{"email": test_email}],
+                    "subject": "🧪 Railway SendGrid Test - Late Arrival System"
+                }
+            ],
+            "from": {"email": "wcuhrsystem@gmail.com", "name": "WCU HR System"},
+            "content": [
+                {
+                    "type": "text/plain",
+                    "value": f"""
+Merhaba! 👋
+
+Bu email Railway'deki Late Arrival System'den SendGrid API ile gönderildi.
+
+📧 SendGrid Test Detayları:
+- Method: SendGrid API
+- From: WCU HR System
+- To: {test_email}
+
+✅ SendGrid API sistemi çalışıyor!
+
+---
+Late Arrival System - SendGrid Test
+                    """
+                }
+            ]
+        }
+        
+        print("🌐 Trying SendGrid API...")
+        response = requests.post(url, headers=headers, json=data)
+        
+        if response.status_code == 202:
+            print("✅ SendGrid API email sent successfully!")
+            return {
+                'success': True,
+                'message': f'SendGrid API email sent successfully to {test_email}!',
+                'method': 'SendGrid API'
+            }
+        else:
+            return {
+                'success': False,
+                'error': f'SendGrid API error: {response.status_code} - {response.text}',
+                'method': 'SendGrid API'
+            }
+            
+    except Exception as e:
+        print(f"❌ SendGrid API failed: {e}")
+        return {
+            'success': False,
+            'error': str(e),
+            'method': 'SendGrid API'
+        }
 
 
 if __name__ == '__main__':
