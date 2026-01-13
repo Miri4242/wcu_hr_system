@@ -337,7 +337,11 @@ background_scheduler = BackgroundScheduler()
 
 # Background scheduler'ı başlat (Flask app oluşturulduktan sonra)
 def start_background_scheduler():
-    """Background scheduler'ı başlat"""
+    """Background scheduler'ı başlat - GEÇİCİ OLARAK KAPATILDI"""
+    print("⚠️ Background scheduler temporarily disabled")
+    print("💡 Email system and background checks are disabled")
+    # GELECEKTE KULLANMAK İÇİN YORUM SATIRINA ALINMIŞ KOD:
+    """
     print("🚀 Starting background scheduler...")
     try:
         if not background_scheduler.running:
@@ -347,14 +351,19 @@ def start_background_scheduler():
             print("⚠️  Background scheduler already running")
     except Exception as e:
         print(f"❌ Failed to start background scheduler: {e}")
+    """
 
 # Scheduler'ı Flask app başlatıldıktan sonra başlat
 def init_scheduler():
-    """Initialize scheduler after Flask app is ready"""
+    """Initialize scheduler after Flask app is ready - GEÇİCİ OLARAK KAPATILDI"""
+    print("⚠️ Scheduler initialization disabled")
+    # GELECEKTE KULLANMAK İÇİN YORUM SATIRINA ALINMIŞ KOD:
+    """
     try:
         start_background_scheduler()
     except Exception as e:
         print(f"❌ Scheduler initialization failed: {e}")
+    """
 
 
 # --------------------------------------------------------------------------------------
@@ -3527,17 +3536,21 @@ Late Arrival System - SendGrid Test
 
 
 if __name__ == '__main__':
-    # Development mode
-    print("🚀 Development mode: Starting background scheduler...")
+    # Development mode - Background scheduler disabled
+    print("🚀 Development mode: Background scheduler disabled")
+    print("⚠️ Email system and background checks are temporarily disabled")
+    # GELECEKTE KULLANMAK İÇİN YORUM SATIRINA ALINMIŞ KOD:
+    """
     try:
         init_scheduler()
         print("✅ Background scheduler started")
     except Exception as e:
         print(f"❌ Failed to start background scheduler: {e}")
+    """
     
     app.run(debug=True)
 else:
     # Production mode (Railway/Gunicorn)
     print("🚀 Production mode detected")
-    print("⚠️  Background scheduler disabled in production to prevent worker timeouts")
+    print("⚠️ Background scheduler disabled - email system temporarily disabled")
     print("💡 Use manual controls via admin panel instead")
