@@ -592,7 +592,7 @@ def get_employee_list():
 
 
 def get_employee_details(employee_id):
-    """Fetches all details for a specific employee ID (excluding Students, Visitors and Teachers)."""
+    """Fetches all details for a specific employee ID (for admin panel - includes all employees except Students and Visitors)."""
     conn = get_db_connection()
     if conn is None: return None
 
@@ -613,8 +613,7 @@ def get_employee_details(employee_id):
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                     WHERE (pp.name IS NULL 
                            OR (pp.name NOT ILIKE 'student' 
-                               AND pp.name NOT ILIKE 'visitor'
-                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
+                               AND pp.name NOT ILIKE 'visitor')) -- Sadece Student ve Visitor hariç
                       AND p.id = %s;
                     """, (employee_id,))
 
