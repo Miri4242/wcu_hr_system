@@ -99,13 +99,56 @@
                     </div>
 
                     <div class="d-flex justify-content-between">
-                        <a href="{{ url_for('admin_employees') }}" class="btn btn-secondary">
-                            <i class="fas fa-times me-2"></i>Cancel
-                        </a>
+                        <div>
+                            <a href="{{ url_for('admin_employees') }}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>Cancel
+                            </a>
+                            <button type="button" class="btn btn-danger ms-2" 
+                                    onclick="confirmDelete('{{ employee.id }}', '{{ employee.name }} {{ employee.last_name }}')">
+                                <i class="fas fa-trash me-2"></i>Delete Employee
+                            </button>
+                        </div>
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-2"></i>Save Changes
                         </button>
                     </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirm Delete
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center">
+                    <i class="fas fa-user-times fa-3x text-danger mb-3"></i>
+                    <h5>Are you sure you want to delete this employee?</h5>
+                    <p class="text-muted mb-3">
+                        <strong id="employeeName"></strong>
+                    </p>
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Warning:</strong> This action cannot be undone. The employee and all related data will be permanently deleted.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>Cancel
+                </button>
+                <form id="deleteForm" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i>Delete Employee
+                    </button>
                 </form>
             </div>
         </div>
@@ -291,5 +334,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 });
+
+function confirmDelete(employeeId, employeeName) {
+    // Set employee name in modal
+    document.getElementById('employeeName').textContent = employeeName;
+    
+    // Set form action
+    document.getElementById('deleteForm').action = `/admin/employees/delete/${employeeId}`;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
 </script>
 {% endblock %}

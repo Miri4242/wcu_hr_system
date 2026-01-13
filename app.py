@@ -425,7 +425,7 @@ def get_available_months(num_months=12):
 # --------------------------------------------------------------------------------------
 
 def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
-    """Fetches employees with pagination and search for admin panel."""
+    """Fetches ALL employees with pagination and search for admin panel (including teachers and school employees)."""
     conn = get_db_connection()
     if conn is None: 
         return {
@@ -439,14 +439,14 @@ def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
 
     cur = conn.cursor()
     try:
-        # Base query
+        # Base query - TÜM ÇALIŞANLAR (sadece STUDENT ve VISITOR hariç)
         base_query = """
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
             WHERE (pp.name IS NULL
                OR (pp.name NOT ILIKE 'STUDENT' 
-                   AND pp.name NOT ILIKE 'VISITOR'
-                   AND pp.name NOT ILIKE 'MÜƏLLİM'))
+                   AND pp.name NOT ILIKE 'VISITOR'))
         """
         
         # Search filter
@@ -540,7 +540,7 @@ def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
 
 
 def get_employee_list():
-    """Fetches essential details and positions for all employees (excluding Students, Visitors and Teachers)."""
+    """Fetches essential details and positions for all employees (Administrative category - excluding Students, Visitors, Teachers and School department)."""
     conn = get_db_connection()
     if conn is None: return []
 
@@ -558,10 +558,12 @@ def get_employee_list():
                            p.photo_path
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
                     WHERE (pp.name IS NULL
                        OR (pp.name NOT ILIKE 'STUDENT' 
                            AND pp.name NOT ILIKE 'VISITOR'
                            AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
+                      AND (ad.name IS NULL OR ad.name != 'School') -- School departmanı hariç
                     ORDER BY p.last_name, p.name;
                     """)
 
@@ -774,6 +776,48 @@ def update_employee_details(employee_id, data):
             return False, "Invalid data format. Please check your input."
         else:
             return False, f"Update error: {error_msg}"
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def delete_employee(employee_id):
+    """Deletes an employee from the database completely."""
+    conn = get_db_connection()
+    if conn is None:
+        return False, "Database connection error."
+
+    cur = conn.cursor()
+    try:
+        # Önce çalışanın var olup olmadığını kontrol et
+        cur.execute("SELECT name, last_name FROM public.pers_person WHERE id = %s", (employee_id,))
+        employee = cur.fetchone()
+        
+        if not employee:
+            return False, "Employee not found."
+        
+        employee_name = f"{employee[0]} {employee[1]}"
+        
+        # Çalışanı sil
+        cur.execute("DELETE FROM public.pers_person WHERE id = %s", (employee_id,))
+        
+        if cur.rowcount == 0:
+            return False, "Employee could not be deleted."
+        
+        conn.commit()
+        print(f"✅ Employee deleted successfully: {employee_name} (ID: {employee_id})")
+        return True, f"Employee {employee_name} has been successfully deleted."
+        
+    except psycopg2.Error as e:
+        conn.rollback()
+        print(f"🚨 Employee Delete Error: {e}")
+        error_msg = str(e)
+        
+        # Kullanıcı dostu hata mesajları
+        if "foreign key constraint" in error_msg.lower():
+            return False, "Cannot delete employee: Employee has related records in the system (attendance logs, etc.). Please contact system administrator."
+        else:
+            return False, f"Delete error: {error_msg}"
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -1982,14 +2026,17 @@ def api_employees_list():
     try:
         # Basit ve net WHERE conditions
         if category == 'teachers' or category == 'teacher':
-            # Müəllim pozisyonundakiler - tam eşleşme
-            where_clause = "WHERE pp.name = 'Müəllim'"
+            # Müəllim pozisyonundakiler ama School departmanında OLMAYANLAR
+            where_clause = "WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')"
         elif category == 'school':
-            # Sadece School departmanındakiler - başka filtre yok
+            # School departmanındaki HERKES (müəllimleri de dahil)
             where_clause = "WHERE ad.name = 'School'"
-        else:  # active
-            # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç
-            where_clause = "WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR' AND pp.name NOT ILIKE 'MÜƏLLİM'))"
+        else:  # active (administrative)
+            # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
+            where_clause = """WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                                        AND pp.name NOT ILIKE 'VISITOR' 
+                                                        AND pp.name NOT ILIKE 'MÜƏLLİM'))
+                                AND (ad.name IS NULL OR ad.name != 'School')"""
         
         # Search filter
         search_filter = ""
@@ -2078,16 +2125,20 @@ def api_employees_list():
         # Category counts
         category_counts = {}
         
-        # Active count
+        # Active count - Administrative: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
         cur.execute("""
             SELECT COUNT(*) 
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-            WHERE pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' AND pp.name NOT ILIKE 'VISITOR' AND pp.name NOT ILIKE 'MÜƏLLİM')
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                      AND pp.name NOT ILIKE 'VISITOR' 
+                                      AND pp.name NOT ILIKE 'MÜƏLLİM'))
+              AND (ad.name IS NULL OR ad.name != 'School')
         """)
         category_counts['active'] = cur.fetchone()[0]
         
-        # School count - sadece School departmanındakiler
+        # School count - School departmanındaki HERKES (müəllimleri de dahil)
         cur.execute("""
             SELECT COUNT(*) 
             FROM public.pers_person p
@@ -2097,13 +2148,13 @@ def api_employees_list():
         """)
         category_counts['school'] = cur.fetchone()[0]
         
-        # Teachers count
+        # Teachers count - Müəllimler ama School departmanında olmayanlar
         cur.execute("""
             SELECT COUNT(*) 
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
-            WHERE pp.name = 'Müəllim'
+            WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')
         """)
         category_counts['teachers'] = cur.fetchone()[0]
         
@@ -2744,6 +2795,25 @@ def admin_edit_employee(employee_id):
         return redirect(url_for('admin_employees'))
     
     return render_template('admin_edit_employee.html', employee=employee, positions=positions)
+
+
+@app.route('/admin/employees/delete/<employee_id>', methods=['POST'])
+def admin_delete_employee(employee_id):
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    success, message = delete_employee(employee_id)
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'danger')
+    
+    return redirect(url_for('admin_employees'))
 
 
 @app.route('/admin/users/add', methods=['GET', 'POST'])
