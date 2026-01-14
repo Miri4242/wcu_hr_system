@@ -424,8 +424,8 @@ def get_available_months(num_months=12):
 # --- EMPLOYEE MANAGEMENT FUNCTIONS (CRUD/LIST) ---
 # --------------------------------------------------------------------------------------
 
-def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
-    """Fetches ALL employees with pagination and search for admin panel (including teachers and school employees)."""
+def get_admin_employees_paginated(page=1, per_page=20, search_term="", category="active"):
+    """Fetches employees with pagination, search and category filter for admin panel."""
     conn = get_db_connection()
     if conn is None: 
         return {
@@ -434,19 +434,32 @@ def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
                 'current_page': 1, 
                 'total_pages': 1, 
                 'total_items': 0
-            }
+            },
+            'category_counts': {'active': 0, 'school': 0, 'teachers': 0}
         }
 
     cur = conn.cursor()
     try:
-        # Base query - TÜM ÇALIŞANLAR (sadece STUDENT ve VISITOR hariç)
-        base_query = """
+        # Category-based WHERE clause (aynı employees sayfasındaki mantık)
+        if category == 'teachers' or category == 'teacher':
+            # Müəllim pozisyonundakiler ama School departmanında OLMAYANLAR
+            where_clause = "WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')"
+        elif category == 'school':
+            # School departmanındaki HERKES (müəllimleri de dahil)
+            where_clause = "WHERE ad.name = 'School'"
+        else:  # active (administrative)
+            # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
+            where_clause = """WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                                        AND pp.name NOT ILIKE 'VISITOR' 
+                                                        AND pp.name NOT ILIKE 'MÜƏLLİM'))
+                                AND (ad.name IS NULL OR ad.name != 'School')"""
+        
+        # Base query
+        base_query = f"""
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
-            WHERE (pp.name IS NULL
-               OR (pp.name NOT ILIKE 'STUDENT' 
-                   AND pp.name NOT ILIKE 'VISITOR'))
+            {where_clause}
         """
         
         # Search filter
@@ -515,13 +528,50 @@ def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
                 'hire_date': row[8].strftime('%d.%m.%Y') if row[8] else 'N/A'
             })
         
+        # Category counts (aynı employees sayfasındaki mantık)
+        category_counts = {}
+        
+        # Active count - Administrative
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                      AND pp.name NOT ILIKE 'VISITOR' 
+                                      AND pp.name NOT ILIKE 'MÜƏLLİM'))
+              AND (ad.name IS NULL OR ad.name != 'School')
+        """)
+        category_counts['active'] = cur.fetchone()[0]
+        
+        # School count - School departmanındaki herkes
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE ad.name = 'School'
+        """)
+        category_counts['school'] = cur.fetchone()[0]
+        
+        # Teachers count - Müəllimler ama School departmanında olmayanlar
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')
+        """)
+        category_counts['teachers'] = cur.fetchone()[0]
+        
         return {
             'employees': employees,
             'pagination': {
                 'current_page': page,
                 'total_pages': total_pages,
                 'total_items': total_items
-            }
+            },
+            'category_counts': category_counts
         }
         
     except psycopg2.Error as e:
@@ -532,7 +582,8 @@ def get_admin_employees_paginated(page=1, per_page=20, search_term=""):
                 'current_page': 1, 
                 'total_pages': 1, 
                 'total_items': 0
-            }
+            },
+            'category_counts': {'active': 0, 'school': 0, 'teachers': 0}
         }
     finally:
         if cur: cur.close()
@@ -1507,6 +1558,49 @@ def create_system_user(data):
         conn.rollback()
         print(f"🚨 System User Create Error: {e}")
         return False, f"Creation error: {e}"
+    finally:
+        if cur: cur.close()
+        if conn: conn.close()
+
+
+def delete_system_user(user_id):
+    """Deletes a system user from the database."""
+    conn = get_db_connection()
+    if conn is None:
+        return False, "Database connection error."
+
+    cur = conn.cursor()
+    try:
+        # Önce kullanıcının var olup olmadığını kontrol et
+        cur.execute("SELECT full_name, email FROM public.system_users WHERE id = %s", (user_id,))
+        user = cur.fetchone()
+        
+        if not user:
+            return False, "User not found."
+        
+        user_name = user[0]
+        user_email = user[1]
+        
+        # Kullanıcıyı sil
+        cur.execute("DELETE FROM public.system_users WHERE id = %s", (user_id,))
+        
+        if cur.rowcount == 0:
+            return False, "User could not be deleted."
+        
+        conn.commit()
+        print(f"✅ User deleted successfully: {user_name} ({user_email}) - ID: {user_id}")
+        return True, f"User {user_name} has been successfully deleted."
+        
+    except psycopg2.Error as e:
+        conn.rollback()
+        print(f"🚨 User Delete Error: {e}")
+        error_msg = str(e)
+        
+        # Kullanıcı dostu hata mesajları
+        if "foreign key constraint" in error_msg.lower():
+            return False, "Cannot delete user: User has related records in the system. Please contact system administrator."
+        else:
+            return False, f"Delete error: {error_msg}"
     finally:
         if cur: cur.close()
         if conn: conn.close()
@@ -2745,17 +2839,24 @@ def admin_employees():
         flash("You don't have permission to access this page.", 'danger')
         return redirect(url_for('dashboard'))
     
-    # Pagination ve search parametreleri
+    # Pagination, search ve category parametreleri
     page = int(request.args.get('page', 1))
     per_page = 20
     search_term = request.args.get('search', '').strip()
+    category = request.args.get('category', 'active')  # active, school, teachers
     
-    # Çalışanları getir (pagination ve search ile)
-    employees_data = get_admin_employees_paginated(page=page, per_page=per_page, search_term=search_term)
+    # Çalışanları getir (pagination, search ve category ile)
+    employees_data = get_admin_employees_paginated(
+        page=page, 
+        per_page=per_page, 
+        search_term=search_term,
+        category=category
+    )
     
     return render_template('admin_employees.html', 
                          employees=employees_data['employees'],
-                         pagination=employees_data['pagination'])
+                         pagination=employees_data['pagination'],
+                         category_counts=employees_data['category_counts'])
 
 
 @app.route('/admin/employees/edit/<employee_id>', methods=['GET', 'POST'])
@@ -2842,6 +2943,30 @@ def admin_add_user():
             flash(message, 'danger')
     
     return render_template('admin_add_user.html')
+
+
+@app.route('/admin/users/delete/<user_id>', methods=['POST'])
+def admin_delete_user(user_id):
+    if (redirect_response := require_login()): return redirect_response
+    
+    # Admin yetkisi kontrolü
+    if session.get('user', {}).get('role') != 'admin':
+        flash("You don't have permission to access this page.", 'danger')
+        return redirect(url_for('dashboard'))
+    
+    # Kendi hesabını silmeye çalışıyor mu kontrol et
+    if str(session.get('user', {}).get('id')) == str(user_id):
+        flash("You cannot delete your own account!", 'danger')
+        return redirect(url_for('admin_users'))
+    
+    success, message = delete_system_user(user_id)
+    
+    if success:
+        flash(message, 'success')
+    else:
+        flash(message, 'danger')
+    
+    return redirect(url_for('admin_users'))
 
 
 @app.route('/salary')
