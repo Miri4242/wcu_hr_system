@@ -5,6 +5,45 @@
 {% block page_title %}Monthly Attendance Control{% endblock %}
 
 {% block content %}
+<!-- Category Tabs -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <ul class="nav nav-pills nav-fill category-tabs" id="categoryTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if not request.args.get('category') or request.args.get('category') == 'active' %}active{% endif %}" 
+                                id="active-tab" 
+                                onclick="changeCategory('active')" 
+                                type="button">
+                            <i class="fas fa-briefcase me-2"></i>Administrative
+                            <span class="badge bg-primary ms-2">{{ category_counts.active or 0 }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if request.args.get('category') == 'school' %}active{% endif %}" 
+                                id="school-tab" 
+                                onclick="changeCategory('school')" 
+                                type="button">
+                            <i class="fas fa-school me-2"></i>School Department
+                            <span class="badge bg-info ms-2">{{ category_counts.school or 0 }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if request.args.get('category') == 'teachers' %}active{% endif %}" 
+                                id="teachers-tab" 
+                                onclick="changeCategory('teachers')" 
+                                type="button">
+                            <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
+                            <span class="badge bg-success ms-2">{{ category_counts.teachers or 0 }}</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Filter Card -->
 <div class="card mb-4">
     <div class="card-header">
@@ -54,7 +93,7 @@
 
                 <div class="col-lg-2 col-md-12 col-sm-12">
                     <a id="export-link"
-                       href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search) }}"
+                       href="{{ url_for('export_monthly_attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, category=current_selection.category) }}"
                        class="btn btn-success w-100">
                         <i class="fas fa-download me-1"></i>Export CSV
                     </a>
@@ -87,14 +126,14 @@
         <div class="d-flex justify-content-between align-items-center mb-3">
             <span class="text-muted">Total Employees Found: {{ data.total_items }}</span>
             <div class="btn-group">
-                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, category=current_selection.category, page=data.current_page - 1) }}"
                    class="btn btn-outline-primary {% if data.current_page <= 1 %}disabled{% endif %}">
                     <i class="fas fa-chevron-left"></i> Previous
                 </a>
                 <span class="btn btn-outline-secondary disabled">
                     Page {{ data.current_page }} of {{ data.total_pages }}
                 </span>
-                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, category=current_selection.category, page=data.current_page + 1) }}"
                    class="btn btn-outline-primary {% if data.current_page >= data.total_pages %}disabled{% endif %}">
                     Next <i class="fas fa-chevron-right"></i>
                 </a>
@@ -213,14 +252,14 @@
         <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
             <span class="text-muted">Total Employees Found: {{ data.total_items }}</span>
             <div class="btn-group">
-                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page - 1) }}"
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, category=current_selection.category, page=data.current_page - 1) }}"
                    class="btn btn-outline-primary {% if data.current_page <= 1 %}disabled{% endif %}">
                     <i class="fas fa-chevron-left"></i> Previous
                 </a>
                 <span class="btn btn-outline-secondary disabled">
                     Page {{ data.current_page }} of {{ data.total_pages }}
                 </span>
-                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, page=data.current_page + 1) }}"
+                <a href="{{ url_for('attendance', month=current_selection.month, year=current_selection.year, search=current_selection.search, category=current_selection.category, page=data.current_page + 1) }}"
                    class="btn btn-outline-primary {% if data.current_page >= data.total_pages %}disabled{% endif %}">
                     Next <i class="fas fa-chevron-right"></i>
                 </a>
@@ -753,9 +792,62 @@
     });
 </script>
 
+<script>
+function changeCategory(category) {
+    const form = document.getElementById('attendance-form');
+    const url = new URL(window.location);
+    url.searchParams.set('category', category);
+    url.searchParams.delete('page'); // Reset page when changing category
+    window.location.href = url.toString();
+}
+</script>
+
 {% endblock %}
 
 <style>
+/* Category Tabs */
+.category-tabs .nav-link {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(139, 92, 246, 0.1);
+    color: #6B7280;
+    font-weight: 600;
+    padding: 15px 20px;
+    border-radius: 15px;
+    margin: 0 5px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+}
+
+.category-tabs .nav-link:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+    border-color: rgba(139, 92, 246, 0.3);
+    color: #8B5CF6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.category-tabs .nav-link.active {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-color: #8B5CF6;
+    color: white;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.category-tabs .nav-link .badge {
+    margin-left: 8px;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.category-tabs .nav-link.active .badge {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+}
+
 /* Attendance Table - Balanced Compact Design */
 .attendance-table {
     font-size: 12px;

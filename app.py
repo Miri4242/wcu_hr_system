@@ -53,6 +53,11 @@ app = Flask(__name__,
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-fallback-key')
 app.secret_key = app.config['SECRET_KEY']
 
+# Disable template caching for development
+app.config['TEMPLATES_AUTO_RELOAD'] = True
+app.jinja_env.auto_reload = True
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+
 # Background scheduler will be initialized after the class definition
 
 # PostgreSQL Connection Settings
@@ -993,21 +998,35 @@ def calculate_times_from_transactions(transactions):
 # --- HOURS TRACKED AND ATTENDANCE FUNCTIONS ---
 # --------------------------------------------------------------------------------------
 
-def get_employee_list_for_dropdown():
-    """Returns employee full name and a normalized key for dropdowns (excluding Students, Visitors and Teachers)."""
+def get_employee_list_for_dropdown(category="active"):
+    """Returns employee full name and a normalized key for dropdowns (filtered by category)."""
     conn = get_db_connection()
     if conn is None: return []
 
     cur = conn.cursor()
+    
+    # Category-based WHERE clause (aynı diğer sayfalardaki mantık)
+    if category == 'teachers' or category == 'teacher':
+        # Müəllim pozisyonundakiler ama School departmanında OLMAYANLAR
+        category_filter = "AND pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')"
+    elif category == 'school':
+        # School departmanındaki HERKES (müəllimleri de dahil)
+        category_filter = "AND ad.name = 'School'"
+    else:  # active (administrative)
+        # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
+        category_filter = """AND (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                                      AND pp.name NOT ILIKE 'VISITOR' 
+                                                      AND pp.name NOT ILIKE 'MÜƏLLİM'))
+                            AND (ad.name IS NULL OR ad.name != 'School')"""
+    
     try:
-        cur.execute("""
+        cur.execute(f"""
                     SELECT p.name, p.last_name
                     FROM public.pers_person p
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE pp.name IS NULL
-                       OR (pp.name NOT ILIKE 'STUDENT' 
-                           AND pp.name NOT ILIKE 'VISITOR'
-                           AND pp.name NOT ILIKE 'MÜƏLLİM') -- Student, Visitor ve Müəllim Filtresi
+                             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+                    WHERE 1=1
+                      {category_filter}
                     ORDER BY p.last_name, p.name
                     """)
         employees = []
@@ -1025,7 +1044,7 @@ def get_employee_list_for_dropdown():
         if conn: conn.close()
 
 
-def get_employee_logs(person_key=None, start_date=None, end_date=None):
+def get_employee_logs(person_key=None, start_date=None, end_date=None, category="active"):
     """
     Calculates the daily summary of time spent inside/outside for the given date range
     (all employees if person_key is None).
@@ -1051,19 +1070,31 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None):
 
     daily_transactions = defaultdict(list)
     final_logs = []
+    
+    # Category-based WHERE clause
+    if category == 'teachers' or category == 'teacher':
+        # Müəllim pozisyonundakiler ama School departmanında OLMAYANLAR
+        category_filter = "AND pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')"
+    elif category == 'school':
+        # School departmanındaki HERKES (müəllimleri de dahil)
+        category_filter = "AND ad.name = 'School'"
+    else:  # active (administrative)
+        # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
+        category_filter = """AND (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                                      AND pp.name NOT ILIKE 'VISITOR' 
+                                                      AND pp.name NOT ILIKE 'MÜƏLLİM'))
+                            AND (ad.name IS NULL OR ad.name != 'School')"""
 
     try:
-        # 1. Fetch transaction logs (Filtered by date range)
-        cur.execute("""
+        # 1. Fetch transaction logs (Filtered by date range and category)
+        cur.execute(f"""
                     SELECT t.name, t.last_name, t.create_time, t.reader_name
                     FROM public.acc_transaction t
                              INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
                     WHERE t.create_time BETWEEN %s AND %s
-                      AND (pp.name IS NULL 
-                           OR (pp.name NOT ILIKE 'student' 
-                               AND pp.name NOT ILIKE 'visitor'
-                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
+                      {category_filter}
                     ORDER BY t.create_time;
                     """, (start_date, end_date))
         raw_transactions = cur.fetchall()
@@ -1662,15 +1693,30 @@ def save_employee_daily_note(employee_id, note_date, note_text, created_by='admi
         if conn: conn.close()
 
 
-def get_employee_logs_monthly(selected_month, selected_year, search_term="", page=1, per_page=PER_PAGE_ATTENDANCE):
+def get_employee_logs_monthly(selected_month, selected_year, search_term="", page=1, per_page=PER_PAGE_ATTENDANCE, category="active"):
     conn = get_db_connection()
     if conn is None:
         return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year,
-                'month_name': 'Error', 'total_items': 0, 'total_pages': 1, 'current_page': page, 'per_page': per_page}
+                'month_name': 'Error', 'total_items': 0, 'total_pages': 1, 'current_page': page, 'per_page': per_page,
+                'category_counts': {'active': 0, 'school': 0, 'teachers': 0}}
 
     cur = conn.cursor()
 
     global EIGHT_HOURS_SECONDS
+
+    # Category-based WHERE clause (aynı employees sayfasındaki mantık)
+    if category == 'teachers' or category == 'teacher':
+        # Müəllim pozisyonundakiler ama School departmanında OLMAYANLAR
+        category_filter = "AND pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')"
+    elif category == 'school':
+        # School departmanındaki HERKES (müəllimleri de dahil)
+        category_filter = "AND ad.name = 'School'"
+    else:  # active (administrative)
+        # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
+        category_filter = """AND (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                                      AND pp.name NOT ILIKE 'VISITOR' 
+                                                      AND pp.name NOT ILIKE 'MÜƏLLİM'))
+                            AND (ad.name IS NULL OR ad.name != 'School')"""
 
     try:
         start_date = date(selected_year, selected_month, 1)
@@ -1699,29 +1745,27 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
     employee_list = []
 
     try:
-        # 1. Fetch all employees (FILTERED)
+        # 1. Fetch all employees (FILTERED BY CATEGORY)
         if search_term:
-            cur.execute("""
+            cur.execute(f"""
                         SELECT p.id, p.name, p.last_name, pp.name AS position_name, p.photo_path
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                        WHERE (pp.name IS NULL 
-                               OR (pp.name NOT ILIKE 'STUDENT' 
-                                   AND pp.name NOT ILIKE 'VISITOR'
-                                   AND pp.name NOT ILIKE 'MÜƏLLİM')) -- Student, Visitor ve Müəllim Filtresi
+                                 LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+                        WHERE 1=1
+                          {category_filter}
                           AND (LOWER(p.name) LIKE %s OR LOWER(p.last_name) LIKE %s OR
                                LOWER(p.name || ' ' || p.last_name) LIKE %s)
                         ORDER BY p.last_name, p.name
                         """, (f'%{search_term.lower()}%', f'%{search_term.lower()}%', f'%{search_term.lower()}%'))
         else:
-            cur.execute("""
+            cur.execute(f"""
                         SELECT p.id, p.name, p.last_name, pp.name AS position_name, p.photo_path
                         FROM public.pers_person p
                                  LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                        WHERE pp.name IS NULL
-                           OR (pp.name NOT ILIKE 'STUDENT' 
-                               AND pp.name NOT ILIKE 'VISITOR'
-                               AND pp.name NOT ILIKE 'MÜƏLLİM') -- Student, Visitor ve Müəllim Filtresi
+                                 LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+                        WHERE 1=1
+                          {category_filter}
                         ORDER BY p.last_name, p.name
                         """)
 
@@ -1733,18 +1777,16 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             employee_list.append(
                 {'key': key, 'id': id_val, 'name': name, 'last_name': last_name, 'full_name': full_name, 'photo_path': photo_path})
 
-        # 2. Fetch all movements within the date range
-        cur.execute("""
+        # 2. Fetch all movements within the date range (FILTERED BY CATEGORY)
+        cur.execute(f"""
                     SELECT t.name, t.last_name, t.create_time, t.reader_name
                     FROM public.acc_transaction t
                              INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
                              LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
                     WHERE t.create_time >= %s
                       AND t.create_time <= %s
-                      AND (pp.name IS NULL 
-                           OR (pp.name NOT ILIKE 'student' 
-                               AND pp.name NOT ILIKE 'visitor'
-                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
+                      {category_filter}
                     ORDER BY t.create_time;
                     """, (datetime.combine(start_date, datetime.min.time()),
                           datetime.combine(end_date, datetime.max.time())))
@@ -1847,6 +1889,42 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
         end_index = start_index + per_page
         paginated_logs = final_logs[start_index:end_index]
 
+        # Category counts (aynı employees sayfasındaki mantık)
+        category_counts = {}
+        
+        # Active count - Administrative
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                      AND pp.name NOT ILIKE 'VISITOR' 
+                                      AND pp.name NOT ILIKE 'MÜƏLLİM'))
+              AND (ad.name IS NULL OR ad.name != 'School')
+        """)
+        category_counts['active'] = cur.fetchone()[0]
+        
+        # School count - School departmanındaki herkes
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE ad.name = 'School'
+        """)
+        category_counts['school'] = cur.fetchone()[0]
+        
+        # Teachers count - Müəllimler ama School departmanında olmayanlar
+        cur.execute("""
+            SELECT COUNT(*) 
+            FROM public.pers_person p
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')
+        """)
+        category_counts['teachers'] = cur.fetchone()[0]
+
         return {
             'headers': day_headers,
             'logs': paginated_logs,
@@ -1856,13 +1934,15 @@ def get_employee_logs_monthly(selected_month, selected_year, search_term="", pag
             'total_items': total_items,
             'total_pages': total_pages,
             'current_page': page,
-            'per_page': per_page
+            'per_page': per_page,
+            'category_counts': category_counts
         }
 
     except Exception as e:
         print(f"🚨 Monthly Attendance Processing Error: {e}")
         return {'headers': [], 'logs': [], 'current_month': selected_month, 'current_year': selected_year,
-                'month_name': 'Error', 'total_items': 0, 'total_pages': 1, 'current_page': page, 'per_page': per_page}
+                'month_name': 'Error', 'total_items': 0, 'total_pages': 1, 'current_page': page, 'per_page': per_page,
+                'category_counts': {'active': 0, 'school': 0, 'teachers': 0}}
     finally:
         if cur:
             cur.close()
@@ -2422,6 +2502,7 @@ def export_employee_logs():
     person_key = request.args.get('person_key', None)
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
+    category = request.args.get('category', 'active')
 
     # Date parsing for export
     start_date = None
@@ -2435,7 +2516,7 @@ def export_employee_logs():
     except ValueError:
         pass
 
-    logs_data = get_employee_logs(person_key=person_key, start_date=start_date, end_date=end_date)
+    logs_data = get_employee_logs(person_key=person_key, start_date=start_date, end_date=end_date, category=category)
 
     if not logs_data:
         return make_response("No data found for export.", 404)
@@ -2493,7 +2574,8 @@ def export_employee_logs():
 def employee_logs():
     if (redirect_response := require_login()): return redirect_response
 
-    employee_list = get_employee_list_for_dropdown()
+    category = request.args.get('category', 'active')  # active, school, teachers
+    employee_list = get_employee_list_for_dropdown(category)
     selected_person_key = None
     selected_employee_name = "All Employees"
     start_date_str = None
@@ -2560,8 +2642,8 @@ def employee_logs():
     else:
         selected_employee_name = "All Employees"
 
-    # Get all logs first
-    all_logs = get_employee_logs(person_key=selected_person_key, start_date=start_date, end_date=end_date)
+    # Get all logs first (with category filter)
+    all_logs = get_employee_logs(person_key=selected_person_key, start_date=start_date, end_date=end_date, category=category)
     
     # Calculate pagination
     total_logs = len(all_logs)
@@ -2569,6 +2651,51 @@ def employee_logs():
     start_index = (page - 1) * PER_PAGE_EMPLOYEE_LOGS
     end_index = start_index + PER_PAGE_EMPLOYEE_LOGS
     logs_data = all_logs[start_index:end_index]
+
+    # Category counts hesapla
+    conn = get_db_connection()
+    category_counts = {'active': 0, 'school': 0, 'teachers': 0}
+    
+    if conn:
+        cur = conn.cursor()
+        try:
+            # Active count - Administrative
+            cur.execute("""
+                SELECT COUNT(*) 
+                FROM public.pers_person p
+                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+                WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
+                                          AND pp.name NOT ILIKE 'VISITOR' 
+                                          AND pp.name NOT ILIKE 'MÜƏLLİM'))
+                  AND (ad.name IS NULL OR ad.name != 'School')
+            """)
+            category_counts['active'] = cur.fetchone()[0]
+            
+            # School count - School departmanındaki herkes
+            cur.execute("""
+                SELECT COUNT(*) 
+                FROM public.pers_person p
+                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+                WHERE ad.name = 'School'
+            """)
+            category_counts['school'] = cur.fetchone()[0]
+            
+            # Teachers count - Müəllimler ama School departmanında olmayanlar
+            cur.execute("""
+                SELECT COUNT(*) 
+                FROM public.pers_person p
+                LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+                LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+                WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')
+            """)
+            category_counts['teachers'] = cur.fetchone()[0]
+        except Exception as e:
+            print(f"Error calculating category counts: {e}")
+        finally:
+            if cur: cur.close()
+            if conn: conn.close()
 
     return render_template(
         'employee_logs.html',
@@ -2581,7 +2708,8 @@ def employee_logs():
         current_page=page,
         total_pages=total_pages,
         total_logs=total_logs,
-        per_page=PER_PAGE_EMPLOYEE_LOGS
+        per_page=PER_PAGE_EMPLOYEE_LOGS,
+        category_counts=category_counts
     )
 
 
@@ -2595,6 +2723,7 @@ def attendance():
     selected_year = today.year
     page = int(request.args.get('page', 1))
     search_term = request.args.get('search', '').strip()
+    category = request.args.get('category', 'active')  # active, school, teachers
 
     try:
         selected_month = int(request.args.get('month', selected_month))
@@ -2605,7 +2734,14 @@ def attendance():
     if search_term and page > 1:
         page = 1
 
-    attendance_data = get_employee_logs_monthly(selected_month, selected_year, search_term, page, PER_PAGE_ATTENDANCE)
+    attendance_data = get_employee_logs_monthly(
+        selected_month, 
+        selected_year, 
+        search_term, 
+        page, 
+        PER_PAGE_ATTENDANCE,
+        category
+    )
 
     years = list(range(today.year - 2, today.year + 1))
 
@@ -2620,7 +2756,8 @@ def attendance():
         data=attendance_data,
         years=years,
         months=months,
-        current_selection={'month': selected_month, 'year': selected_year, 'search': search_term, 'page': page}
+        current_selection={'month': selected_month, 'year': selected_year, 'search': search_term, 'page': page, 'category': category},
+        category_counts=attendance_data.get('category_counts', {'active': 0, 'school': 0, 'teachers': 0})
     )
 
 

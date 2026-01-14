@@ -1,10 +1,70 @@
 {% extends "base_page.html" %}
 
-{% block title %}Working Hours Analysis{% endblock %}
+{% block title %}Working Hours Analysis
+<script>
+function changeCategory(category) {
+    const url = new URL(window.location);
+    url.searchParams.set('category', category);
+    url.searchParams.delete('page'); // Reset page when changing category
+    window.location.href = url.toString();
+}
+</script>
 
-{% block page_title %}Working Hours Analysis (In/Out Time){% endblock %}
+{% endblock %}
+
+{% block page_title %}Working Hours Analysis (In/Out Time)
+<script>
+function changeCategory(category) {
+    const url = new URL(window.location);
+    url.searchParams.set('category', category);
+    url.searchParams.delete('page'); // Reset page when changing category
+    window.location.href = url.toString();
+}
+</script>
+
+{% endblock %}
 
 {% block content %}
+<!-- Category Tabs -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <ul class="nav nav-pills nav-fill category-tabs" id="categoryTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if not request.args.get('category') or request.args.get('category') == 'active' %}active{% endif %}" 
+                                id="active-tab" 
+                                onclick="changeCategory('active')" 
+                                type="button">
+                            <i class="fas fa-briefcase me-2"></i>Administrative
+                            <span class="badge bg-primary ms-2">{{ category_counts.active or 0 }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if request.args.get('category') == 'school' %}active{% endif %}" 
+                                id="school-tab" 
+                                onclick="changeCategory('school')" 
+                                type="button">
+                            <i class="fas fa-school me-2"></i>School Department
+                            <span class="badge bg-info ms-2">{{ category_counts.school or 0 }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link {% if request.args.get('category') == 'teachers' %}active{% endif %}" 
+                                id="teachers-tab" 
+                                onclick="changeCategory('teachers')" 
+                                type="button">
+                            <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
+                            <span class="badge bg-success ms-2">{{ category_counts.teachers or 0 }}</span>
+                        </button>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+
 <!-- Filter Card -->
 <div class="card mb-4">
     <div class="card-header">
@@ -15,6 +75,8 @@
     </div>
     <div class="card-body">
         <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}">
+            <!-- Preserve category parameter -->
+            <input type="hidden" name="category" value="{{ request.args.get('category', 'active') }}">
             <div class="row g-3 align-items-end">
                 <div class="col-lg-4 col-md-6 col-sm-12">
                     <label for="employee_search" class="form-label">Select Employee</label>
@@ -668,4 +730,14 @@
     border-radius: 0 0 16px 16px;
 }
 </style>
+
+<script>
+function changeCategory(category) {
+    const url = new URL(window.location);
+    url.searchParams.set('category', category);
+    url.searchParams.delete('page'); // Reset page when changing category
+    window.location.href = url.toString();
+}
+</script>
+
 {% endblock %}
