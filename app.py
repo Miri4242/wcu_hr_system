@@ -837,7 +837,7 @@ def update_employee_details(employee_id, data):
 
 
 def delete_employee(employee_id):
-    """Deletes an employee from the database completely."""
+    """Deletes an employee and their related records (biotemplates, certificates, etc.) from the database."""
     conn = get_db_connection()
     if conn is None:
         return False, "Database connection error."
@@ -845,23 +845,43 @@ def delete_employee(employee_id):
     cur = conn.cursor()
     try:
         # Önce çalışanın var olup olmadığını kontrol et
-        cur.execute("SELECT name, last_name FROM public.pers_person WHERE id = %s", (employee_id,))
+        cur.execute("SELECT name, last_name, pin FROM public.pers_person WHERE id = %s", (employee_id,))
         employee = cur.fetchone()
         
         if not employee:
             return False, "Employee not found."
         
         employee_name = f"{employee[0]} {employee[1]}"
+        employee_pin = employee[2]
         
-        # Çalışanı sil
+        print(f"🧹 Cleaning up records for employee: {employee_name} (ID: {employee_id}, PIN: {employee_pin})")
+        
+        # 1. İlişkili tabloları temizle (Foreign Key engellerini kaldır)
+        # Biyometrik veriler
+        cur.execute("DELETE FROM public.pers_biotemplate WHERE person_id = %s", (employee_id,))
+        # Sertifika ve kart bilgileri
+        cur.execute("DELETE FROM public.pers_certificate WHERE person_id = %s", (employee_id,))
+        # Personel değişim logları
+        cur.execute("DELETE FROM public.pers_personchange WHERE person_id = %s", (employee_id,))
+        
+        # 2. Diğer olası ilişkili tabloları temizle
+        cur.execute("DELETE FROM public.pers_biophoto WHERE person_id = %s", (employee_id,))
+        cur.execute("DELETE FROM public.pers_card WHERE person_id = %s", (employee_id,))
+        cur.execute("DELETE FROM public.pers_person_link WHERE person_id = %s", (employee_id,))
+        
+        # 3. Geç kalma kayıtlarını temizle (eğer varsa)
+        cur.execute("DELETE FROM public.employee_late_arrivals WHERE employee_id = %s", (employee_id,))
+
+        # 4. En son çalışanı sil
         cur.execute("DELETE FROM public.pers_person WHERE id = %s", (employee_id,))
         
         if cur.rowcount == 0:
-            return False, "Employee could not be deleted."
+            conn.rollback()
+            return False, "Employee record could not be deleted from the main table."
         
         conn.commit()
-        print(f"✅ Employee deleted successfully: {employee_name} (ID: {employee_id})")
-        return True, f"Employee {employee_name} has been successfully deleted."
+        print(f"✅ Employee and all related records deleted successfully: {employee_name} (ID: {employee_id})")
+        return True, f"Employee {employee_name} and all related records have been successfully deleted."
         
     except psycopg2.Error as e:
         conn.rollback()
@@ -870,7 +890,7 @@ def delete_employee(employee_id):
         
         # Kullanıcı dostu hata mesajları
         if "foreign key constraint" in error_msg.lower():
-            return False, "Cannot delete employee: Employee has related records in the system (attendance logs, etc.). Please contact system administrator."
+            return False, f"Cannot delete employee due to persistent related records: {error_msg}. Please contact system administrator."
         else:
             return False, f"Delete error: {error_msg}"
     finally:

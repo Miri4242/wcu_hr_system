@@ -1,28 +1,8 @@
 {% extends "base_page.html" %}
 
-{% block title %}Working Hours Analysis
-<script>
-function changeCategory(category) {
-    const url = new URL(window.location);
-    url.searchParams.set('category', category);
-    url.searchParams.delete('page'); // Reset page when changing category
-    window.location.href = url.toString();
-}
-</script>
+{% block title %}Working Hours Analysis{% endblock %}
 
-{% endblock %}
-
-{% block page_title %}Working Hours Analysis (In/Out Time)
-<script>
-function changeCategory(category) {
-    const url = new URL(window.location);
-    url.searchParams.set('category', category);
-    url.searchParams.delete('page'); // Reset page when changing category
-    window.location.href = url.toString();
-}
-</script>
-
-{% endblock %}
+{% block page_title %}Working Hours Analysis (In/Out Time){% endblock %}
 
 {% block content %}
 <!-- Category Tabs -->
@@ -64,6 +44,14 @@ function changeCategory(category) {
     </div>
 </div>
 
+<!-- Header -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3><i class="fas fa-clock me-2"></i>Working Hours Analysis</h3>
+        </div>
+    </div>
+</div>
 
 <!-- Filter Card -->
 <div class="card mb-4">
@@ -74,27 +62,37 @@ function changeCategory(category) {
         </h5>
     </div>
     <div class="card-body">
-        <form id="filter-form" method="GET" action="{{ url_for('employee_logs') }}">
+        <form method="GET" action="{{ url_for('employee_logs') }}">
             <!-- Preserve category parameter -->
             <input type="hidden" name="category" value="{{ request.args.get('category', 'active') }}">
+            
             <div class="row g-3 align-items-end">
-                <div class="col-lg-4 col-md-6 col-sm-12">
-                    <label for="employee_search" class="form-label">Select Employee</label>
-                    <div class="searchable-dropdown">
-                        <div class="input-group">
-                            <span class="input-group-text">
-                                <i class="fas fa-user"></i>
-                            </span>
-                            <input type="text"
-                                   id="employee_search"
-                                   name="employee_search"
-                                   placeholder="Type to search employees..."
-                                   autocomplete="off"
-                                   value="{{ selected_employee_name if selected_person_key else (request.args.get('employee_search') or '') }}"
-                                   class="form-control">
-                        </div>
-                        <input type="hidden" id="person_key" name="person_key" value="{{ selected_person_key or '' }}">
-                        <div id="search_results" class="search-results"></div>
+                <div class="col-lg-3 col-md-6 col-sm-12">
+                    <label for="person_key" class="form-label">Select Employee</label>
+                    <select id="person_key" name="person_key" class="form-select">
+                        <option value="">All Employees</option>
+                        {% for employee in employees %}
+                            <option value="{{ employee.key }}" 
+                                    {% if employee.key == selected_person_key %}selected{% endif %}>
+                                {{ employee.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-lg-3 col-md-6 col-sm-12">
+                    <label for="employee_search" class="form-label">Search Employee</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text"
+                               id="employee_search"
+                               name="employee_search"
+                               placeholder="Type to search employees..."
+                               autocomplete="off"
+                               value="{{ request.args.get('employee_search') or '' }}"
+                               class="form-control">
                     </div>
                 </div>
 
@@ -121,139 +119,148 @@ function changeCategory(category) {
                         <i class="fas fa-search me-1"></i>Filter
                     </button>
                 </div>
-
-                <div class="col-lg-2 col-md-6 col-sm-6">
-                    <a id="export-link"
-                       href="{{ url_for('export_employee_logs', person_key=selected_person_key or '') }}"
-                       class="btn btn-success w-100">
-                        <i class="fas fa-download me-1"></i>Export CSV
-                    </a>
-                </div>
             </div>
         </form>
     </div>
 </div>
-
-<!-- Date Range Info -->
-{% if start_date and end_date %}
-<div class="alert alert-info">
-    <i class="fas fa-calendar-alt me-2"></i>
-    <strong>Date Range:</strong> {{ start_date }} to {{ end_date }}
-</div>
-{% endif %}
 
 <!-- Results Card -->
 <div class="card">
     <div class="card-header">
         <h5 class="card-title mb-0">
             <i class="fas fa-clock me-2"></i>
-            Summary Table: {{ selected_employee_name or "All Employees" }}
-            {% if start_date and end_date %}
-            <span class="badge bg-primary ms-2">({{ start_date }} to {{ end_date }})</span>
-            {% endif %}
+            Working Hours for {{ selected_employee_name }}
+            <span class="badge bg-primary ms-2">{{ total_logs }} records found</span>
         </h5>
     </div>
     
     <div class="card-body">
         {% if logs %}
-        <!-- Pagination Controls -->
-        {% if total_pages > 1 %}
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <span class="text-muted">Total Records: {{ total_logs }}</span>
-            <div class="btn-group">
-                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page - 1) }}"
-                   class="btn btn-outline-primary {% if current_page <= 1 %}disabled{% endif %}">
-                    <i class="fas fa-chevron-left"></i> Previous
-                </a>
-                <span class="btn btn-outline-secondary disabled">
-                    Page {{ current_page }} of {{ total_pages }}
-                </span>
-                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page + 1) }}"
-                   class="btn btn-outline-primary {% if current_page >= total_pages %}disabled{% endif %}">
-                    Next <i class="fas fa-chevron-right"></i>
+            <!-- Pagination Top -->
+            {% if total_pages > 1 %}
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="text-muted">Total Records: {{ total_logs }}</span>
+                <div class="btn-group">
+                    {% if current_page > 1 %}
+                        <a class="btn btn-outline-primary" 
+                           href="{{ url_for('employee_logs', page=current_page-1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    {% endif %}
+                    
+                    <span class="btn btn-outline-secondary disabled">
+                        Page {{ current_page }} of {{ total_pages }}
+                    </span>
+                    
+                    {% if current_page < total_pages %}
+                        <a class="btn btn-outline-primary" 
+                           href="{{ url_for('employee_logs', page=current_page+1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Logs Table -->
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Employee Name</th>
+                            <th>First In</th>
+                            <th>Last Out</th>
+                            <th>Total INSIDE Time</th>
+                            <th>Total OUTSIDE Time</th>
+                            <th>Total Time (Span)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr class="clickable-row" onclick="showEmployeeActionModal('{{ log.name }} {{ log.last_name }}', '{{ log.date }}')">
+                            <td>{{ log.date }}</td>
+                            <td class="employee-name-cell">
+                                <span class="employee-name-link">{{ log.name }} {{ log.last_name }}</span>
+                            </td>
+                            <td>{{ log.first_in }}</td>
+                            <td>
+                                {% if log.is_invalid_day %}
+                                    <span class="na-text">N/A</span>
+                                {% elif log.is_currently_inside %}
+                                    <span class="inside-text">Still Inside</span>
+                                {% else %}
+                                    {{ log.last_out }}
+                                {% endif %}
+                            </td>
+                            <td class="time-value">{{ log.inside_time }}</td>
+                            <td class="time-value">{{ log.outside_time }}</td>
+                            <td class="time-value">
+                                {% if log.is_invalid_day %}
+                                    N/A
+                                {% elif log.total_span_seconds and log.total_span_seconds > 0 %}
+                                    {{ "%02d:%02d:%02d"|format(log.total_span_seconds // 3600, (log.total_span_seconds % 3600) // 60, log.total_span_seconds % 60) }}
+                                {% else %}
+                                    00:00:00
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="status-text" style="color: {{ log.status_color }};">
+                                    {{ log.status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination Bottom -->
+            {% if total_pages > 1 %}
+            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                <span class="text-muted">Total Records: {{ total_logs }}</span>
+                <div class="btn-group">
+                    {% if current_page > 1 %}
+                        <a class="btn btn-outline-primary" 
+                           href="{{ url_for('employee_logs', page=current_page-1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    {% endif %}
+                    
+                    <span class="btn btn-outline-secondary disabled">
+                        Page {{ current_page }} of {{ total_pages }}
+                    </span>
+                    
+                    {% if current_page < total_pages %}
+                        <a class="btn btn-outline-primary" 
+                           href="{{ url_for('employee_logs', page=current_page+1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Export Link -->
+            <div class="mt-3 text-center">
+                <a href="{{ url_for('export_employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}" 
+                   class="btn btn-success">
+                    <i class="fas fa-download me-1"></i>Export CSV
                 </a>
             </div>
-        </div>
-        {% endif %}
 
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Employee Name</th>
-                    <th>First In</th>
-                    <th>Last Out</th>
-                    <th>Total INSIDE Time</th>
-                    <th>Total OUTSIDE Time</th>
-                    <th>Total Time (Span)</th>
-                    <th>Status</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in logs %}
-                <tr class="clickable-row">
-                    <td>{{ log.date }}</td>
-                    <td class="employee-name-cell"
-                        data-employee-name="{{ log.name }} {{ log.last_name }}"
-                        data-log-date="{{ log.date }}">
-                        <span class="employee-name-link">{{ log.name }} {{ log.last_name }}</span>
-                    </td>
-                    <td>{{ log.first_in }}</td>
-                    <td>
-                        {% if log.is_invalid_day %}
-                            <span class="na-text">N/A</span>
-                        {% elif log.is_currently_inside %}
-                            <span class="inside-text">Still Inside</span>
-                        {% else %}
-                            {{ log.last_out }}
-                        {% endif %}
-                    </td>
-                    <td class="time-value">
-                        {{ log.inside_time }}
-                    </td>
-                    <td class="time-value">
-                        {{ log.outside_time }}
-                    </td>
-                    <td class="time-value">
-                        {% if log.is_invalid_day %}
-                            N/A
-                        {% elif log.total_span_seconds and log.total_span_seconds > 0 %}
-                            {{ format_seconds(log.total_span_seconds) }}
-                        {% else %}
-                            00:00:00
-                        {% endif %}
-                    </td>
-                    <td>
-                        <span class="status-text" style="color: {{ log.status_color }};">
-                            {{ log.status_display }}
-                        </span>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <!-- Bottom Pagination -->
-        {% if total_pages > 1 %}
-        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
-            <span class="text-muted">Total Records: {{ total_logs }}</span>
-            <div class="btn-group">
-                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page - 1) }}"
-                   class="btn btn-outline-primary {% if current_page <= 1 %}disabled{% endif %}">
-                    <i class="fas fa-chevron-left"></i> Previous
-                </a>
-                <span class="btn btn-outline-secondary disabled">
-                    Page {{ current_page }} of {{ total_pages }}
-                </span>
-                <a href="{{ url_for('employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, page=current_page + 1) }}"
-                   class="btn btn-outline-primary {% if current_page >= total_pages %}disabled{% endif %}">
-                    Next <i class="fas fa-chevron-right"></i>
-                </a>
-            </div>
-        </div>
-        {% endif %}
         {% else %}
-        <p class="no-data">No movement data found for the selected employee/time period.</p>
+            <!-- No Results -->
+            <div class="text-center py-5">
+                <div class="mb-3">
+                    <i class="fas fa-clock fa-3x text-muted"></i>
+                </div>
+                <h5 class="text-muted">No Data Found</h5>
+                <p class="text-muted">
+                    No working hours found for the selected criteria.
+                </p>
+            </div>
         {% endif %}
     </div>
 </div>
@@ -312,23 +319,6 @@ function changeCategory(category) {
 </div>
 
 <script>
-    // Global değişkenler
-    let searchInput, personKeyInput, searchResults, exportLink, startDateInput, endDateInput;
-    let currentResults = [];
-    let selectedIndex = -1;
-
-    function goToEmployees(employeeName) {
-        // Employees sayfasına git ve arama kutusunda bu ismi ara
-        window.location.href = "{{ url_for('employees') }}?search=" + encodeURIComponent(employeeName);
-    }
-
-    function goToEmployeeDetails(employeeName, logDate) {
-        // Employee daily details sayfasına git
-        window.location.href = "{{ url_for('employee_daily_details', employee_name='EMPLOYEE_NAME', log_date='LOG_DATE') }}"
-            .replace('EMPLOYEE_NAME', encodeURIComponent(employeeName))
-            .replace('LOG_DATE', encodeURIComponent(logDate));
-    }
-
     function showEmployeeActionModal(employeeName, logDate) {
         // Modal içeriğini güncelle
         document.getElementById('modalEmployeeName').textContent = employeeName;
@@ -351,207 +341,81 @@ function changeCategory(category) {
         };
     }
 
-    function performSearch(query) {
-        if (query.length < 2) {
-            if (searchResults) {
-                searchResults.style.display = 'none';
-            }
-            return;
-        }
-
-        fetch(`/api/employee_search?q=${encodeURIComponent(query)}`)
-            .then(response => response.json())
-            .then(data => {
-                currentResults = data;
-                selectedIndex = -1;
-
-                if (data.length === 0) {
-                    searchResults.innerHTML = '<div class="search-result-item">No employees found</div>';
-                    searchResults.style.display = 'block';
-                    return;
-                }
-
-                searchResults.innerHTML = data.map(emp =>
-                    `<div class="search-result-item" data-key="${emp.key}" data-name="${emp.name}">${emp.name}</div>`
-                ).join('');
-                searchResults.style.display = 'block';
-            })
-            .catch(error => {
-                console.error('Search error:', error);
-                if (searchResults) {
-                    searchResults.style.display = 'none';
-                }
-            });
+    function goToEmployees(employeeName) {
+        window.location.href = "/employees?search=" + encodeURIComponent(employeeName);
     }
 
-    function selectEmployee(key, name) {
-        if (personKeyInput && searchInput) {
-            personKeyInput.value = key;
-            searchInput.value = name;
-            if (searchResults) {
-                searchResults.style.display = 'none';
-            }
-            updateExportLink();
-        }
+    function goToEmployeeDetails(employeeName, logDate) {
+        window.location.href = `/employee_daily_details/${encodeURIComponent(employeeName)}/${encodeURIComponent(logDate)}`;
     }
 
-    function updateExportLink() {
-        if (!personKeyInput || !exportLink || !startDateInput || !endDateInput) return;
-
-        const selectedKey = personKeyInput.value;
-        const startDate = startDateInput.value;
-        const endDate = endDateInput.value;
-
-        let exportUrl = "{{ url_for('export_employee_logs') }}";
-        let params = [];
-
-        if (selectedKey) {
-            params.push(`person_key=${selectedKey}`);
+    // Document ready
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Employee logs page loaded successfully');
+        
+        // Focus search input
+        const searchInput = document.getElementById('employee_search');
+        if (searchInput) {
+            searchInput.focus();
         }
-        if (startDate) {
-            params.push(`start_date=${startDate}`);
-        }
-        if (endDate) {
-            params.push(`end_date=${endDate}`);
-        }
+    });
+</script>
 
-        if (params.length > 0) {
-            exportUrl += '?' + params.join('&');
-        }
-
-        exportLink.href = exportUrl;
-    }
-
-    function updateSelectedItem() {
-        if (!searchResults) return;
-
-        const items = searchResults.querySelectorAll('.search-result-item');
-        items.forEach((item, index) => {
-            item.classList.toggle('active', index === selectedIndex);
-        });
-
-        if (selectedIndex >= 0 && currentResults[selectedIndex] && searchInput) {
-            searchInput.value = currentResults[selectedIndex].name;
-        }
-    }
-
-    function handleSearchKeydown(e) {
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            selectedIndex = Math.min(selectedIndex + 1, currentResults.length - 1);
-            updateSelectedItem();
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            selectedIndex = Math.max(selectedIndex - 1, -1);
-            updateSelectedItem();
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            // Eğer dropdown'dan bir seçim varsa onu kullan
-            if (selectedIndex >= 0 && currentResults[selectedIndex]) {
-                selectEmployee(currentResults[selectedIndex].key, currentResults[selectedIndex].name);
-            } else {
-                // Yoksa direkt arama yap
-                const form = document.querySelector('form');
-                if (form) {
-                    form.submit();
-                }
-            }
-        }
-    }
-
-    function handleDocumentClick(e) {
-        if (searchInput && !searchInput.contains(e.target) && searchResults && !searchResults.contains(e.target)) {
-            searchResults.style.display = 'none';
-        }
-    }
-
-    function handleSearchResultsClick(e) {
-        if (e.target.classList.contains('search-result-item')) {
-            const key = e.target.getAttribute('data-key');
-            const name = e.target.getAttribute('data-name');
-            selectEmployee(key, name);
-        }
-    }
-
-    function initializeEmployeeSearch() {
-        // Element referanslarını al
-        searchInput = document.getElementById('employee_search');
-        personKeyInput = document.getElementById('person_key');
-        searchResults = document.getElementById('search_results');
-        exportLink = document.getElementById('export-link');
-        startDateInput = document.getElementById('start_date');
-        endDateInput = document.getElementById('end_date');
-
-        // Eğer elementler bulunamazsa çık
-        if (!searchInput || !personKeyInput || !searchResults || !exportLink || !startDateInput || !endDateInput) {
-            console.error('Required elements not found');
-            return;
-        }
-
-        // Employee name linklerine click event listener ekle
-        document.querySelectorAll('.employee-name-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.stopPropagation();
-                const employeeName = this.textContent.trim();
-                const logDate = this.closest('.employee-name-cell').getAttribute('data-log-date');
-                showEmployeeActionModal(employeeName, logDate);
-            });
-        });
-
-        // Tüm satırlara click event listener ekle (employee name dışındaki alanlar için)
-        document.querySelectorAll('.clickable-row').forEach(row => {
-            row.addEventListener('click', function(e) {
-                if (!e.target.classList.contains('employee-name-link') && !e.target.closest('.employee-name-link')) {
-                    const employeeNameCell = this.querySelector('.employee-name-cell');
-                    if (employeeNameCell) {
-                        const employeeName = employeeNameCell.getAttribute('data-employee-name');
-                        const logDate = employeeNameCell.getAttribute('data-log-date');
-                        showEmployeeActionModal(employeeName, logDate);
-                    }
-                }
-            });
-        });
-
-        // Arama kutusu event listener'ları
-        searchInput.addEventListener('input', function(e) {
-            performSearch(e.target.value);
-        });
-
-        searchInput.addEventListener('focus', function() {
-            if (currentResults.length > 0) {
-                searchResults.style.display = 'block';
-            }
-        });
-
-        searchInput.addEventListener('keydown', handleSearchKeydown);
-        startDateInput.addEventListener('change', updateExportLink);
-        endDateInput.addEventListener('change', updateExportLink);
-        document.addEventListener('click', handleDocumentClick);
-        searchResults.addEventListener('click', handleSearchResultsClick);
-
-        // URL'den employee_search parametresini kontrol et
-        const urlParams = new URLSearchParams(window.location.search);
-        const employeeSearch = urlParams.get('employee_search');
-        if (employeeSearch && employeeSearch.trim() !== '') {
-            searchInput.value = employeeSearch;
-            performSearch(employeeSearch);
-
-            setTimeout(() => {
-                if (currentResults.length > 0) {
-                    selectEmployee(currentResults[0].key, currentResults[0].name);
-                }
-            }, 100);
-        }
-
-        updateExportLink();
-    }
-
-    // DOM yüklendiğinde çalıştır
-    document.addEventListener('DOMContentLoaded', initializeEmployeeSearch);
+<script>
+function changeCategory(category) {
+    const url = new URL(window.location);
+    url.searchParams.set('category', category);
+    url.searchParams.delete('page'); // Reset page when changing category
+    window.location.href = url.toString();
+}
 </script>
 
 <style>
-/* Employee Logs Modern Styling */
+/* Category Tabs */
+.category-tabs .nav-link {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(139, 92, 246, 0.1);
+    color: #6B7280;
+    font-weight: 600;
+    padding: 15px 20px;
+    border-radius: 15px;
+    margin: 0 5px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+}
+
+.category-tabs .nav-link:hover {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+    border-color: rgba(139, 92, 246, 0.3);
+    color: #8B5CF6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
+}
+
+.category-tabs .nav-link.active {
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-color: #8B5CF6;
+    color: white;
+    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.category-tabs .nav-link .badge {
+    margin-left: 8px;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.category-tabs .nav-link.active .badge {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: white !important;
+}
+
+<style>
+/* Employee Logs Styling */
 .employee-name-link {
     color: #8B5CF6;
     cursor: pointer;
@@ -574,7 +438,7 @@ function changeCategory(category) {
     background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
 }
 
-/* Data Table - Original Style */
+/* Data Table */
 .data-table {
     width: 100%;
     border-collapse: collapse;
@@ -620,48 +484,47 @@ function changeCategory(category) {
     font-weight: 500;
 }
 
-.no-data {
-    text-align: center;
-    color: #6c757d;
-    font-style: italic;
-    padding: 40px 20px;
+/* Cards */
+.card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
 }
 
-/* Search Results Dropdown */
-.searchable-dropdown {
-    position: relative;
-}
-
-.search-results {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1px solid rgba(139, 92, 246, 0.2);
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    max-height: 200px;
-    overflow-y: auto;
-    z-index: 1000;
-    display: none;
-}
-
-.search-result-item {
-    padding: 10px 15px;
-    cursor: pointer;
-    transition: background-color 0.2s;
+.card-header {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
     border-bottom: 1px solid rgba(139, 92, 246, 0.1);
 }
 
-.search-result-item:last-child {
-    border-bottom: none;
+/* Pagination Styles */
+.btn-group .btn {
+    color: #8B5CF6;
+    border: 2px solid rgba(139, 92, 246, 0.1);
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    margin: 0 2px;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    text-decoration: none;
 }
 
-.search-result-item:hover,
-.search-result-item.active {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
-    color: #8B5CF6;
+.btn-group .btn:hover:not(.disabled) {
+    color: white;
+    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    border-color: #8B5CF6;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.btn-group .btn.disabled {
+    color: #6c757d;
+    background: rgba(248, 249, 250, 0.8);
+    border-color: rgba(139, 92, 246, 0.1);
+    cursor: not-allowed;
 }
 
 /* Modal Styles */
@@ -729,15 +592,21 @@ function changeCategory(category) {
     border-top: 1px solid rgba(139, 92, 246, 0.1);
     border-radius: 0 0 16px 16px;
 }
-</style>
 
-<script>
-function changeCategory(category) {
-    const url = new URL(window.location);
-    url.searchParams.set('category', category);
-    url.searchParams.delete('page'); // Reset page when changing category
-    window.location.href = url.toString();
+/* Animation */
+.card {
+    animation: fadeInUp 0.6s ease-out;
 }
-</script>
 
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
 {% endblock %}
