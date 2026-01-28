@@ -958,8 +958,25 @@ def calculate_times_from_transactions(transactions):
         last_transaction = max(transactions, key=lambda x: x['time'])
         is_currently_inside = (last_transaction['direction'] == 'in')
 
-    # Check if this is an invalid day (last event IN but not today)
-    is_invalid_day = is_currently_inside and not is_today
+    # Check if this is an invalid day 
+    # Invalid day conditions:
+    # 1. Last event is IN but it's NOT today AND person never left that day
+    # 2. OR there's some other data inconsistency
+    is_invalid_day = False
+    
+    if is_currently_inside:
+        if is_today:
+            # If it's today and person is inside, it's VALID (they're currently working)
+            is_invalid_day = False
+        else:
+            # If it's not today and person is still "inside", check if they ever left
+            # If they never left that day, it might be invalid data
+            if len(out_logs) == 0:
+                # Never left that day - could be invalid data
+                is_invalid_day = True
+            else:
+                # They left and came back, but last event was IN - this is valid
+                is_invalid_day = False
 
     total_inside_seconds = 0
     total_span_seconds = 0
@@ -1232,12 +1249,15 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None, category=
 
             # Prepare display values based on validity
             if times['is_invalid_day']:
-                first_in_display = "N/A"
-                last_out_display = "N/A"
-                inside_time_display = "N/A"
-                outside_time_display = "N/A"
-                total_span_display = "N/A"
+                # Invalid day: giriş var ama çıkış yok ve bugün değil
+                # ANCAK First In değerini göster (çünkü gerçekten girdi)
+                first_in_display = times['first_in'].strftime('%H:%M:%S') if times['first_in'] else 'N/A'
+                last_out_display = "N/A"  # Çıkış yapmadı
+                inside_time_display = "N/A"  # Hesaplanamaz
+                outside_time_display = "N/A"  # Hesaplanamaz
+                total_span_display = "N/A"  # Hesaplanamaz
             else:
+                # Valid day: normal hesaplama
                 first_in_display = times['first_in'].strftime('%H:%M:%S') if times['first_in'] else 'N/A'
 
                 if times['is_currently_inside']:
@@ -1245,14 +1265,9 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None, category=
                 else:
                     last_out_display = times['last_out'].strftime('%H:%M:%S') if times['last_out'] else 'N/A'
 
-                inside_time_display = format_seconds(times['total_inside_seconds']) if times[
-                                                                                           'total_inside_seconds'] is not None else "00:00:00"
-                outside_time_display = format_seconds(times['total_outside_seconds']) if times[
-                                                                                             'total_outside_seconds'] is not None else "00:00:00"
-                total_span_display = format_seconds(times['total_span_seconds']) if times[
-                                                                                        'total_span_seconds'] is not None and \
-                                                                                    times[
-                                                                                        'total_span_seconds'] > 0 else "00:00:00"
+                inside_time_display = format_seconds(times['total_inside_seconds']) if times['total_inside_seconds'] is not None else "00:00:00"
+                outside_time_display = format_seconds(times['total_outside_seconds']) if times['total_outside_seconds'] is not None else "00:00:00"
+                total_span_display = format_seconds(times['total_span_seconds']) if times['total_span_seconds'] is not None and times['total_span_seconds'] > 0 else "00:00:00"
 
             final_logs.append({
                 'date': log_date.strftime('%d.%m.%Y'),
