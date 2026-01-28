@@ -1,27 +1,15 @@
--- Teachers sorunu debug etmek için SQL sorguları
+-- Check transaction count for Könül Əhmədova
+SELECT COUNT(*) 
+FROM public.acc_transaction 
+WHERE (LOWER(name) = 'könül' AND LOWER(last_name) = 'əhmədova')
+   OR pin IN (SELECT pin FROM public.pers_person WHERE LOWER(name) = 'könül' AND LOWER(last_name) = 'əhmədova');
 
--- 1. pers_position tablosundaki tüm pozisyonları görelim
-SELECT id, name, COUNT(*) as person_count
-FROM pers_position pp
-LEFT JOIN pers_person p ON p.position_id = pp.id
-GROUP BY pp.id, pp.name
-ORDER BY pp.name;
-
--- 2. Müəllim pozisyonundaki kişileri görelim
-SELECT p.id, p.name, p.last_name, pp.name as position_name
-FROM pers_person p
-LEFT JOIN pers_position pp ON p.position_id = pp.id
-WHERE pp.name = 'Müəllim' OR pp.name = 'Müallim'
-ORDER BY p.last_name, p.name;
-
--- 3. Müəllim pozisyonunun ID'sini bulalım
-SELECT id, name FROM pers_position WHERE name LIKE '%əllim%' OR name LIKE '%allim%';
-
--- 4. Tüm pozisyonları alfabetik sırayla görelim
-SELECT DISTINCT name FROM pers_position ORDER BY name;
-
--- 5. Teachers count'u kontrol edelim
-SELECT COUNT(*) as teachers_count
-FROM pers_person p
-LEFT JOIN pers_position pp ON p.position_id = pp.id
-WHERE pp.name = 'Müəllim' OR pp.name = 'Müallim';
+-- Check total transactions for Teachers category in the last year
+SELECT COUNT(*)
+FROM public.acc_transaction t
+JOIN public.pers_person p ON (t.pin = p.pin OR (t.name = p.name AND t.last_name = p.last_name))
+JOIN public.pers_position pp ON p.position_id = pp.id
+LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+WHERE pp.name = 'Müəllim' 
+  AND (ad.name IS NULL OR ad.name != 'School')
+  AND t.create_time > CURRENT_DATE - INTERVAL '1 year';

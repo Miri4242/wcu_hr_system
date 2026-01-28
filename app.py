@@ -377,7 +377,8 @@ def init_scheduler():
 
 def format_seconds(seconds):
     """Converts seconds to HH:MM:SS format."""
-    if seconds <= 0: return "00:00:00"
+    if seconds is None or seconds <= 0: 
+        return "00:00:00"
     seconds = int(seconds)
     hours = seconds // 3600
     minutes = (seconds % 3600) // 60
@@ -389,7 +390,28 @@ def normalize_name(name):
     """Converts name/surname to lowercase and strips whitespace, removing inner spaces."""
     if name is None:
         return ""
-    return name.lower().strip().replace(' ', '')
+    
+    # Azerbaycan character mapping for proper normalization
+    az_char_map = {
+        'İ': 'i',  # Turkish/Azerbaycan capital I -> lowercase i
+        'I': 'ı',  # Latin capital I -> Azerbaycan lowercase ı
+        'Ə': 'ə',  # Capital schwa -> lowercase schwa
+        'Ğ': 'ğ',  # Capital soft g -> lowercase soft g
+        'Ö': 'ö',  # Capital o with diaeresis -> lowercase
+        'Ü': 'ü',  # Capital u with diaeresis -> lowercase
+        'Ç': 'ç',  # Capital c with cedilla -> lowercase
+        'Ş': 'ş'   # Capital s with cedilla -> lowercase
+    }
+    
+    # Apply Azerbaycan character mapping first, then lowercase the rest
+    normalized = ""
+    for char in name:
+        if char in az_char_map:
+            normalized += az_char_map[char]
+        else:
+            normalized += char.lower()
+    
+    return normalized.strip().replace(' ', '')
 
 
 def require_login():
@@ -1106,17 +1128,30 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None, category=
                             AND (ad.name IS NULL OR ad.name != 'School')"""
 
     try:
-        # 1. Fetch transaction logs (Filtered by date range and category)
+        # 1. Fetch transaction logs (Optimized via UNION for index usage)
         cur.execute(f"""
-                    SELECT t.name, t.last_name, t.create_time, t.reader_name
-                    FROM public.acc_transaction t
-                             INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
-                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
-                    WHERE t.create_time BETWEEN %s AND %s
-                      {category_filter}
-                    ORDER BY t.create_time;
-                    """, (start_date, end_date))
+            SELECT t.name, t.last_name, t.create_time, t.reader_name
+            FROM public.acc_transaction t
+            INNER JOIN public.pers_person p ON (t.pin = p.pin)
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE t.create_time BETWEEN %s AND %s
+              AND t.pin IS NOT NULL
+              {category_filter}
+            
+            UNION ALL
+            
+            SELECT t.name, t.last_name, t.create_time, t.reader_name
+            FROM public.acc_transaction t
+            INNER JOIN public.pers_person p ON (t.name = p.name AND t.last_name = p.last_name)
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
+            WHERE t.create_time BETWEEN %s AND %s
+              AND (t.pin IS NULL OR t.pin != p.pin) -- Avoid duplicates from the first part
+              {category_filter}
+            
+            ORDER BY create_time;
+        """, (start_date, end_date, start_date, end_date))
         raw_transactions = cur.fetchall()
 
         # 2. Process transactions and Grouping (Person Name + Date)
@@ -1363,19 +1398,33 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
     end_dt = datetime.combine(end_date, datetime.max.time())
 
     try:
-        # Use the date range in the database query.
+        # Optimized via UNION for index usage
         cur.execute("""
-                    SELECT t.name, t.last_name, t.create_time, t.reader_name
-                    FROM public.acc_transaction t
-                             INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
-                             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-                    WHERE t.create_time BETWEEN %s AND %s
-                      AND (pp.name IS NULL 
-                           OR (pp.name NOT ILIKE 'student' 
-                               AND pp.name NOT ILIKE 'visitor'
-                               AND pp.name NOT ILIKE 'müəllim')) -- Student, Visitor ve Müəllim Filtresi
-                    ORDER BY t.create_time;
-                    """, (start_dt, end_dt))
+            SELECT t.name, t.last_name, t.create_time, t.reader_name
+            FROM public.acc_transaction t
+            INNER JOIN public.pers_person p ON (t.pin = p.pin)
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            WHERE t.create_time BETWEEN %s AND %s
+              AND t.pin IS NOT NULL
+              AND (pp.name IS NULL 
+                   OR (pp.name NOT ILIKE 'student' 
+                       AND pp.name NOT ILIKE 'visitor'
+                       AND pp.name NOT ILIKE 'müəllim'))
+            
+            UNION ALL
+            
+            SELECT t.name, t.last_name, t.create_time, t.reader_name
+            FROM public.acc_transaction t
+            INNER JOIN public.pers_person p ON (t.name = p.name AND t.last_name = p.last_name)
+            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
+            WHERE t.create_time BETWEEN %s AND %s
+              AND (t.pin IS NULL OR t.pin != p.pin)
+              AND (pp.name IS NULL 
+                   OR (pp.name NOT ILIKE 'student' 
+                       AND pp.name NOT ILIKE 'visitor'
+                       AND pp.name NOT ILIKE 'müəllim'))
+            ORDER BY create_time;
+        """, (start_dt, end_dt, start_dt, end_dt))
 
         raw_transactions = cur.fetchall()
 
@@ -2515,14 +2564,55 @@ def api_get_daily_note():
         return jsonify({'note': ''})
 
 
+@app.route('/debug_export')
+def debug_export():
+    """Debug export issues"""
+    if (redirect_response := require_login()): return redirect_response
+    
+    person_key = request.args.get('person_key', '')
+    category = request.args.get('category', 'active')
+    
+    debug_info = {
+        'person_key': person_key,
+        'category': category,
+        'person_key_length': len(person_key),
+        'person_key_bytes': person_key.encode('utf-8').hex() if person_key else '',
+    }
+    
+    try:
+        logs_data = get_employee_logs(person_key=person_key, category=category)
+        debug_info['logs_count'] = len(logs_data)
+        debug_info['logs_found'] = len(logs_data) > 0
+        
+        if logs_data:
+            debug_info['first_log'] = {
+                'date': logs_data[0]['date'],
+                'name': logs_data[0]['name'],
+                'last_name': logs_data[0]['last_name']
+            }
+    except Exception as e:
+        debug_info['error'] = str(e)
+    
+    return jsonify(debug_info)
+
+
 @app.route('/employee_logs/export', methods=['GET'])
 def export_employee_logs():
     if (redirect_response := require_login()): return redirect_response
 
     person_key = request.args.get('person_key', None)
+    # Convert empty string to None
+    if person_key == '':
+        person_key = None
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
     category = request.args.get('category', 'active')
+
+    # DEBUG: Log export parameters
+    print(f"🔍 EXPORT DEBUG: person_key='{person_key}', category='{category}'")
+    print(f"🔍 EXPORT DEBUG: person_key type={type(person_key)}, length={len(person_key) if person_key else 0}")
+    if person_key:
+        print(f"🔍 EXPORT DEBUG: person_key bytes={person_key.encode('utf-8').hex()}")
 
     # Date parsing for export
     start_date = None
@@ -2536,57 +2626,87 @@ def export_employee_logs():
     except ValueError:
         pass
 
+    import pandas as pd
+    from io import BytesIO
+
+    print(f"🔍 EXPORT DEBUG: Calling get_employee_logs...")
     logs_data = get_employee_logs(person_key=person_key, start_date=start_date, end_date=end_date, category=category)
+    print(f"🔍 EXPORT DEBUG: Found {len(logs_data)} logs")
 
     if not logs_data:
+        print(f"❌ EXPORT DEBUG: No data found for export")
         return make_response("No data found for export.", 404)
 
-    si = StringIO()
-    cw = csv.writer(si)
+    print(f"🔍 EXPORT DEBUG: Processing {len(logs_data)} logs for export...")
 
-    header = [
-        'Date',
-        'Employee First Name',
-        'Employee Last Name',
-        'First In',
-        'Last Out',
-        'Total INSIDE Time (HH:MM:SS)',
-        'Total OUTSIDE Time (HH:MM:SS)',
-        'Total INSIDE Time (Seconds)',
-        'Total SPAN Time (Seconds)'
-    ]
-    cw.writerow(header)
+    # Convert logs data to list of dicts for DataFrame
+    export_list = []
+    for i, log in enumerate(logs_data):
+        try:
+            export_list.append({
+                'Date': log['date'],
+                'First Name': log['name'],
+                'Last Name': log['last_name'],
+                'First In': log['first_in'],
+                'Last Out': log['last_out'],
+                'Inside Time': log['inside_time'],
+                'Outside Time': log['outside_time'],
+                'Total Worked Time': format_seconds(log['total_inside_seconds']),
+                'Total Span Time': format_seconds(log.get('total_span_seconds', 0))
+            })
+        except Exception as e:
+            print(f"❌ EXPORT DEBUG: Error processing log {i+1}: {e}")
+            print(f"❌ EXPORT DEBUG: Log data: {log}")
+            return make_response(f"Error processing log data: {e}", 500)
+    print(f"🔍 EXPORT DEBUG: Creating DataFrame with {len(export_list)} records...")
+    df = pd.DataFrame(export_list)
 
-    for log in logs_data:
-        cw.writerow([
-            log['date'],
-            log['name'],
-            log['last_name'],
-            log['first_in'],
-            log['last_out'],
-            log['inside_time'],
-            log['outside_time'],
-            log['total_inside_seconds'],
-            log.get('total_span_seconds', 0)
-        ])
+    # Create dummy buffer for Excel
+    output = BytesIO()
+    
+    print(f"🔍 EXPORT DEBUG: Creating Excel file...")
+    # Use ExcelWriter for styling (auto-adjust column width)
+    try:
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Employee Logs')
+            
+            # Access the openpyxl workbook and sheet to adjust column widths
+            workbook = writer.book
+            worksheet = writer.sheets['Employee Logs']
+            
+            # Simple column width adjustment
+            for i, col in enumerate(df.columns):
+                max_length = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.column_dimensions[chr(65 + i)].width = max_length
+    except Exception as e:
+        print(f"❌ EXPORT DEBUG: Error creating Excel file: {e}")
+        return make_response(f"Error creating Excel file: {e}", 500)
 
-    output = si.getvalue()
+    output.seek(0)
+    file_size = len(output.getvalue())
+    print(f"🔍 EXPORT DEBUG: Excel file created successfully ({file_size} bytes)")
 
     if person_key:
+        # Clean person_key for filename (remove special characters)
+        import re
+        clean_key = re.sub(r'[^a-zA-Z0-9_-]', '', person_key)
         if start_date and end_date:
-            filename = f"log_export_{person_key}_{start_date_str}_to_{end_date_str}.csv"
+            filename = f"log_export_{clean_key}_{start_date_str}_to_{end_date_str}.xlsx"
         else:
-            filename = f"log_export_{person_key}.csv"
+            filename = f"log_export_{clean_key}.xlsx"
     else:
         if start_date and end_date:
-            filename = f"log_export_all_employees_{start_date_str}_to_{end_date_str}.csv"
+            filename = f"log_export_all_employees_{start_date_str}_to_{end_date_str}.xlsx"
         else:
-            filename = "log_export_all_employees.csv"
+            filename = "log_export_all_employees.xlsx"
 
-    response = make_response(output)
+    print(f"🔍 EXPORT DEBUG: Filename: {filename}")
+    
+    response = make_response(output.getvalue())
     response.headers["Content-Disposition"] = f"attachment; filename={filename}"
-    response.headers["Content-type"] = "text/csv"
+    response.headers["Content-type"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
+    print(f"✅ EXPORT DEBUG: Export completed successfully!")
     return response
 
 
@@ -2623,7 +2743,7 @@ def employee_logs():
         end_date_str = request.form.get('end_date') or end_date_str
         employee_search = request.form.get('employee_search', '').strip()
     else:
-        selected_person_key = request.args.get('person_key') or ''
+        selected_person_key = request.args.get('person_key') or None
         start_date_str = request.args.get('start_date') or start_date_str
         end_date_str = request.args.get('end_date') or end_date_str
 

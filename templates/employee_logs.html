@@ -12,28 +12,23 @@
             <div class="card-body">
                 <ul class="nav nav-pills nav-fill category-tabs" id="categoryTabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link {% if not request.args.get('category') or request.args.get('category') == 'active' %}active{% endif %}" 
-                                id="active-tab" 
-                                onclick="changeCategory('active')" 
-                                type="button">
+                        <button
+                            class="nav-link {% if not request.args.get('category') or request.args.get('category') == 'active' %}active{% endif %}"
+                            id="active-tab" onclick="changeCategory('active')" type="button">
                             <i class="fas fa-briefcase me-2"></i>Administrative
                             <span class="badge bg-primary ms-2">{{ category_counts.active or 0 }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link {% if request.args.get('category') == 'school' %}active{% endif %}" 
-                                id="school-tab" 
-                                onclick="changeCategory('school')" 
-                                type="button">
+                        <button class="nav-link {% if request.args.get('category') == 'school' %}active{% endif %}"
+                            id="school-tab" onclick="changeCategory('school')" type="button">
                             <i class="fas fa-school me-2"></i>School Department
                             <span class="badge bg-info ms-2">{{ category_counts.school or 0 }}</span>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link {% if request.args.get('category') == 'teachers' %}active{% endif %}" 
-                                id="teachers-tab" 
-                                onclick="changeCategory('teachers')" 
-                                type="button">
+                        <button class="nav-link {% if request.args.get('category') == 'teachers' %}active{% endif %}"
+                            id="teachers-tab" onclick="changeCategory('teachers')" type="button">
                             <i class="fas fa-chalkboard-teacher me-2"></i>Teachers
                             <span class="badge bg-success ms-2">{{ category_counts.teachers or 0 }}</span>
                         </button>
@@ -65,58 +60,40 @@
         <form method="GET" action="{{ url_for('employee_logs') }}">
             <!-- Preserve category parameter -->
             <input type="hidden" name="category" value="{{ request.args.get('category', 'active') }}">
-            
+
             <div class="row g-3 align-items-end">
-                <div class="col-lg-3 col-md-6 col-sm-12">
+                <div class="col-lg-6 col-md-12 col-sm-12">
                     <label for="person_key" class="form-label">Select Employee</label>
-                    <select id="person_key" name="person_key" class="form-select">
+                    <select id="person_key" name="person_key" class="form-select searchable-select">
                         <option value="">All Employees</option>
                         {% for employee in employees %}
-                            <option value="{{ employee.key }}" 
-                                    {% if employee.key == selected_person_key %}selected{% endif %}>
-                                {{ employee.name }}
-                            </option>
+                        <option value="{{ employee.key }}" {% if employee.key==selected_person_key %}selected{% endif
+                            %}>
+                            {{ employee.name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
 
-                <div class="col-lg-3 col-md-6 col-sm-12">
-                    <label for="employee_search" class="form-label">Search Employee</label>
-                    <div class="input-group">
-                        <span class="input-group-text">
-                            <i class="fas fa-search"></i>
-                        </span>
-                        <input type="text"
-                               id="employee_search"
-                               name="employee_search"
-                               placeholder="Type to search employees..."
-                               autocomplete="off"
-                               value="{{ request.args.get('employee_search') or '' }}"
-                               class="form-control">
-                    </div>
-                </div>
-
-                <div class="col-lg-2 col-md-3 col-sm-6">
+                <div class="col-lg-3 col-md-6 col-sm-6">
                     <label for="start_date" class="form-label">Start Date</label>
-                    <input type="date"
-                           id="start_date"
-                           name="start_date"
-                           value="{{ start_date or '' }}"
-                           class="form-control">
+                    <input type="date" id="start_date" name="start_date" value="{{ start_date or '' }}"
+                        class="form-control">
                 </div>
 
-                <div class="col-lg-2 col-md-3 col-sm-6">
+                <div class="col-lg-3 col-md-6 col-sm-6">
                     <label for="end_date" class="form-label">End Date</label>
-                    <input type="date"
-                           id="end_date"
-                           name="end_date"
-                           value="{{ end_date or '' }}"
-                           class="form-control">
+                    <input type="date" id="end_date" name="end_date" value="{{ end_date or '' }}" class="form-control">
                 </div>
-
-                <div class="col-lg-2 col-md-6 col-sm-6">
-                    <button type="submit" class="btn btn-primary w-100">
+            </div>
+            
+            <div class="row mt-3">
+                <div class="col-12 text-center">
+                    <button type="submit" class="btn btn-primary me-2">
                         <i class="fas fa-search me-1"></i>Filter
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="clearFilters()">
+                        <i class="fas fa-times me-1"></i>Clear
                     </button>
                 </div>
             </div>
@@ -133,140 +110,140 @@
             <span class="badge bg-primary ms-2">{{ total_logs }} records found</span>
         </h5>
     </div>
-    
+
     <div class="card-body">
         {% if logs %}
-            <!-- Pagination Top -->
-            {% if total_pages > 1 %}
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-muted">Total Records: {{ total_logs }}</span>
-                <div class="btn-group">
-                    {% if current_page > 1 %}
-                        <a class="btn btn-outline-primary" 
-                           href="{{ url_for('employee_logs', page=current_page-1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
-                            <i class="fas fa-chevron-left"></i> Previous
-                        </a>
-                    {% endif %}
-                    
-                    <span class="btn btn-outline-secondary disabled">
-                        Page {{ current_page }} of {{ total_pages }}
-                    </span>
-                    
-                    {% if current_page < total_pages %}
-                        <a class="btn btn-outline-primary" 
-                           href="{{ url_for('employee_logs', page=current_page+1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
-                            Next <i class="fas fa-chevron-right"></i>
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Logs Table -->
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Employee Name</th>
-                            <th>First In</th>
-                            <th>Last Out</th>
-                            <th>Total INSIDE Time</th>
-                            <th>Total OUTSIDE Time</th>
-                            <th>Total Time (Span)</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for log in logs %}
-                        <tr class="clickable-row" onclick="showEmployeeActionModal('{{ log.name }} {{ log.last_name }}', '{{ log.date }}')">
-                            <td>{{ log.date }}</td>
-                            <td class="employee-name-cell">
-                                <span class="employee-name-link">{{ log.name }} {{ log.last_name }}</span>
-                            </td>
-                            <td>{{ log.first_in }}</td>
-                            <td>
-                                {% if log.is_invalid_day %}
-                                    <span class="na-text">N/A</span>
-                                {% elif log.is_currently_inside %}
-                                    <span class="inside-text">Still Inside</span>
-                                {% else %}
-                                    {{ log.last_out }}
-                                {% endif %}
-                            </td>
-                            <td class="time-value">{{ log.inside_time }}</td>
-                            <td class="time-value">{{ log.outside_time }}</td>
-                            <td class="time-value">
-                                {% if log.is_invalid_day %}
-                                    N/A
-                                {% elif log.total_span_seconds and log.total_span_seconds > 0 %}
-                                    {{ "%02d:%02d:%02d"|format(log.total_span_seconds // 3600, (log.total_span_seconds % 3600) // 60, log.total_span_seconds % 60) }}
-                                {% else %}
-                                    00:00:00
-                                {% endif %}
-                            </td>
-                            <td>
-                                <span class="status-text" style="color: {{ log.status_color }};">
-                                    {{ log.status_display }}
-                                </span>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Pagination Bottom -->
-            {% if total_pages > 1 %}
-            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
-                <span class="text-muted">Total Records: {{ total_logs }}</span>
-                <div class="btn-group">
-                    {% if current_page > 1 %}
-                        <a class="btn btn-outline-primary" 
-                           href="{{ url_for('employee_logs', page=current_page-1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
-                            <i class="fas fa-chevron-left"></i> Previous
-                        </a>
-                    {% endif %}
-                    
-                    <span class="btn btn-outline-secondary disabled">
-                        Page {{ current_page }} of {{ total_pages }}
-                    </span>
-                    
-                    {% if current_page < total_pages %}
-                        <a class="btn btn-outline-primary" 
-                           href="{{ url_for('employee_logs', page=current_page+1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
-                            Next <i class="fas fa-chevron-right"></i>
-                        </a>
-                    {% endif %}
-                </div>
-            </div>
-            {% endif %}
-
-            <!-- Export Link -->
-            <div class="mt-3 text-center">
-                <a href="{{ url_for('export_employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}" 
-                   class="btn btn-success">
-                    <i class="fas fa-download me-1"></i>Export CSV
+        <!-- Pagination Top -->
+        {% if total_pages > 1 %}
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="text-muted">Total Records: {{ total_logs }}</span>
+            <div class="btn-group">
+                {% if current_page > 1 %}
+                <a class="btn btn-outline-primary"
+                    href="{{ url_for('employee_logs', page=current_page-1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                    <i class="fas fa-chevron-left"></i> Previous
                 </a>
+                {% endif %}
+
+                <span class="btn btn-outline-secondary disabled">
+                    Page {{ current_page }} of {{ total_pages }}
+                </span>
+
+                {% if current_page < total_pages %} <a class="btn btn-outline-primary"
+                    href="{{ url_for('employee_logs', page=current_page+1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                    Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% endif %}
             </div>
+        </div>
+        {% endif %}
+
+        <!-- Logs Table -->
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Employee Name</th>
+                        <th>First In</th>
+                        <th>Last Out</th>
+                        <th>Total INSIDE Time</th>
+                        <th>Total OUTSIDE Time</th>
+                        <th>Total Time (Span)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr class="clickable-row"
+                        onclick="showEmployeeActionModal('{{ log.name }} {{ log.last_name }}', '{{ log.date }}')">
+                        <td>{{ log.date }}</td>
+                        <td class="employee-name-cell">
+                            <span class="employee-name-link">{{ log.name }} {{ log.last_name }}</span>
+                        </td>
+                        <td>{{ log.first_in }}</td>
+                        <td>
+                            {% if log.is_invalid_day %}
+                            <span class="na-text">N/A</span>
+                            {% elif log.is_currently_inside %}
+                            <span class="inside-text">Still Inside</span>
+                            {% else %}
+                            {{ log.last_out }}
+                            {% endif %}
+                        </td>
+                        <td class="time-value">{{ log.inside_time }}</td>
+                        <td class="time-value">{{ log.outside_time }}</td>
+                        <td class="time-value">
+                            {% if log.is_invalid_day %}
+                            N/A
+                            {% elif log.total_span_seconds and log.total_span_seconds > 0 %}
+                            {{ "%02d:%02d:%02d"|format(log.total_span_seconds // 3600, (log.total_span_seconds % 3600)
+                            // 60, log.total_span_seconds % 60) }}
+                            {% else %}
+                            00:00:00
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-text" style="color: {{ log.status_color }};">
+                                {{ log.status_display }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination Bottom -->
+        {% if total_pages > 1 %}
+        <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+            <span class="text-muted">Total Records: {{ total_logs }}</span>
+            <div class="btn-group">
+                {% if current_page > 1 %}
+                <a class="btn btn-outline-primary"
+                    href="{{ url_for('employee_logs', page=current_page-1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                    <i class="fas fa-chevron-left"></i> Previous
+                </a>
+                {% endif %}
+
+                <span class="btn btn-outline-secondary disabled">
+                    Page {{ current_page }} of {{ total_pages }}
+                </span>
+
+                {% if current_page < total_pages %} <a class="btn btn-outline-primary"
+                    href="{{ url_for('employee_logs', page=current_page+1, person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}">
+                    Next <i class="fas fa-chevron-right"></i>
+                    </a>
+                    {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="mt-3 text-center">
+            <a href="{{ url_for('export_employee_logs', person_key=selected_person_key, start_date=start_date, end_date=end_date, employee_search=request.args.get('employee_search', ''), category=request.args.get('category', 'active')) }}"
+                class="btn btn-success">
+                <i class="fas fa-file-excel me-1"></i>Export Excel
+            </a>
+        </div>
 
         {% else %}
-            <!-- No Results -->
-            <div class="text-center py-5">
-                <div class="mb-3">
-                    <i class="fas fa-clock fa-3x text-muted"></i>
-                </div>
-                <h5 class="text-muted">No Data Found</h5>
-                <p class="text-muted">
-                    No working hours found for the selected criteria.
-                </p>
+        <!-- No Results -->
+        <div class="text-center py-5">
+            <div class="mb-3">
+                <i class="fas fa-clock fa-3x text-muted"></i>
             </div>
+            <h5 class="text-muted">No Data Found</h5>
+            <p class="text-muted">
+                No working hours found for the selected criteria.
+            </p>
+        </div>
         {% endif %}
     </div>
 </div>
 
 <!-- Employee Action Modal -->
-<div class="modal fade" id="employeeActionModal" tabindex="-1" aria-labelledby="employeeActionModalLabel" aria-hidden="true">
+<div class="modal fade" id="employeeActionModal" tabindex="-1" aria-labelledby="employeeActionModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-gradient-primary text-white">
@@ -274,16 +251,17 @@
                     <i class="fas fa-user me-2"></i>
                     <span id="modalEmployeeName">Employee Options</span>
                 </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 <div class="text-center mb-4">
                     <p class="mb-3">
-                        What would you like to do for <strong id="modalEmployeeNameText">Employee</strong> on 
+                        What would you like to do for <strong id="modalEmployeeNameText">Employee</strong> on
                         <strong id="modalDateText">date</strong>?
                     </p>
                 </div>
-                
+
                 <div class="row g-3">
                     <div class="col-md-6">
                         <div class="action-card" id="viewDetailsCard">
@@ -324,18 +302,18 @@
         document.getElementById('modalEmployeeName').textContent = employeeName;
         document.getElementById('modalEmployeeNameText').textContent = employeeName;
         document.getElementById('modalDateText').textContent = logDate;
-        
+
         // Modal'ı göster
         const modal = new bootstrap.Modal(document.getElementById('employeeActionModal'));
         modal.show();
-        
+
         // Action card click handlers
-        document.getElementById('viewDetailsCard').onclick = function() {
+        document.getElementById('viewDetailsCard').onclick = function () {
             modal.hide();
             goToEmployeeDetails(employeeName, logDate);
         };
-        
-        document.getElementById('viewEmployeeCard').onclick = function() {
+
+        document.getElementById('viewEmployeeCard').onclick = function () {
             modal.hide();
             goToEmployees(employeeName);
         };
@@ -350,263 +328,450 @@
     }
 
     // Document ready
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         console.log('🚀 Employee logs page loaded successfully');
-        
-        // Focus search input
-        const searchInput = document.getElementById('employee_search');
-        if (searchInput) {
-            searchInput.focus();
-        }
+
+        // Initialize searchable select
+        initializeSearchableSelect();
     });
+
+    function initializeSearchableSelect() {
+        const selectElement = document.getElementById('person_key');
+        if (!selectElement) return;
+
+        // Create a custom searchable select
+        const wrapper = document.createElement('div');
+        wrapper.className = 'searchable-select-wrapper position-relative';
+        
+        // Create search input
+        const searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'form-control searchable-input';
+        searchInput.placeholder = 'Type to search employees...';
+        searchInput.autocomplete = 'off';
+        
+        // Create dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'searchable-dropdown';
+        dropdown.style.display = 'none';
+        
+        // Hide original select
+        selectElement.style.display = 'none';
+        
+        // Insert wrapper after select
+        selectElement.parentNode.insertBefore(wrapper, selectElement.nextSibling);
+        wrapper.appendChild(searchInput);
+        wrapper.appendChild(dropdown);
+        
+        // Get all options
+        const options = Array.from(selectElement.options);
+        let filteredOptions = [...options];
+        
+        // Set initial value
+        const selectedOption = options.find(opt => opt.selected);
+        if (selectedOption && selectedOption.value) {
+            searchInput.value = selectedOption.text;
+        }
+        
+        // Search functionality
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.toLowerCase();
+            
+            if (searchTerm === '') {
+                filteredOptions = [...options];
+            } else {
+                filteredOptions = options.filter(option => 
+                    option.text.toLowerCase().includes(searchTerm)
+                );
+            }
+            
+            updateDropdown();
+            showDropdown();
+        });
+        
+        // Focus event
+        searchInput.addEventListener('focus', function() {
+            updateDropdown();
+            showDropdown();
+        });
+        
+        // Click outside to close
+        document.addEventListener('click', function(e) {
+            if (!wrapper.contains(e.target)) {
+                hideDropdown();
+            }
+        });
+        
+        function updateDropdown() {
+            dropdown.innerHTML = '';
+            
+            filteredOptions.forEach(option => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.textContent = option.text;
+                item.dataset.value = option.value;
+                
+                if (option.selected) {
+                    item.classList.add('selected');
+                }
+                
+                item.addEventListener('click', function() {
+                    // Update select
+                    selectElement.value = this.dataset.value;
+                    
+                    // Update input
+                    searchInput.value = this.textContent;
+                    
+                    // Update selected state
+                    options.forEach(opt => opt.selected = false);
+                    const selectedOpt = options.find(opt => opt.value === this.dataset.value);
+                    if (selectedOpt) selectedOpt.selected = true;
+                    
+                    hideDropdown();
+                    
+                    // Auto submit form after a short delay
+                    setTimeout(() => {
+                        selectElement.closest('form').submit();
+                    }, 100);
+                });
+                
+                dropdown.appendChild(item);
+            });
+            
+            if (filteredOptions.length === 0) {
+                const noResults = document.createElement('div');
+                noResults.className = 'dropdown-item disabled';
+                noResults.textContent = 'No employees found';
+                dropdown.appendChild(noResults);
+            }
+        }
+        
+        function showDropdown() {
+            dropdown.style.display = 'block';
+        }
+        
+        function hideDropdown() {
+            dropdown.style.display = 'none';
+        }
+    }
+
+    function clearFilters() {
+        // Clear all form inputs
+        document.getElementById('person_key').value = '';
+        document.getElementById('start_date').value = '';
+        document.getElementById('end_date').value = '';
+        
+        // Clear search input if exists
+        const searchInput = document.querySelector('.searchable-input');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        // Submit form
+        document.querySelector('form').submit();
+    }
 </script>
 
 <script>
-function changeCategory(category) {
-    const url = new URL(window.location);
-    url.searchParams.set('category', category);
-    url.searchParams.delete('page'); // Reset page when changing category
-    window.location.href = url.toString();
-}
+    function changeCategory(category) {
+        const url = new URL(window.location);
+        url.searchParams.set('category', category);
+        url.searchParams.delete('page'); // Reset page when changing category
+        window.location.href = url.toString();
+    }
 </script>
 
 <style>
-/* Category Tabs */
-.category-tabs .nav-link {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    border: 2px solid rgba(139, 92, 246, 0.1);
-    color: #6B7280;
-    font-weight: 600;
-    padding: 15px 20px;
-    border-radius: 15px;
-    margin: 0 5px;
-    transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 60px;
-}
-
-.category-tabs .nav-link:hover {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
-    border-color: rgba(139, 92, 246, 0.3);
-    color: #8B5CF6;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
-}
-
-.category-tabs .nav-link.active {
-    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-    border-color: #8B5CF6;
-    color: white;
-    box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
-}
-
-.category-tabs .nav-link .badge {
-    margin-left: 8px;
-    font-size: 12px;
-    padding: 4px 8px;
-}
-
-.category-tabs .nav-link.active .badge {
-    background: rgba(255, 255, 255, 0.2) !important;
-    color: white !important;
-}
-
-<style>
-/* Employee Logs Styling */
-.employee-name-link {
-    color: #8B5CF6;
-    cursor: pointer;
-    text-decoration: none;
-    transition: color 0.2s;
-    font-weight: 500;
-}
-
-.employee-name-link:hover {
-    color: #7C3AED;
-    text-decoration: underline;
-}
-
-.clickable-row {
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.clickable-row:hover {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
-}
-
-/* Data Table */
-.data-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.data-table thead th {
-    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-    color: white;
-    padding: 15px;
-    font-weight: 600;
-    text-align: left;
-}
-
-.data-table tbody tr:hover {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
-}
-
-.data-table tbody td {
-    padding: 12px 15px;
-    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
-}
-
-.na-text {
-    color: #6c757d;
-    font-style: italic;
-}
-
-.inside-text {
-    color: #f59e0b;
-    font-weight: 500;
-}
-
-.time-value {
-    font-family: 'Courier New', monospace;
-    font-weight: 500;
-}
-
-.status-text {
-    font-weight: 500;
-}
-
-/* Cards */
-.card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-}
-
-.card-header {
-    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
-    border-bottom: 1px solid rgba(139, 92, 246, 0.1);
-}
-
-/* Pagination Styles */
-.btn-group .btn {
-    color: #8B5CF6;
-    border: 2px solid rgba(139, 92, 246, 0.1);
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
-    margin: 0 2px;
-    border-radius: 8px;
-    padding: 8px 12px;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    text-decoration: none;
-}
-
-.btn-group .btn:hover:not(.disabled) {
-    color: white;
-    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-    border-color: #8B5CF6;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-}
-
-.btn-group .btn.disabled {
-    color: #6c757d;
-    background: rgba(248, 249, 250, 0.8);
-    border-color: rgba(139, 92, 246, 0.1);
-    cursor: not-allowed;
-}
-
-/* Modal Styles */
-.bg-gradient-primary {
-    background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
-}
-
-.action-card {
-    display: flex;
-    align-items: center;
-    padding: 20px;
-    background: white;
-    border: 2px solid rgba(139, 92, 246, 0.1);
-    border-radius: 12px;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    height: 100%;
-}
-
-.action-card:hover {
-    border-color: #8B5CF6;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
-}
-
-.action-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 15px;
-    color: white;
-    font-size: 20px;
-    flex-shrink: 0;
-}
-
-.action-content h6 {
-    margin: 0 0 8px 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: #2d3748;
-}
-
-.action-content p {
-    margin: 0;
-    font-size: 14px;
-    color: #6c757d;
-    line-height: 1.4;
-}
-
-.modal-content {
-    border: none;
-    border-radius: 16px;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
-}
-
-.modal-header {
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 16px 16px 0 0;
-}
-
-.modal-footer {
-    border-top: 1px solid rgba(139, 92, 246, 0.1);
-    border-radius: 0 0 16px 16px;
-}
-
-/* Animation */
-.card {
-    animation: fadeInUp 0.6s ease-out;
-}
-
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px);
+    /* Category Tabs */
+    .category-tabs .nav-link {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(139, 92, 246, 0.1);
+        color: #6B7280;
+        font-weight: 600;
+        padding: 15px 20px;
+        border-radius: 15px;
+        margin: 0 5px;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60px;
     }
-    to {
-        opacity: 1;
-        transform: translateY(0);
+
+    .category-tabs .nav-link:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+        border-color: rgba(139, 92, 246, 0.3);
+        color: #8B5CF6;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
     }
-}
+
+    .category-tabs .nav-link.active {
+        background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+        border-color: #8B5CF6;
+        color: white;
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+    }
+
+    .category-tabs .nav-link .badge {
+        margin-left: 8px;
+        font-size: 12px;
+        padding: 4px 8px;
+    }
+
+    .category-tabs .nav-link.active .badge {
+        background: rgba(255, 255, 255, 0.2) !important;
+        color: white !important;
+    }
+
+    /* Searchable Select Styles */
+    .searchable-select-wrapper {
+        position: relative;
+    }
+
+    .searchable-input {
+        cursor: pointer;
+    }
+
+    .searchable-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #ddd;
+        border-top: none;
+        border-radius: 0 0 8px 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 1000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .searchable-dropdown .dropdown-item {
+        padding: 12px 16px;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+        transition: all 0.2s ease;
+    }
+
+    .searchable-dropdown .dropdown-item:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+        color: #8B5CF6;
+    }
+
+    .searchable-dropdown .dropdown-item.selected {
+        background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+        color: white;
+    }
+
+    .searchable-dropdown .dropdown-item.disabled {
+        color: #6c757d;
+        cursor: not-allowed;
+        font-style: italic;
+    }
+
+    .searchable-dropdown .dropdown-item.disabled:hover {
+        background: transparent;
+        color: #6c757d;
+    }
+
+    <style>
+
+    /* Employee Logs Styling */
+    .employee-name-link {
+        color: #8B5CF6;
+        cursor: pointer;
+        text-decoration: none;
+        transition: color 0.2s;
+        font-weight: 500;
+    }
+
+    .employee-name-link:hover {
+        color: #7C3AED;
+        text-decoration: underline;
+    }
+
+    .clickable-row {
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .clickable-row:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
+    }
+
+    /* Data Table */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .data-table thead th {
+        background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+        color: white;
+        padding: 15px;
+        font-weight: 600;
+        text-align: left;
+    }
+
+    .data-table tbody tr:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.03) 100%);
+    }
+
+    .data-table tbody td {
+        padding: 12px 15px;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .na-text {
+        color: #6c757d;
+        font-style: italic;
+    }
+
+    .inside-text {
+        color: #f59e0b;
+        font-weight: 500;
+    }
+
+    .time-value {
+        font-family: 'Courier New', monospace;
+        font-weight: 500;
+    }
+
+    .status-text {
+        font-weight: 500;
+    }
+
+    /* Cards */
+    .card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(20px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+        border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+    }
+
+    /* Pagination Styles */
+    .btn-group .btn {
+        color: #8B5CF6;
+        border: 2px solid rgba(139, 92, 246, 0.1);
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        margin: 0 2px;
+        border-radius: 8px;
+        padding: 8px 12px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-decoration: none;
+    }
+
+    .btn-group .btn:hover:not(.disabled) {
+        color: white;
+        background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+        border-color: #8B5CF6;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+    }
+
+    .btn-group .btn.disabled {
+        color: #6c757d;
+        background: rgba(248, 249, 250, 0.8);
+        border-color: rgba(139, 92, 246, 0.1);
+        cursor: not-allowed;
+    }
+
+    /* Modal Styles */
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%);
+    }
+
+    .action-card {
+        display: flex;
+        align-items: center;
+        padding: 20px;
+        background: white;
+        border: 2px solid rgba(139, 92, 246, 0.1);
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .action-card:hover {
+        border-color: #8B5CF6;
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(139, 92, 246, 0.15);
+    }
+
+    .action-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 15px;
+        color: white;
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+
+    .action-content h6 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #2d3748;
+    }
+
+    .action-content p {
+        margin: 0;
+        font-size: 14px;
+        color: #6c757d;
+        line-height: 1.4;
+    }
+
+    .modal-content {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .modal-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 16px 16px 0 0;
+    }
+
+    .modal-footer {
+        border-top: 1px solid rgba(139, 92, 246, 0.1);
+        border-radius: 0 0 16px 16px;
+    }
+
+    /* Animation */
+    .card {
+        animation: fadeInUp 0.6s ease-out;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
 </style>
 {% endblock %}

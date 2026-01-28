@@ -14,3 +14,7 @@ Flask-Limiter==3.5.0
 Flask-Caching==2.1.0
 # Scheduler
 schedule==1.2.0
+
+# Excel Export
+pandas==3.0.0
+openpyxl==3.1.5
