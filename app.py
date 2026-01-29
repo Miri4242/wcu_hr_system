@@ -3344,23 +3344,24 @@ def employee_daily_details(employee_name, log_date):
         # Process transactions
         transactions = []
         for create_time, reader_name, t_name, t_last_name in raw_transactions:
-            # Determine direction based on reader number
+            # Determine direction based on configuration
             direction_type = None
+            direction_display = ''
+            direction_icon = ''
+            direction_color = ''
+
             if reader_name:
-                import re
-                numbers = re.findall(r'\d+', reader_name)
-                if numbers:
-                    reader_number = int(numbers[0])
-                    if reader_number in [1, 2]:
-                        direction_type = 'in'
-                        direction_display = 'Entry'
-                        direction_icon = 'fa-sign-in-alt'
-                        direction_color = '#28a745'
-                    elif reader_number in [3, 4]:
-                        direction_type = 'out'
-                        direction_display = 'Exit'
-                        direction_icon = 'fa-sign-out-alt'
-                        direction_color = '#dc3545'
+                r_name = reader_name.strip()
+                if r_name in TURNSTILE_CONFIG['IN']:
+                    direction_type = 'in'
+                    direction_display = 'Entry'
+                    direction_icon = 'fa-sign-in-alt'
+                    direction_color = '#28a745'
+                elif r_name in TURNSTILE_CONFIG['OUT']:
+                    direction_type = 'out'
+                    direction_display = 'Exit'
+                    direction_icon = 'fa-sign-out-alt'
+                    direction_color = '#dc3545'
             
             if direction_type:
                 transactions.append({
