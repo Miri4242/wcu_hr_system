@@ -40,7 +40,11 @@ INNER JOIN public.acc_transaction t ON t.name = p.name AND t.last_name = p.last_
 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
 WHERE DATE(t.create_time) = CURRENT_DATE
   AND pae.attr_value4 IS NOT NULL
-  AND t.reader_name ILIKE '%-in%'
+  AND t.reader_name IN (
+        'Building A-1-In', 'Building A-2-In', 'Building B-1-In', 'Building B-2-In', 
+        'İcerisheher-1-In', 'İcerisheher-2-In', 'BuldingA1-1-In', 
+        'Filologiya-1-Dış', 'Filologiya-2-İçinde'
+    )
   AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor' AND pp.name NOT ILIKE 'müəllim'))
 GROUP BY p.name, p.last_name, p.id, pae.attr_value4
 HAVING MIN(t.create_time) IS NOT NULL

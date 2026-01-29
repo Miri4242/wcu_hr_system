@@ -29,7 +29,8 @@ WHERE attr_value4 IS NOT NULL;
 
 -- 8. Transaction reader name optimization
 CREATE INDEX IF NOT EXISTS idx_acc_transaction_reader_pattern ON public.acc_transaction(reader_name) 
-WHERE reader_name ILIKE '%-in%' OR reader_name ILIKE '%-out%';
+WHERE reader_name ILIKE '%-in%' OR reader_name ILIKE '%-out%' 
+   OR reader_name LIKE 'Building%' OR reader_name LIKE 'Bulding%' OR reader_name LIKE 'İcerisheher%' OR reader_name LIKE 'Filologiya%';
 
 -- 9. Employee search optimization (name + last_name combined)
 CREATE INDEX IF NOT EXISTS idx_pers_person_fullname ON public.pers_person(LOWER(name || ' ' || last_name));

@@ -94,14 +94,29 @@ def get_employee_first_entry_today(employee_id, check_date=None):
         start_datetime = datetime.combine(check_date, datetime.min.time())
         end_datetime = datetime.combine(check_date, datetime.max.time())
         
-        cur.execute("""
+        # Turnstile IN list update
+        in_turnstiles = [
+            'Building A-1-In', 'Building A-2-In', 
+            'Building B-1-In', 'Building B-2-In', 
+            'İcerisheher-1-In', 'İcerisheher-2-In', 
+            'BuldingA1-1-In', 
+            'Filologiya-1-Dış', 'Filologiya-2-İçinde'
+        ]
+        
+        # Build IN clause placeholders
+        placeholders = ', '.join(['%s'] * len(in_turnstiles))
+        
+        query = f"""
             SELECT MIN(t.create_time) as first_entry
             FROM public.acc_transaction t
             WHERE t.name = %s 
               AND t.last_name = %s
               AND t.create_time BETWEEN %s AND %s
-              AND t.reader_name ~ '[1-2]'  -- Sadece giriş kapıları (1 ve 2)
-        """, (name, last_name, start_datetime, end_datetime))
+              AND t.reader_name IN ({placeholders})
+        """
+        
+        params = [name, last_name, start_datetime, end_datetime] + in_turnstiles
+        cur.execute(query, params)
         
         result = cur.fetchone()
         return result[0] if result and result[0] else None

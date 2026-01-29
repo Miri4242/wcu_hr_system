@@ -69,6 +69,24 @@ DB_CONFIG = {
     'port': os.environ.get('DB_PORT', '5432')
 }
 
+# Turnstile Configuration
+TURNSTILE_CONFIG = {
+    'IN': [
+        'Building A-1-In', 'Building A-2-In', 
+        'Building B-1-In', 'Building B-2-In', 
+        'İcerisheher-1-In', 'İcerisheher-2-In', 
+        'BuldingA1-1-In', 
+        'Filologiya-1-Dış', 'Filologiya-2-İçinde'
+    ],
+    'OUT': [
+        'Building A-3-In', 'Building A-4-In', 
+        'Building B-3-In', 'Building B-4-In', 
+        'İcerisheher-3-In', 'İcerisheher-4-In', 
+        'BuldingA1-2-In', 'BuldingA1-2-Out',
+        'Filologiya-3-In', 'Filologiya-4-In'  # Assuming standard pattern for missing ones
+    ]
+}
+
 # 8 HOURS REFERENCE
 EIGHT_HOURS_SECONDS = 28800
 PER_PAGE_ATTENDANCE = 20
@@ -975,8 +993,9 @@ def calculate_times_from_transactions(transactions):
                 # Never left that day - could be invalid data
                 is_invalid_day = True
             else:
-                # They left and came back, but last event was IN - this is valid
-                is_invalid_day = False
+                # They left and came back, but last event was IN - on a PAST day.
+                # If they are still inside from a past day, it's invalid (missing exit).
+                is_invalid_day = True
 
     total_inside_seconds = 0
     total_span_seconds = 0
@@ -1183,17 +1202,14 @@ def get_employee_logs(person_key=None, start_date=None, end_date=None, category=
 
             log_date = create_time.date()
 
-            # SADECE RAKAM KONTROLÜ - Building A-1 pattern'ine göre
+            # Turnstile logic update based on name configuration
             direction_type = None
             if reader_name:
-                import re
-                numbers = re.findall(r'\d+', reader_name)
-                if numbers:
-                    reader_number = int(numbers[0])
-                    if reader_number in [1, 2]:
-                        direction_type = 'in'
-                    elif reader_number in [3, 4]:
-                        direction_type = 'out'
+                r_name = reader_name.strip()
+                if r_name in TURNSTILE_CONFIG['IN']:
+                   direction_type = 'in'
+                elif r_name in TURNSTILE_CONFIG['OUT']:
+                   direction_type = 'out'
 
             if not direction_type:
                 # Eğer rakam bulunamadıysa veya 1-4 arasında değilse, bu kaydı yok say
@@ -1454,17 +1470,14 @@ def get_tracked_hours_by_dates(person_key, start_date, end_date):
 
             log_date = create_time.date()
 
-            # SADECE RAKAM KONTROLÜ - Building A-1 pattern'ine göre
+            # Turnstile logic update based on name configuration
             direction_type = None
             if reader_name:
-                import re
-                numbers = re.findall(r'\d+', reader_name)
-                if numbers:
-                    reader_number = int(numbers[0])
-                    if reader_number in [1, 2]:
-                        direction_type = 'in'
-                    elif reader_number in [3, 4]:
-                        direction_type = 'out'
+                r_name = reader_name.strip()
+                if r_name in TURNSTILE_CONFIG['IN']:
+                   direction_type = 'in'
+                elif r_name in TURNSTILE_CONFIG['OUT']:
+                   direction_type = 'out'
 
             if not direction_type:
                 # Eğer rakam bulunamadıysa veya 1-4 arasında değilse, bu kaydı yok say
