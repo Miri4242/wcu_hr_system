@@ -76,14 +76,16 @@ TURNSTILE_CONFIG = {
         'Building B-1-In', 'Building B-2-In', 
         'İcerisheher-1-In', 'İcerisheher-2-In', 
         'BuldingA1-1-In', 
-        'Filologiya-1-Dış', 'Filologiya-2-İçinde'
+        'Filologiya-1-Dış', 'Filologiya-2-İçinde',
+        '10.0.0.95-1-In', '10.0.0.95-2-In'
     ],
     'OUT': [
         'Building A-3-In', 'Building A-4-In', 
         'Building B-3-In', 'Building B-4-In', 
         'İcerisheher-3-In', 'İcerisheher-4-In', 
         'BuldingA1-2-In', 'BuldingA1-2-Out',
-        'Filologiya-3-In', 'Filologiya-4-In'  # Assuming standard pattern for missing ones
+        'Filologiya-3-In', 'Filologiya-4-In',
+        '10.0.0.95-3-In', '10.0.0.95-4-In'
     ]
 }
 
