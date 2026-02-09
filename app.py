@@ -121,39 +121,11 @@ def get_current_baku_time():
     return baku_now.replace(tzinfo=None)
 
 
-from psycopg2 import pool
-
-# Database Connection Pool
-try:
-    postgreSQL_pool = psycopg2.pool.SimpleConnectionPool(
-        1,  # minconn
-        20, # maxconn
-        **DB_CONFIG
-    )
-    if postgreSQL_pool:
-        print("Connection pool created successfully")
-except (Exception, psycopg2.DatabaseError) as error:
-    print("Error while connecting to PostgreSQL", error)
-    postgreSQL_pool = None
-
 def get_db_connection():
-    """Gets a connection from the pool."""
+    """Tries to connect to the PostgreSQL database."""
     try:
-        if postgreSQL_pool:
-            return postgreSQL_pool.getconn()
-        else:
-            # Fallback if pool creation failed
-            return psycopg2.connect(**DB_CONFIG)
-    except Exception as e:
-        print(f"🚨 Database connection error: {e}")
-        return None
-
-def return_db_connection(conn):
-    """Returns a connection to the pool."""
-    if postgreSQL_pool and conn:
-        postgreSQL_pool.putconn(conn)
-    elif conn:
-        conn.close()
+        conn = psycopg2.connect(**DB_CONFIG)
+        return conn
     except psycopg2.Error as e:
         print(f"🚨 Database connection error: {e}")
         return None
