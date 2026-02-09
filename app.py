@@ -77,7 +77,9 @@ TURNSTILE_CONFIG = {
         'İcerisheher-1-In', 'İcerisheher-2-In', 
         'BuldingA1-1-In', 
         'Filologiya-1-Dış', 'Filologiya-2-İçinde',
-        '10.0.0.95-1-In', '10.0.0.95-2-In'
+        'Filologiya-1-In', 'Filologiya-2-In',
+        '10.0.0.95-1-In', '10.0.0.95-2-In',
+        '10.0.0.145-1-In', '10.0.0.145-2-In'
     ],
     'OUT': [
         'Building A-3-In', 'Building A-4-In', 
@@ -85,7 +87,8 @@ TURNSTILE_CONFIG = {
         'İcerisheher-3-In', 'İcerisheher-4-In', 
         'BuldingA1-2-In', 'BuldingA1-2-Out',
         'Filologiya-3-In', 'Filologiya-4-In',
-        '10.0.0.95-3-In', '10.0.0.95-4-In'
+        '10.0.0.95-3-In', '10.0.0.95-4-In',
+        '10.0.0.145-3-In', '10.0.0.145-4-In'
     ]
 }
 
@@ -118,11 +121,39 @@ def get_current_baku_time():
     return baku_now.replace(tzinfo=None)
 
 
+from psycopg2 import pool
+
+# Database Connection Pool
+try:
+    postgreSQL_pool = psycopg2.pool.SimpleConnectionPool(
+        1,  # minconn
+        20, # maxconn
+        **DB_CONFIG
+    )
+    if postgreSQL_pool:
+        print("Connection pool created successfully")
+except (Exception, psycopg2.DatabaseError) as error:
+    print("Error while connecting to PostgreSQL", error)
+    postgreSQL_pool = None
+
 def get_db_connection():
-    """Tries to connect to the PostgreSQL database."""
+    """Gets a connection from the pool."""
     try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        return conn
+        if postgreSQL_pool:
+            return postgreSQL_pool.getconn()
+        else:
+            # Fallback if pool creation failed
+            return psycopg2.connect(**DB_CONFIG)
+    except Exception as e:
+        print(f"🚨 Database connection error: {e}")
+        return None
+
+def return_db_connection(conn):
+    """Returns a connection to the pool."""
+    if postgreSQL_pool and conn:
+        postgreSQL_pool.putconn(conn)
+    elif conn:
+        conn.close()
     except psycopg2.Error as e:
         print(f"🚨 Database connection error: {e}")
         return None
