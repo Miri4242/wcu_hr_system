@@ -90,7 +90,7 @@ def get_employee_first_entry_today(employee_id, check_date=None):
         
         name, last_name = employee_data
         
-        # İlk giriş saatini bul
+        # İlk giriş saatini bul (Kart numarasına göre eşleşme - Refactored)
         start_datetime = datetime.combine(check_date, datetime.min.time())
         end_datetime = datetime.combine(check_date, datetime.max.time())
         
@@ -109,13 +109,13 @@ def get_employee_first_entry_today(employee_id, check_date=None):
         query = f"""
             SELECT MIN(t.create_time) as first_entry
             FROM public.acc_transaction t
-            WHERE t.name = %s 
-              AND t.last_name = %s
+            JOIN public.pers_card c ON t.card_no = c.card_no
+            WHERE c.person_id = %s
               AND t.create_time BETWEEN %s AND %s
               AND t.reader_name IN ({placeholders})
         """
         
-        params = [name, last_name, start_datetime, end_datetime] + in_turnstiles
+        params = [employee_id, start_datetime, end_datetime] + in_turnstiles
         cur.execute(query, params)
         
         result = cur.fetchone()

@@ -9,6 +9,7 @@ CREATE INDEX IF NOT EXISTS idx_pers_position_name_lower ON public.pers_position(
 CREATE INDEX IF NOT EXISTS idx_acc_transaction_date ON public.acc_transaction(DATE(create_time));
 CREATE INDEX IF NOT EXISTS idx_acc_transaction_name_date ON public.acc_transaction(name, last_name, DATE(create_time));
 CREATE INDEX IF NOT EXISTS idx_acc_transaction_reader ON public.acc_transaction(reader_name);
+CREATE INDEX IF NOT EXISTS idx_acc_transaction_card_no ON public.acc_transaction(card_no);
 
 -- 3. Employee names for joins (Tüm employee queries için)
 CREATE INDEX IF NOT EXISTS idx_pers_person_name ON public.pers_person(name, last_name);

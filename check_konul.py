@@ -27,7 +27,8 @@ def check():
     cur.execute("""
         SELECT COUNT(*)
         FROM public.acc_transaction t
-        JOIN public.pers_person p ON (t.pin = p.pin OR (t.name = p.name AND t.last_name = p.last_name))
+        JOIN public.pers_card c ON t.card_no = c.card_no
+        JOIN public.pers_person p ON c.person_id = p.id
         JOIN public.pers_position pp ON p.position_id = pp.id
         LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
         WHERE pp.name = 'Müəllim' 
@@ -40,16 +41,18 @@ def check():
     cur.execute("""
         SELECT COUNT(*) 
         FROM public.acc_transaction t
-        JOIN public.pers_person p ON (t.pin = p.pin OR (t.name = p.name AND t.last_name = p.last_name))
+        JOIN public.pers_card c ON t.card_no = c.card_no
+        JOIN public.pers_person p ON c.person_id = p.id
         WHERE (LOWER(p.name) = 'könül' AND LOWER(p.last_name) = 'əhmədova')
     """)
     print(f'Könül Transactions (Total): {cur.fetchone()[0]}')
 
     # Dates for Könül
     cur.execute("""
-        SELECT MIN(create_time), MAX(create_time)
+        SELECT MIN(t.create_time), MAX(t.create_time)
         FROM public.acc_transaction t
-        JOIN public.pers_person p ON (t.pin = p.pin OR (t.name = p.name AND t.last_name = p.last_name))
+        JOIN public.pers_card c ON t.card_no = c.card_no
+        JOIN public.pers_person p ON c.person_id = p.id
         WHERE (LOWER(p.name) = 'könül' AND LOWER(p.last_name) = 'əhmədova')
     """)
     dates = cur.fetchone()

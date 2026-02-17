@@ -144,9 +144,10 @@ def get_dashboard_data_optimized():
             transaction_stats AS (
                 SELECT 
                     COUNT(*) as total_transactions,
-                    COUNT(DISTINCT CASE WHEN t.reader_name ILIKE '%-in%' THEN (t.name, t.last_name) END) as present_count
+                    COUNT(DISTINCT CASE WHEN t.reader_name ILIKE '%-in%' THEN (t.card_no) END) as present_count
                 FROM public.acc_transaction t
-                INNER JOIN public.pers_person p ON t.name = p.name AND t.last_name = p.last_name
+                JOIN public.pers_card c ON t.card_no = c.card_no
+                JOIN public.pers_person p ON c.person_id = p.id
                 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
                 WHERE DATE(t.create_time) = %s 
                 AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor' AND pp.name NOT ILIKE 'müəllim'))

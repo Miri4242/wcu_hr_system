@@ -1,13 +1,15 @@
 -- Check transaction count for Könül Əhmədova
 SELECT COUNT(*) 
-FROM public.acc_transaction 
-WHERE (LOWER(name) = 'könül' AND LOWER(last_name) = 'əhmədova')
-   OR pin IN (SELECT pin FROM public.pers_person WHERE LOWER(name) = 'könül' AND LOWER(last_name) = 'əhmədova');
+FROM public.acc_transaction t
+JOIN public.pers_card c ON t.card_no = c.card_no
+JOIN public.pers_person p ON c.person_id = p.id
+WHERE (LOWER(p.name) = 'könül' AND LOWER(p.last_name) = 'əhmədova');
 
 -- Check total transactions for Teachers category in the last year
 SELECT COUNT(*)
 FROM public.acc_transaction t
-JOIN public.pers_person p ON (t.pin = p.pin OR (t.name = p.name AND t.last_name = p.last_name))
+JOIN public.pers_card c ON t.card_no = c.card_no
+JOIN public.pers_person p ON c.person_id = p.id
 JOIN public.pers_position pp ON p.position_id = pp.id
 LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
 WHERE pp.name = 'Müəllim' 

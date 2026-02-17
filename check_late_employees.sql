@@ -34,9 +34,10 @@ SELECT
     p.name, p.last_name, p.id as person_id,
     MIN(t.create_time) as first_in_time,
     pae.attr_value4 as expected_time
-FROM public.pers_person p
+FROM public.acc_transaction t
+JOIN public.pers_card c ON t.card_no = c.card_no
+JOIN public.pers_person p ON c.person_id = p.id
 LEFT JOIN public.pers_attribute_ext pae ON p.id = pae.person_id
-INNER JOIN public.acc_transaction t ON t.name = p.name AND t.last_name = p.last_name
 LEFT JOIN public.pers_position pp ON p.position_id = pp.id
 WHERE DATE(t.create_time) = CURRENT_DATE
   AND pae.attr_value4 IS NOT NULL
