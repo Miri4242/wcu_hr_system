@@ -30,17 +30,17 @@ import logging
 try:
     from late_arrival_system import check_all_employees_late_arrivals, update_monthly_statistics
     LATE_ARRIVAL_SYSTEM_AVAILABLE = True
-    print("✅ Late arrival system imported successfully")
+    logging.info("Late arrival system imported successfully")
 except ImportError as e:
-    print(f"⚠️  Late arrival system not available: {e}")
+    logging.warning(f"Late arrival system not available: {e}")
     LATE_ARRIVAL_SYSTEM_AVAILABLE = False
     # Create dummy functions to prevent errors
     def check_all_employees_late_arrivals():
-        print("⚠️  Late arrival system not available")
+        logging.warning("Late arrival system not available")
         return False
     
     def update_monthly_statistics():
-        print("⚠️  Late arrival system not available")
+        logging.warning("Late arrival system not available")
         return False
 
 load_dotenv()
@@ -4040,6 +4040,6 @@ if __name__ == '__main__':
     app.run(debug=True)
 else:
     # Production mode (Railway/Gunicorn)
-    print("🚀 Production mode detected")
-    print("⚠️ Background scheduler disabled - email system temporarily disabled")
-    print("💡 Use manual controls via admin panel instead")
+    logging.info("Production mode detected")
+    logging.info("Background scheduler disabled - email system temporarily disabled")
+    logging.info("Use manual controls via admin panel instead")
