@@ -79,7 +79,10 @@ TURNSTILE_CONFIG = {
         'Filologiya-1-Dış', 'Filologiya-2-İçinde',
         'Filologiya-1-In', 'Filologiya-2-In',
         '10.0.0.95-1-In', '10.0.0.95-2-In',
-        '10.0.0.145-1-In', '10.0.0.145-2-In'
+        '10.0.0.145-1-In', '10.0.0.145-2-In',
+        'BuildingA-1', 'BuildingA-2', 'Collage-1', 'Collage-2',
+        'BuildingA-1-In', 'BuildingA-2-In', 'College-1-In', 'College-2-In',
+        'College-1', 'College-2'
     ],
     'OUT': [
         'Building A-3-In', 'Building A-4-In', 
@@ -88,7 +91,10 @@ TURNSTILE_CONFIG = {
         'BuldingA1-2-In', 'BuldingA1-2-Out',
         'Filologiya-3-In', 'Filologiya-4-In',
         '10.0.0.95-3-In', '10.0.0.95-4-In',
-        '10.0.0.145-3-In', '10.0.0.145-4-In'
+        '10.0.0.145-3-In', '10.0.0.145-4-In',
+        'BuildingA-3', 'BuildingA-4', 'Collage-3', 'Collage-4',
+        'BuildingA-3-In', 'BuildingA-4-In', 'College-3-In', 'College-4-In',
+        'College-3', 'College-4'
     ]
 }
 

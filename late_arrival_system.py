@@ -100,7 +100,10 @@ def get_employee_first_entry_today(employee_id, check_date=None):
             'Building B-1-In', 'Building B-2-In', 
             'İcerisheher-1-In', 'İcerisheher-2-In', 
             'BuldingA1-1-In', 
-            'Filologiya-1-Dış', 'Filologiya-2-İçinde'
+            'Filologiya-1-Dış', 'Filologiya-2-İçinde',
+            'BuildingA-1', 'BuildingA-2', 'Collage-1', 'Collage-2',
+            'BuildingA-1-In', 'BuildingA-2-In', 'College-1-In', 'College-2-In',
+            'College-1', 'College-2'
         ]
         
         # Build IN clause placeholders

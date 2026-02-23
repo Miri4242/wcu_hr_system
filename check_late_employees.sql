@@ -44,7 +44,10 @@ WHERE DATE(t.create_time) = CURRENT_DATE
   AND t.reader_name IN (
         'Building A-1-In', 'Building A-2-In', 'Building B-1-In', 'Building B-2-In', 
         'İcerisheher-1-In', 'İcerisheher-2-In', 'BuldingA1-1-In', 
-        'Filologiya-1-Dış', 'Filologiya-2-İçinde'
+        'Filologiya-1-Dış', 'Filologiya-2-İçinde',
+        'BuildingA-1', 'BuildingA-2', 'Collage-1', 'Collage-2',
+        'BuildingA-1-In', 'BuildingA-2-In', 'College-1-In', 'College-2-In',
+        'College-1', 'College-2'
     )
   AND (pp.name IS NULL OR (pp.name NOT ILIKE 'student' AND pp.name NOT ILIKE 'visitor' AND pp.name NOT ILIKE 'müəllim'))
 GROUP BY p.name, p.last_name, p.id, pae.attr_value4
