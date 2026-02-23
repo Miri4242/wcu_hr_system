@@ -16,5 +16,5 @@ Flask-Caching==2.1.0
 schedule==1.2.0
 
 # Excel Export
-pandas==3.0.0
+pandas
 openpyxl==3.1.5

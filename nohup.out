@@ -1,0 +1,35 @@
+[2026-02-20 05:44:08 -0500] [78] [INFO] Starting gunicorn 23.0.0
+[2026-02-20 05:44:08 -0500] [78] [INFO] Listening at: http://127.0.0.1:5000 (78)
+[2026-02-20 05:44:08 -0500] [78] [INFO] Using worker: sync
+[2026-02-20 05:44:08 -0500] [79] [INFO] Booting worker with pid: 79
+[2026-02-20 05:47:24 -0500] [79] [INFO] Worker exiting (pid: 79)
+✅ Late arrival system imported successfully
+🚀 Production mode detected
+⚠️ Background scheduler disabled - email system temporarily disabled
+💡 Use manual controls via admin panel instead
+[2026-02-20 05:47:24 -0500] [78] [INFO] Handling signal: term
+[2026-02-20 05:47:24 -0500] [78] [ERROR] Worker (pid:79) was sent SIGTERM!
+[2026-02-20 05:47:24 -0500] [78] [INFO] Shutting down: Master
+[2026-02-20 05:47:29 -0500] [81] [INFO] Starting gunicorn 23.0.0
+[2026-02-20 05:47:29 -0500] [81] [INFO] Listening at: http://0.0.0.0:5000 (81)
+[2026-02-20 05:47:29 -0500] [81] [INFO] Using worker: sync
+[2026-02-20 05:47:29 -0500] [82] [INFO] Booting worker with pid: 82
+[2026-02-20 05:47:30 -0500] [83] [INFO] Booting worker with pid: 83
+[2026-02-20 05:47:30 -0500] [84] [INFO] Booting worker with pid: 84
+[2026-02-20 05:50:43 -0500] [84] [INFO] Worker exiting (pid: 84)
+[2026-02-20 05:50:43 -0500] [82] [INFO] Worker exiting (pid: 82)
+[2026-02-20 05:50:43 -0500] [81] [INFO] Handling signal: term
+✅ Late arrival system imported successfully
+🚀 Production mode detected
+⚠️ Background scheduler disabled - email system temporarily disabled
+💡 Use manual controls via admin panel instead
+✅ Late arrival system imported successfully
+🚀 Production mode detected
+⚠️ Background scheduler disabled - email system temporarily disabled
+💡 Use manual controls via admin panel instead
+[2026-02-20 05:50:43 -0500] [83] [INFO] Worker exiting (pid: 83)
+✅ Late arrival system imported successfully
+🚀 Production mode detected
+⚠️ Background scheduler disabled - email system temporarily disabled
+💡 Use manual controls via admin panel instead
+[2026-02-20 05:50:43 -0500] [81] [INFO] Shutting down: Master
