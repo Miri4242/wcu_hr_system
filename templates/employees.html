@@ -252,25 +252,16 @@ function fetchEmployees(category = 'active', searchTerm = '', page = 1) {
     currentPage = page;
     currentCategory = category;
 
-    console.log(`🔍 Fetching ${category} employees - term: '${searchTerm}', page: ${page}`);
+    const apiUrl = `/api/employees_list?category=${category}&search=${encodeURIComponent(searchTerm)}&page=${page}`;
+    console.log(`🔍 Fetching: ${apiUrl}`);
 
-    fetch(`/api/employees_list?category=${category}&search=${encodeURIComponent(searchTerm)}&page=${page}`)
+    fetch(apiUrl)
         .then(response => {
-            console.log('🔍 Response status:', response.status);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            console.log(`📡 Response status: ${response.status}`);
             return response.json();
         })
         .then(data => {
-            console.log('🔍 Response data:', data);
-            
-            // Check for error in response
-            if (data.error) {
-                console.error('❌ API Error:', data.error);
-                throw new Error(data.error);
-            }
-            
+            console.log(`📦 Data received:`, data);
             allEmployees = data.employees || [];
             totalPages = data.pagination?.total_pages || 1;
             currentPage = data.pagination?.current_page || 1;
@@ -288,14 +279,9 @@ function fetchEmployees(category = 'active', searchTerm = '', page = 1) {
             updateCategoryBadges(data.category_counts || {});
         })
         .catch(error => {
-            console.error('❌ Fetch Error:', error);
-            console.error('❌ Error details:', error.message);
+            console.error('❌ Error:', error);
             loadingSpinner.style.display = 'none';
-            employeesGrid.innerHTML = `<div class="col-12"><div class="alert alert-danger text-center">
-                <h5>Error loading employees</h5>
-                <p class="mb-0">${error.message}</p>
-                <small class="text-muted">Please check browser console for details</small>
-            </div></div>`;
+            employeesGrid.innerHTML = '<div class="col-12"><div class="alert alert-danger text-center">Error loading employees. Check console for details.</div></div>';
             employeesGrid.style.display = '';
         });
 }

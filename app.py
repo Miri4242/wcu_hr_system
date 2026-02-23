@@ -53,12 +53,6 @@ app = Flask(__name__,
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'default-fallback-key')
 app.secret_key = app.config['SECRET_KEY']
 
-# Session configuration for CGI mode (Hostgator VPS)
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True if using HTTPS
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour
-
 # Disable template caching for development
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.jinja_env.auto_reload = True
@@ -2259,47 +2253,24 @@ def employees():
     return render_template('employees.html')
 
 
-@app.route('/api/test')
-def api_test():
-    """Simple test endpoint to verify API is working"""
-    return jsonify({
-        'status': 'ok',
-        'message': 'API is working',
-        'logged_in': 'user' in session,
-        'db_connected': get_db_connection() is not None
-    })
-
-
 @app.route('/api/employees_list')
 def api_employees_list():
     """AJAX endpoint for employees list with search, pagination and categories"""
-    try:
-        # Login kontrolü - JSON API için
-        if 'user' not in session:
-            print("❌ API: User not logged in")
-            return jsonify({
-                'employees': [], 
-                'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 
-                'category_counts': {'active': 0, 'school': 0, 'teachers': 0},
-                'error': 'Login required'
-            }), 401
+    # Login kontrolü - JSON API için
+    if 'user' not in session:
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'error': 'Login required'})
 
-        search_term = request.args.get('search', '').strip().lower()
-        page = int(request.args.get('page', 1))
-        category = request.args.get('category', 'active')  # active, school, teachers
-        per_page = 12  # 12 çalışan per sayfa
+    search_term = request.args.get('search', '').strip().lower()
+    page = int(request.args.get('page', 1))
+    category = request.args.get('category', 'active')  # active, school, teachers
+    per_page = 12  # 12 çalışan per sayfa
 
-        print(f"🔍 Employee search API called - category: '{category}', term: '{search_term}', page: {page}")
+    print(f"🔍 Employee search API called - category: '{category}', term: '{search_term}', page: {page}")
 
-        conn = get_db_connection()
-        if conn is None: 
-            print("❌ Database connection failed")
-            return jsonify({
-                'employees': [], 
-                'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 
-                'category_counts': {'active': 0, 'school': 0, 'teachers': 0},
-                'error': 'Database connection error'
-            }), 500
+    conn = get_db_connection()
+    if conn is None: 
+        print("❌ Database connection failed")
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'error': 'Database error'})
 
     cur = conn.cursor()
     try:
@@ -2446,7 +2417,6 @@ def api_employees_list():
         """)
         category_counts['teachers'] = cur.fetchone()[0]
         
-        print(f"✅ API Success: Returning {len(employees)} employees, page {page}/{total_pages}")
         return jsonify({
             'employees': employees,
             'pagination': {
@@ -2459,16 +2429,8 @@ def api_employees_list():
         })
         
     except Exception as e:
-        import traceback
-        error_trace = traceback.format_exc()
         print(f"🚨 Employees API Error: {e}")
-        print(f"🚨 Traceback: {error_trace}")
-        return jsonify({
-            'employees': [], 
-            'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0},
-            'category_counts': {'active': 0, 'school': 0, 'teachers': 0},
-            'error': f'Server error: {str(e)}'
-        }), 500
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}})
     finally:
         if cur: cur.close()
         if conn: conn.close()
