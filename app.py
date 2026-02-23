@@ -2292,24 +2292,15 @@ def api_employees_list():
         search_filter = ""
         search_params = []
         if search_term:
-            # Azerbaycan karakterlerini normalize et (hem Python hem SQL tarafında)
-            # Python tarafında arama terimini normalize et
-            tr_map = str.maketrans("ƏəĞğIıİiÖöŞşÜüÇç", "EeGgIiIiOoSsUuCc")
-            normalized_term = request.args.get('search', '').strip().translate(tr_map).lower()
-            search_pattern = f'%{normalized_term}%'
-            
-            # SQL tarafında sütunları normalize et
-            # TRANSLATE fonksiyonu ile DB'deki karakterleri İngilizce karşılıklarına çeviriyoruz
-            normalize_sql = "LOWER(TRANSLATE({}, 'ƏəĞğIıİiÖöŞşÜüÇç', 'EeGgIiIiOoSsUuCc'))"
-            
-            search_filter = f"""
-                AND ({normalize_sql.format('p.name')} LIKE %s 
-                     OR {normalize_sql.format('p.last_name')} LIKE %s 
-                     OR {normalize_sql.format('p.email')} LIKE %s 
-                     OR {normalize_sql.format('pp.name')} LIKE %s
-                     OR {normalize_sql.format("p.name || ' ' || p.last_name")} LIKE %s
-                     OR {normalize_sql.format('p.mobile_phone')} LIKE %s
-                     OR {normalize_sql.format('ad.name')} LIKE %s)
+            search_pattern = f'%{search_term}%'
+            search_filter = """
+                AND (LOWER(p.name) LIKE %s 
+                     OR LOWER(p.last_name) LIKE %s 
+                     OR LOWER(p.email) LIKE %s 
+                     OR LOWER(pp.name) LIKE %s
+                     OR LOWER(p.name || ' ' || p.last_name) LIKE %s
+                     OR LOWER(p.mobile_phone) LIKE %s
+                     OR LOWER(ad.name) LIKE %s)
             """
             search_params = [search_pattern] * 7
         
