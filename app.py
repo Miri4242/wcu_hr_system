@@ -2256,33 +2256,28 @@ def employees():
 @app.route('/api/employees_list')
 def api_employees_list():
     """AJAX endpoint for employees list with search, pagination and categories"""
-    # Login kontrolü - JSON API için
-    if 'user' not in session:
-        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'error': 'Login required'})
-
-    search_term = request.args.get('search', '').strip().lower()
-    page = int(request.args.get('page', 1))
-    category = request.args.get('category', 'active')  # active, school, teachers
-    per_page = 12  # 12 çalışan per sayfa
-
-    print(f"🔍 Employee search API called - category: '{category}', term: '{search_term}', page: {page}")
-
-    conn = get_db_connection()
-    if conn is None: 
-        print("❌ Database connection failed")
-        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'error': 'Database error'})
-
-    cur = conn.cursor()
     try:
-        # Basit ve net WHERE conditions
+        # Login kontrolü - JSON API için
+        if 'user' not in session:
+            return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'category_counts': {'active': 0, 'school': 0, 'teachers': 0}})
+
+        search_term = request.args.get('search', '').strip().lower()
+        page = int(request.args.get('page', 1))
+        category = request.args.get('category', 'active')
+        per_page = 12
+
+        conn = get_db_connection()
+        if conn is None: 
+            return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'category_counts': {'active': 0, 'school': 0, 'teachers': 0}})
+
+        cur = conn.cursor()
+        
+        # WHERE clause
         if category == 'teachers' or category == 'teacher':
-            # Müəllim pozisyonundakiler ama School departmanında OLMAYANLAR
             where_clause = "WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')"
         elif category == 'school':
-            # School departmanındaki HERKES (müəllimleri de dahil)
             where_clause = "WHERE ad.name = 'School'"
-        else:  # active (administrative)
-            # Aktif çalışanlar: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
+        else:
             where_clause = """WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
                                                         AND pp.name NOT ILIKE 'VISITOR' 
                                                         AND pp.name NOT ILIKE 'MÜƏLLİM'))
@@ -2298,20 +2293,10 @@ def api_employees_list():
                      OR LOWER(p.last_name) LIKE %s 
                      OR LOWER(p.email) LIKE %s 
                      OR LOWER(pp.name) LIKE %s
-                     OR LOWER(p.name || ' ' || p.last_name) LIKE %s
-                     OR LOWER(p.mobile_phone) LIKE %s
-                     OR LOWER(ad.name) LIKE %s)
+                     OR LOWER(p.name || ' ' || p.last_name) LIKE %s)
             """
-            search_params = [search_pattern] * 7
+            search_params = [search_pattern] * 5
         
-        # Count query
-        count_query = f"""
-            SELECT COUNT(*) 
-            FROM public.pers_person p
-            LEFT JOIN public.pers_position pp ON p.position_id = pp.id
-            LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
-            {where_clause} {search_filter}
-        """
         # Count query
         count_query = f"""
             SELECT COUNT(*) 
@@ -2323,24 +2308,15 @@ def api_employees_list():
         cur.execute(count_query, search_params)
         total_items = cur.fetchone()[0]
         
-        # Calculate pagination
-        total_pages = (total_items + per_page - 1) // per_page
-        if page < 1: page = 1
-        if page > total_pages and total_pages > 0: page = total_pages
-        
+        # Pagination
+        total_pages = max(1, (total_items + per_page - 1) // per_page)
+        page = max(1, min(page, total_pages))
         offset = (page - 1) * per_page
         
         # Main query
         employees_query = f"""
-            SELECT p.id,
-                   p.name,
-                   p.last_name,
-                   p.mobile_phone,
-                   p.email,
-                   p.birthday,
-                   pp.name AS position_name,
-                   p.create_time AS hire_date,
-                   p.photo_path,
+            SELECT p.id, p.name, p.last_name, p.mobile_phone, p.email, p.birthday,
+                   pp.name AS position_name, p.create_time AS hire_date, p.photo_path,
                    ad.name AS department_name
             FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
@@ -2350,12 +2326,9 @@ def api_employees_list():
             LIMIT %s OFFSET %s
         """
         
-        print(f"🔍 EMPLOYEES QUERY: {employees_query}")
         params = search_params + [per_page, offset]
-        print(f"🔍 ALL PARAMS: {params}")
         cur.execute(employees_query, params)
         employees_raw = cur.fetchall()
-        print(f"🔍 RAW EMPLOYEES FOUND: {len(employees_raw)}")
         
         employees = []
         for row in employees_raw:
@@ -2375,10 +2348,8 @@ def api_employees_list():
         # Category counts
         category_counts = {}
         
-        # Active count - Administrative: STUDENT, VISITOR, MÜƏLLİM hariç VE School departmanında olmayanlar
         cur.execute("""
-            SELECT COUNT(*) 
-            FROM public.pers_person p
+            SELECT COUNT(*) FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
             WHERE (pp.name IS NULL OR (pp.name NOT ILIKE 'STUDENT' 
@@ -2388,25 +2359,24 @@ def api_employees_list():
         """)
         category_counts['active'] = cur.fetchone()[0]
         
-        # School count - School departmanındaki HERKES (müəllimleri de dahil)
         cur.execute("""
-            SELECT COUNT(*) 
-            FROM public.pers_person p
+            SELECT COUNT(*) FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
             WHERE ad.name = 'School'
         """)
         category_counts['school'] = cur.fetchone()[0]
         
-        # Teachers count - Müəllimler ama School departmanında olmayanlar
         cur.execute("""
-            SELECT COUNT(*) 
-            FROM public.pers_person p
+            SELECT COUNT(*) FROM public.pers_person p
             LEFT JOIN public.pers_position pp ON p.position_id = pp.id
             LEFT JOIN public.auth_department ad ON p.auth_dept_id = ad.id
             WHERE pp.name = 'Müəllim' AND (ad.name IS NULL OR ad.name != 'School')
         """)
         category_counts['teachers'] = cur.fetchone()[0]
+        
+        cur.close()
+        conn.close()
         
         return jsonify({
             'employees': employees,
@@ -2420,11 +2390,7 @@ def api_employees_list():
         })
         
     except Exception as e:
-        print(f"🚨 Employees API Error: {e}")
-        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}})
-    finally:
-        if cur: cur.close()
-        if conn: conn.close()
+        return jsonify({'employees': [], 'pagination': {'current_page': 1, 'total_pages': 1, 'total_items': 0}, 'category_counts': {'active': 0, 'school': 0, 'teachers': 0}})
 
 
 @app.route('/employees/edit/<employee_id>', methods=['GET', 'POST'])
